@@ -1,4 +1,4 @@
-package com.preform.reader.spike
+package com.preform.reader.foldable
 
 import android.app.Activity
 import androidx.window.layout.FoldingFeature
@@ -57,7 +57,11 @@ data class PostureSnapshot(
  * feature at all. That absence - not the display id, which is inverted between a Flip
  * and a Fold - is how we know we are painting the cover screen.
  */
-class FoldStateRepository(private val activity: Activity) {
+class FoldStateRepository(
+    private val activity: Activity,
+    /** How many times the host activity has been created; only the diagnostics screen sets this. */
+    private val createCount: () -> Int = { 1 },
+) {
 
     private var rawEmissions = 0
     private var meaningfulUpdates = 0
@@ -133,7 +137,7 @@ class FoldStateRepository(private val activity: Activity) {
             rawFeatureCount = key.features.size,
             describedFeatures = key.features,
             activityInstanceId = System.identityHashCode(activity),
-            createCount = FoldProbeActivity.createCount,
+            createCount = createCount(),
             rawEmissions = rawEmissions,
             meaningfulUpdates = meaningfulUpdates,
         )

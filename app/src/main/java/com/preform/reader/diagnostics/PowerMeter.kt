@@ -1,7 +1,8 @@
-package com.preform.reader.spike
+package com.preform.reader.diagnostics
 
 import android.content.Context
 import android.os.BatteryManager
+import com.preform.reader.foldable.debugLog
 import kotlinx.coroutines.delay
 
 /**

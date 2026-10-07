@@ -1,4 +1,4 @@
-package com.preform.reader.spike
+package com.preform.reader.foldable
 
 import android.content.BroadcastReceiver
 import android.content.Context

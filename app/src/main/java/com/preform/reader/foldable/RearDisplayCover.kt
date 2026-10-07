@@ -1,6 +1,7 @@
-package com.preform.reader.spike
+package com.preform.reader.foldable
 
 import android.app.Activity
+import android.graphics.Bitmap
 import androidx.core.content.ContextCompat
 import androidx.window.area.WindowAreaCapability
 import androidx.window.area.WindowAreaController
@@ -25,6 +26,9 @@ import kotlinx.coroutines.flow.StateFlow
 @OptIn(ExperimentalWindowApi::class)
 class RearDisplayCover(
     private val activity: Activity,
+    /** The open book's cover (null for a title card) and title, read when a session starts. */
+    private val cover: () -> Bitmap?,
+    private val title: () -> String,
     /** A swipe on the back cover, in the reader's own left/right. Returns whether a page turned. */
     private val onBackSwipe: (SwipeDirection) -> Boolean,
 ) {
@@ -96,7 +100,7 @@ class RearDisplayCover(
             requestInFlight = false
             this@RearDisplayCover.session = session
             session.setContentView(
-                CoverView(session.context, "THE\nCOMPLETE\nWORKS") { dx ->
+                CoverView(session.context, cover(), title()) { dx ->
                     // This panel faces away from the reader, so its left is their right.
                     onBackSwipe(if (dx < 0) SwipeDirection.RIGHT else SwipeDirection.LEFT)
                 },
@@ -118,6 +122,6 @@ class RearDisplayCover(
     }
 
     private companion object {
-        const val TAG = "FoldProbe"
+        const val TAG = "BookMode"
     }
 }

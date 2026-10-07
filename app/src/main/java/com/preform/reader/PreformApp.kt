@@ -1,0 +1,47 @@
+package com.preform.reader
+
+import android.app.Application
+import android.content.Context
+import com.preform.reader.library.CoverExtractor
+import com.preform.reader.library.LibraryDatabase
+import com.preform.reader.library.LibraryRepository
+import com.preform.reader.reader.OpenBooks
+import com.preform.reader.reader.ReadiumServices
+import com.preform.reader.settings.PreferencesStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+
+class PreformApp : Application() {
+
+    lateinit var container: AppContainer
+        private set
+
+    override fun onCreate() {
+        super.onCreate()
+        container = AppContainer(this)
+    }
+}
+
+/**
+ * The app's object graph, built once per process. Plain constructor wiring: the graph
+ * is small enough that a DI framework would cost more than it saves.
+ */
+class AppContainer(context: Context) {
+    /** For writes that must outlive a screen, like saving the reading position as the reader closes. */
+    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    val preferences = PreferencesStore(context)
+    val readium = ReadiumServices(context)
+    private val database = LibraryDatabase.create(context)
+    val library = LibraryRepository(
+        context = context,
+        dao = database.books(),
+        readium = readium,
+        covers = CoverExtractor(context),
+        preferences = preferences,
+    )
+    val openBooks = OpenBooks()
+}
+
+val Context.container: AppContainer
+    get() = (applicationContext as PreformApp).container
