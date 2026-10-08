@@ -77,6 +77,13 @@ dependencies {
     implementation(libs.androidx.palette)
     implementation(libs.kotlinx.serialization.json)
 
+    // Private library: the shared wire format, a certificate-pinned HTTPS client, and
+    // Play Services' QR scanner (no camera permission: Play Services shows the camera).
+    implementation(project(":sync-protocol"))
+    implementation(libs.okhttp)
+    implementation(libs.androidx.work)
+    implementation(libs.play.services.code.scanner)
+
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)

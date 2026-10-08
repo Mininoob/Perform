@@ -39,6 +39,8 @@ data class LibraryUiState(
     val scan: ScanState = ScanState.Idle,
     /** The book currently being opened, for a spinner on its cover. */
     val opening: Long? = null,
+    /** PC books downloading, by id, with progress 0..1. */
+    val downloads: Map<Long, Float> = emptyMap(),
     /** False until the first database read, so an empty library isn't flashed on launch. */
     val loaded: Boolean = false,
 )
@@ -65,7 +67,8 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
         container.preferences.libraryFolder,
         library.scanState,
         opening,
-    ) { (books, q, s), folder, scan, openingId ->
+        container.sync.downloads,
+    ) { (books, q, s), folder, scan, openingId, downloads ->
         val filtered = if (q.isBlank()) books else books.filter {
             it.title.contains(q, ignoreCase = true) || it.author?.contains(q, ignoreCase = true) == true
         }
@@ -77,6 +80,7 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
             folderLabel = folder?.let(::folderLabel),
             scan = scan,
             opening = openingId,
+            downloads = downloads,
             loaded = true,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
@@ -89,6 +93,24 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch {
             library.syncFolder().onFailure {
                 _events.send(LibraryEvent.Message("Couldn't read the library folder. Choose it again in Settings."))
+            }
+        }
+        // The PC library syncs alongside; being away from it is normal, so no message.
+        viewModelScope.launch { container.sync.sync() }
+    }
+
+    fun downloadAction(book: BookEntity, action: DownloadAction) {
+        viewModelScope.launch {
+            when (action) {
+                DownloadAction.PIN -> {
+                    container.sync.setPinned(book, true)
+                    // "Keep downloaded" on a book not yet on the phone fetches it now.
+                    if (!book.downloaded) {
+                        container.sync.download(book).onFailure { _events.send(LibraryEvent.Message(it.message ?: "Download failed.")) }
+                    }
+                }
+                DownloadAction.UNPIN -> container.sync.setPinned(book, false)
+                DownloadAction.REMOVE_DOWNLOAD -> container.sync.removeDownload(book)
             }
         }
     }
@@ -145,7 +167,14 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
         opening.value = book.id
         viewModelScope.launch {
             try {
-                val publication = container.readium.open(book.uri).getOrElse {
+                // A PC book is fetched the first time it's opened.
+                val book = if (book.downloaded) book else {
+                    container.sync.download(book).getOrElse {
+                        _events.send(LibraryEvent.Message(it.message ?: "“${book.title}” couldn't be downloaded."))
+                        return@launch
+                    }
+                }
+                val publication = container.readium.open(book.readableUri!!).getOrElse {
                     _events.send(LibraryEvent.Message("“${book.title}” couldn't be opened. The file may have moved or be damaged."))
                     return@launch
                 }

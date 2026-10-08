@@ -68,6 +68,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.preform.reader.ui.rememberCover
 import kotlin.math.roundToInt
+import androidx.compose.foundation.shape.CircleShape
+import com.preform.reader.ui.CloudIcon
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,6 +78,7 @@ fun LibraryScreen(
     snackbar: SnackbarHostState,
     onOpen: (BookEntity) -> Unit,
     onRemove: (BookEntity) -> Unit,
+    onDownloadAction: (BookEntity, DownloadAction) -> Unit,
     onQueryChange: (String) -> Unit,
     onSortChange: (LibrarySort) -> Unit,
     onRefresh: () -> Unit,
@@ -139,7 +142,7 @@ fun LibraryScreen(
                 !state.loaded -> Unit
                 state.books.isEmpty() && state.query.isBlank() && state.scan == ScanState.Idle ->
                     EmptyLibrary(state.folderLabel, onChooseFolder, onAddBook)
-                else -> BookGrid(state, onOpen, onRemove, onSortChange)
+                else -> BookGrid(state, onOpen, onRemove, onDownloadAction, onSortChange)
             }
         }
     }
@@ -150,6 +153,7 @@ private fun BookGrid(
     state: LibraryUiState,
     onOpen: (BookEntity) -> Unit,
     onRemove: (BookEntity) -> Unit,
+    onDownloadAction: (BookEntity, DownloadAction) -> Unit,
     onSortChange: (LibrarySort) -> Unit,
 ) {
     LazyVerticalGrid(
@@ -178,8 +182,10 @@ private fun BookGrid(
             BookTile(
                 book = book,
                 opening = state.opening == book.id,
+                download = state.downloads[book.id],
                 onOpen = { onOpen(book) },
                 onRemove = { onRemove(book) },
+                onDownloadAction = { onDownloadAction(book, it) },
             )
         }
 
@@ -283,13 +289,20 @@ private fun SortRow(count: Int, sort: LibrarySort, onSortChange: (LibrarySort) -
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun BookTile(book: BookEntity, opening: Boolean, onOpen: () -> Unit, onRemove: () -> Unit) {
+private fun BookTile(
+    book: BookEntity,
+    opening: Boolean,
+    download: Float?,
+    onOpen: () -> Unit,
+    onRemove: () -> Unit,
+    onDownloadAction: (DownloadAction) -> Unit,
+) {
     var menu by remember { mutableStateOf(false) }
     var info by remember { mutableStateOf(false) }
 
     Box {
         Column(Modifier.combinedClickable(onClick = onOpen, onLongClick = { menu = true })) {
-            Cover(book, opening, Modifier.fillMaxWidth())
+            Cover(book, opening, Modifier.fillMaxWidth(), download)
             if (book.progression > 0) {
                 Spacer(Modifier.height(6.dp))
                 ProgressBar(book.progression, Modifier.fillMaxWidth())
@@ -314,6 +327,16 @@ private fun BookTile(book: BookEntity, opening: Boolean, onOpen: () -> Unit, onR
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             DropdownMenuItem(text = { Text("Book info") }, onClick = { menu = false; info = true })
+            if (book.source == BookSource.SERVER) {
+                if (book.pinned) {
+                    DropdownMenuItem(text = { Text("Don't keep downloaded") }, onClick = { menu = false; onDownloadAction(DownloadAction.UNPIN) })
+                } else {
+                    DropdownMenuItem(text = { Text("Keep downloaded") }, onClick = { menu = false; onDownloadAction(DownloadAction.PIN) })
+                }
+                if (book.localPath != null) {
+                    DropdownMenuItem(text = { Text("Remove download") }, onClick = { menu = false; onDownloadAction(DownloadAction.REMOVE_DOWNLOAD) })
+                }
+            }
             DropdownMenuItem(text = { Text("Remove from library") }, onClick = { menu = false; onRemove() })
         }
     }
@@ -323,7 +346,7 @@ private fun BookTile(book: BookEntity, opening: Boolean, onOpen: () -> Unit, onR
 
 /** A 2:3 cover, or a colored title card when the book has none. */
 @Composable
-private fun Cover(book: BookEntity, opening: Boolean, modifier: Modifier) {
+private fun Cover(book: BookEntity, opening: Boolean, modifier: Modifier, download: Float? = null) {
     val image = rememberCover(book.coverThumbPath)
     Box(
         modifier = modifier
@@ -346,13 +369,42 @@ private fun Cover(book: BookEntity, opening: Boolean, modifier: Modifier) {
                 modifier = Modifier.padding(10.dp),
             )
         }
-        if (opening) {
+        if (!book.downloaded && download == null) {
+            // On the PC, not on the phone yet: downloads when opened.
+            Box(
+                Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(6.dp)
+                    .size(22.dp)
+                    .background(Color(0x99000000), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(CloudIcon.Outline, contentDescription = "On your PC", tint = Color.White, modifier = Modifier.size(14.dp))
+            }
+        }
+        if (download != null) {
+            Box(Modifier.fillMaxSize().background(Color(0x99000000)), contentAlignment = Alignment.Center) {
+                if (download > 0f) {
+                    CircularProgressIndicator(
+                        progress = { download },
+                        modifier = Modifier.size(32.dp),
+                        color = Color.White,
+                        trackColor = Color(0x44FFFFFF),
+                        strokeWidth = 2.5.dp,
+                    )
+                } else {
+                    CircularProgressIndicator(Modifier.size(28.dp), color = Color.White, strokeWidth = 2.5.dp)
+                }
+            }
+        } else if (opening) {
             Box(Modifier.fillMaxSize().background(Color(0x99000000)), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(Modifier.size(28.dp), color = Color.White, strokeWidth = 2.5.dp)
             }
         }
     }
 }
+
+enum class DownloadAction { PIN, UNPIN, REMOVE_DOWNLOAD }
 
 @Composable
 private fun ProgressBar(progress: Double, modifier: Modifier) {
@@ -381,7 +433,17 @@ private fun BookInfoDialog(book: BookEntity, onDismiss: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 book.author?.let { Text("By $it") }
                 Text("${book.format.name} · ${"%.1f".format(book.sizeBytes / 1_048_576.0)} MB")
-                Text(if (book.source == BookSource.FOLDER) "In your library folder" else "Added to Preform")
+                Text(
+                    when (book.source) {
+                        BookSource.FOLDER -> "In your library folder"
+                        BookSource.IMPORTED -> "Added to Preform"
+                        BookSource.SERVER -> when {
+                            book.localPath == null -> "On your PC · downloads when opened"
+                            book.pinned -> "On your PC · kept downloaded"
+                            else -> "On your PC · downloaded"
+                        }
+                    },
+                )
                 if (book.rightToLeft) Text("Reads right to left")
                 Text("${(book.progression * 100).roundToInt()}% read")
             }

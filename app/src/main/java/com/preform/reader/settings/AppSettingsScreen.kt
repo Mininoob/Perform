@@ -66,6 +66,8 @@ import androidx.compose.ui.unit.sp
 
 data class AppSettingsState(
     val folderLabel: String?,
+    /** The paired PC's name, or null when not paired. */
+    val privateLibrary: String?,
     val appTheme: AppTheme,
     val themeSchedule: ThemeSchedule,
     val keepScreenOn: Boolean,
@@ -79,6 +81,7 @@ class AppSettingsActions(
     val onChooseFolder: () -> Unit,
     val onRescan: () -> Unit,
     val onRemoveFolder: () -> Unit,
+    val onPrivateLibrary: () -> Unit,
     val onThemeBase: (ThemeBase) -> Unit,
     val onThemeAccent: (ThemeAccent) -> Unit,
     val onScheduleChange: ((ThemeSchedule) -> ThemeSchedule) -> Unit,
@@ -128,6 +131,14 @@ fun AppSettingsScreen(state: AppSettingsState, actions: AppSettingsActions) {
                         TextButton(onClick = actions.onRemoveFolder) { Text("Remove") }
                     }
                 }
+            }
+
+            Group("Private library") {
+                Link(
+                    label = state.privateLibrary?.let { "Connected to $it" } ?: "Pair with your PC",
+                    detail = if (state.privateLibrary == null) "Read the books on your PC, at home or away" else "Sync, downloads and storage",
+                    onClick = actions.onPrivateLibrary,
+                )
             }
 
             Group("Theme") {

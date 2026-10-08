@@ -8,6 +8,8 @@ import com.preform.reader.library.LibraryRepository
 import com.preform.reader.reader.OpenBooks
 import com.preform.reader.reader.ReadiumServices
 import com.preform.reader.settings.PreferencesStore
+import com.preform.reader.sync.LibrarySync
+import com.preform.reader.sync.SyncSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -33,6 +35,7 @@ class AppContainer(context: Context) {
     val preferences = PreferencesStore(context)
     val readium = ReadiumServices(context)
     private val database = LibraryDatabase.create(context)
+    val sync = LibrarySync(context, database.books(), SyncSettings(context))
     val library = LibraryRepository(
         context = context,
         dao = database.books(),

@@ -26,6 +26,7 @@ import com.preform.reader.library.folderLabel
 import com.preform.reader.reader.ReaderActivity
 import com.preform.reader.settings.AppSettingsActions
 import com.preform.reader.settings.AppSettingsScreen
+import com.preform.reader.sync.PrivateLibraryScreen
 import com.preform.reader.settings.AppSettingsState
 import com.preform.reader.settings.AppTheme
 import com.preform.reader.settings.CoverControls
@@ -95,6 +96,7 @@ class MainActivity : ComponentActivity() {
                             snackbar = snackbar,
                             onOpen = library::open,
                             onRemove = library::remove,
+                            onDownloadAction = library::downloadAction,
                             onQueryChange = library::setQuery,
                             onSortChange = library::setSort,
                             onRefresh = library::refresh,
@@ -109,9 +111,11 @@ class MainActivity : ComponentActivity() {
                         val coverControls by prefs.coverControls.collectAsStateWithLifecycle(CoverControls.SWIPE_AND_TAP)
                         val swipeForNext by prefs.backSwipeForNext.collectAsStateWithLifecycle(SwipeDirection.LEFT)
                         val folder by prefs.libraryFolder.collectAsStateWithLifecycle(null)
+                        val pc by container.sync.settings.connection.collectAsStateWithLifecycle(null)
                         AppSettingsScreen(
                             state = AppSettingsState(
                                 folderLabel = folder?.let(::folderLabel),
+                                privateLibrary = pc?.serverName,
                                 appTheme = appTheme,
                                 themeSchedule = schedule,
                                 keepScreenOn = keepScreenOn,
@@ -124,6 +128,7 @@ class MainActivity : ComponentActivity() {
                                 onChooseFolder = { pickFolder.launch(null) },
                                 onRescan = library::refresh,
                                 onRemoveFolder = { scope.launch { container.library.clearLibraryFolder() } },
+                                onPrivateLibrary = { navController.navigate("private-library") },
                                 onThemeBase = { scope.launch { prefs.setThemeBase(it) } },
                                 onThemeAccent = { scope.launch { prefs.setThemeAccent(it) } },
                                 onScheduleChange = { change -> scope.launch { prefs.updateThemeSchedule(change) } },
@@ -136,6 +141,9 @@ class MainActivity : ComponentActivity() {
                                 },
                             ),
                         )
+                    }
+                    composable("private-library") {
+                        PrivateLibraryScreen(sync = container.sync, onBack = { navController.popBackStack() })
                     }
                     composable("reading-defaults") {
                         val global by prefs.globalReading.collectAsStateWithLifecycle(ReadingPreferences())

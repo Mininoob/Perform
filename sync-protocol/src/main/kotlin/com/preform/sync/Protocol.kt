@@ -22,6 +22,13 @@ object Protocol {
         ignoreUnknownKeys = true
         encodeDefaults = true
     }
+
+    /**
+     * A short, readable piece of the certificate fingerprint ("3F9A C21B"). When a phone
+     * pairs by typed address instead of the QR code, the person compares this on both
+     * screens, so a look-alike server on the network can't slip in.
+     */
+    fun checkCode(certSha256: String): String = certSha256.take(8).uppercase().chunked(4).joinToString(" ")
 }
 
 /**

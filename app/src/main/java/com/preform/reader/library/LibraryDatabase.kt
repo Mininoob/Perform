@@ -2,6 +2,7 @@ package com.preform.reader.library
 
 import android.content.Context
 import androidx.room.AutoMigration
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -16,8 +17,11 @@ import kotlinx.coroutines.flow.Flow
 
 enum class BookFormat { EPUB, PDF }
 
-/** FOLDER books are read in place from the library folder; IMPORTED ones are app-owned copies. */
-enum class BookSource { FOLDER, IMPORTED }
+/**
+ * FOLDER books are read in place from the library folder; IMPORTED ones are app-owned copies;
+ * SERVER books live in the PC library and are downloaded when first opened.
+ */
+enum class BookSource { FOLDER, IMPORTED, SERVER }
 
 @Entity(tableName = "books", indices = [Index(value = ["uri"], unique = true)])
 data class BookEntity(
@@ -47,7 +51,27 @@ data class BookEntity(
     val prefsOverrideJson: String? = null,
     /** Book Mode for this book; null until toggled, which counts as on. */
     val bookMode: Boolean? = null,
-)
+    /** SHA-256 of the file: the same book on the phone and the PC shares one identity. */
+    val contentId: String? = null,
+    /** SERVER books: the downloaded copy, or null while it only lives on the PC. */
+    val localPath: String? = null,
+    /** SERVER books: "Keep downloaded", never cleared to free up space. */
+    @ColumnInfo(defaultValue = "0") val pinned: Boolean = false,
+    /** SERVER books: the PC's cover version, so covers are only fetched again when they change. */
+    val coverEtag: String? = null,
+    /** When each synced group last changed on this phone; see BookState in :sync-protocol. */
+    val positionAt: Long? = null,
+    val settingsAt: Long? = null,
+    val bookModeAt: Long? = null,
+    /** Changed here since the last successful push to the PC. */
+    @ColumnInfo(defaultValue = "0") val stateDirty: Boolean = false,
+) {
+    /** Where Readium can open this book now; null for a SERVER book not downloaded yet. */
+    val readableUri: String?
+        get() = if (source == BookSource.SERVER) localPath?.let { "file://$it" } else uri
+
+    val downloaded: Boolean get() = source != BookSource.SERVER || localPath != null
+}
 
 @Dao
 interface BookDao {
@@ -90,15 +114,32 @@ interface BookDao {
 
     @Query("UPDATE books SET bookMode = :on WHERE id = :id")
     suspend fun setBookMode(id: Long, on: Boolean)
+
+    @Query("SELECT * FROM books WHERE source = 'SERVER'")
+    fun observeServerBooks(): Flow<List<BookEntity>>
+
+    @Query("SELECT * FROM books WHERE source = 'SERVER'")
+    suspend fun serverBooks(): List<BookEntity>
+
+    @Query("SELECT * FROM books WHERE source = 'SERVER' AND contentId = :contentId LIMIT 1")
+    suspend fun serverBook(contentId: String): BookEntity?
+
+    @Query("UPDATE books SET localPath = :path WHERE id = :id")
+    suspend fun setLocalPath(id: Long, path: String?)
+
+    @Query("UPDATE books SET pinned = :pinned WHERE id = :id")
+    suspend fun setPinned(id: Long, pinned: Boolean)
 }
 
 @Database(
     entities = [BookEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
     autoMigrations = [
         // v2: per-book Book Mode.
         AutoMigration(from = 1, to = 2),
+        // v3: books from the PC library, content ids and sync stamps.
+        AutoMigration(from = 2, to = 3),
     ],
 )
 abstract class LibraryDatabase : RoomDatabase() {

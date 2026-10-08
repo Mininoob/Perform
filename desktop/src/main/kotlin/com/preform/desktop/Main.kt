@@ -57,6 +57,7 @@ import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import com.preform.sync.PairingInvite
+import com.preform.sync.Protocol
 import kotlinx.coroutines.delay
 import java.awt.Desktop
 import java.awt.image.BufferedImage
@@ -274,6 +275,11 @@ private fun PairPanel(service: LibraryService, onDone: () -> Unit) {
             letterSpacing = 4.sp,
         )
         Text("Expires in %d:%02d".format(secondsLeft / 60, secondsLeft % 60), color = Ink.muted, fontSize = 12.sp)
+        Text(
+            "Typing the code? Your phone will show a security check. It must read ${Protocol.checkCode(invite.certSha256)}",
+            color = Ink.muted,
+            fontSize = 12.sp,
+        )
         TextButton(onClick = onDone) { Text("Cancel") }
     }
 }

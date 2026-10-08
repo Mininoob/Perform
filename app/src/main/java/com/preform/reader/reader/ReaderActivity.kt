@@ -171,7 +171,7 @@ class ReaderActivity : FragmentActivity() {
         if (session.book.format == BookFormat.PDF) {
             pdfLock.attach(window.decorView)
             // Without a seekable file there are simply no spreads; single pages still work.
-            pdfPages = runCatching { PdfPageRenderer(this, session.book.uri) }.getOrNull()
+            pdfPages = runCatching { PdfPageRenderer(this, session.book.readableUri!!) }.getOrNull()
             lifecycleScope.launch { pdfPositions = session.publication.positions() }
         }
 

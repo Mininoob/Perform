@@ -189,14 +189,24 @@ class LibraryRepository(
         Result.success(id)
     }
 
-    /** Imports are deleted outright; folder books are hidden, or the next scan would bring them back. */
+    /**
+     * Imports are deleted outright. Folder and PC books are hidden, or the next scan or
+     * sync would bring them back; a PC book's download is cleared too. Nothing on the PC
+     * is ever deleted from the phone.
+     */
     suspend fun remove(book: BookEntity) {
-        if (book.source == BookSource.IMPORTED) {
-            runCatching { Uri.parse(book.uri).path?.let { File(it).delete() } }
-            covers.delete(book)
-            dao.delete(listOf(book.id))
-        } else {
-            dao.setHidden(book.id, true)
+        when (book.source) {
+            BookSource.IMPORTED -> {
+                runCatching { Uri.parse(book.uri).path?.let { File(it).delete() } }
+                covers.delete(book)
+                dao.delete(listOf(book.id))
+            }
+            BookSource.SERVER -> {
+                book.localPath?.let { File(it).delete() }
+                dao.setLocalPath(book.id, null)
+                dao.setHidden(book.id, true)
+            }
+            BookSource.FOLDER -> dao.setHidden(book.id, true)
         }
     }
 
