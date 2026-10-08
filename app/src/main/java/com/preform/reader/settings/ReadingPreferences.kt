@@ -3,7 +3,7 @@ package com.preform.reader.settings
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-enum class ReadingMode { PAGES, SPREAD, SCROLL, AUTO_SCROLL }
+enum class ReadingMode { PAGES, SPREAD, SCROLL }
 
 enum class ReadingTheme { LIGHT, SEPIA, DARK, BLACK, CUSTOM }
 
@@ -38,8 +38,12 @@ data class ReadingPreferences(
     /** Null keeps the book's own alignment. */
     val textAlign: ReadingAlign? = null,
     val pdfFit: PdfFit? = null,
-    /** Auto-scroll speed in CSS pixels per second. */
-    val autoScrollSpeed: Double? = null,
+    /**
+     * PDFs only. In Pages mode: one whole page at a time, no dragging or zooming, turned
+     * by a swipe or an edge tap. In Scroll mode: up and down only, no zooming or sideways
+     * drift. Off allows free zoom and pan.
+     */
+    val pageLock: Boolean? = null,
 ) {
     /** This layer with [override]'s non-null fields laid on top. */
     infix fun overriddenBy(override: ReadingPreferences): ReadingPreferences = ReadingPreferences(
@@ -53,7 +57,7 @@ data class ReadingPreferences(
         pageMargins = override.pageMargins ?: pageMargins,
         textAlign = override.textAlign ?: textAlign,
         pdfFit = override.pdfFit ?: pdfFit,
-        autoScrollSpeed = override.autoScrollSpeed ?: autoScrollSpeed,
+        pageLock = override.pageLock ?: pageLock,
     )
 
     val isEmpty: Boolean get() = this == ReadingPreferences()
@@ -74,19 +78,26 @@ data class ReadingPreferences(
             backgroundColor = 0xFF12100E.toInt(),
             pageMargins = 1.0,
             pdfFit = PdfFit.WIDTH,
-            autoScrollSpeed = 40.0,
+            pageLock = true,
         )
 
         /** Effective settings for one book: defaults, then global, then the book's own. */
         fun resolve(global: ReadingPreferences, book: ReadingPreferences): ReadingPreferences =
             DEFAULTS overriddenBy global overriddenBy book
 
-        /** Lenient: a corrupt or outdated blob reads as "nothing set" rather than crashing. */
+        /**
+         * Lenient: a corrupt blob reads as "nothing set" rather than crashing. A value this
+         * version no longer knows (such as the removed auto-scroll mode) reads as unset for
+         * that one field only, so the rest of the settings survive.
+         */
         fun fromJson(text: String?): ReadingPreferences =
             text?.let { runCatching { json.decodeFromString(serializer(), it) }.getOrNull() }
                 ?: ReadingPreferences()
 
-        private val json = Json { ignoreUnknownKeys = true }
+        private val json = Json {
+            ignoreUnknownKeys = true
+            coerceInputValues = true
+        }
     }
 }
 

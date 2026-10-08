@@ -20,7 +20,7 @@ private const val COVER_HOLD_MS = 30_000L
  * it barely helps - the cost is being held awake. So the shut cover is held briefly,
  * then the phone sleeps on its normal timeout, and each wake comes straight back to
  * the cover over the lock screen. The automatic hold yields to Power Saving and low
- * battery; [keepAwake] is the user's explicit choice (or auto-scroll) and does not.
+ * battery; [keepAwake] is the user's explicit choice and does not.
  */
 @Composable
 fun BookModeWindowEffects(coverShowing: Boolean, keepAwake: Boolean) {

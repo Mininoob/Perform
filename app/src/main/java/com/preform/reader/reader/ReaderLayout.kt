@@ -20,13 +20,24 @@ import org.readium.r2.navigator.preferences.Theme
 /** Below this window width a spread's pages get too narrow to read, so it falls back to one page. */
 const val SPREAD_MIN_WIDTH_DP = 600f
 
+/** How a PDF is held still. EPUBs never need it: their pages don't drift or zoom. */
+enum class PdfLock {
+    NONE,
+
+    /** One whole page, no dragging or zooming; a swipe or an edge tap turns it. */
+    PAGES,
+
+    /** Scrolls up and down only: no zooming, so nothing to drift sideways into. */
+    SCROLL,
+}
+
 /** How the book is laid out right now: the reading mode, resolved against the device's shape. */
 data class ReaderLayout(
     val scroll: Boolean,
     val spread: Boolean,
-    val autoScroll: Boolean,
     /** Half-open like a laptop: page on the top half, controls on the bottom. */
     val tabletop: Boolean,
+    val pdfLock: PdfLock = PdfLock.NONE,
 )
 
 /**
@@ -34,21 +45,28 @@ data class ReaderLayout(
  *
  * Spread only happens on a wide window (the Fold's inner screen), never on the cover
  * screen, and never for PDFs: Readium's free PDF engine has no spread support.
- * Tabletop is posture-driven rather than a menu choice.
+ * Tabletop is posture-driven rather than a menu choice. Page lock only means something
+ * for PDFs; its kind follows the mode.
  */
 fun resolveLayout(
     mode: ReadingMode,
     format: BookFormat,
     windowWidthDp: Float,
     tabletop: Boolean,
+    pageLock: Boolean = false,
 ): ReaderLayout {
     val canSpread = format == BookFormat.EPUB && windowWidthDp >= SPREAD_MIN_WIDTH_DP
-    return when (mode) {
-        ReadingMode.PAGES -> ReaderLayout(scroll = false, spread = false, autoScroll = false, tabletop = tabletop)
-        ReadingMode.SPREAD -> ReaderLayout(scroll = false, spread = canSpread, autoScroll = false, tabletop = tabletop)
-        ReadingMode.SCROLL -> ReaderLayout(scroll = true, spread = false, autoScroll = false, tabletop = tabletop)
-        ReadingMode.AUTO_SCROLL -> ReaderLayout(scroll = true, spread = false, autoScroll = true, tabletop = tabletop)
+    val layout = when (mode) {
+        ReadingMode.PAGES -> ReaderLayout(scroll = false, spread = false, tabletop = tabletop)
+        ReadingMode.SPREAD -> ReaderLayout(scroll = false, spread = canSpread, tabletop = tabletop)
+        ReadingMode.SCROLL -> ReaderLayout(scroll = true, spread = false, tabletop = tabletop)
     }
+    val lock = when {
+        !pageLock || format != BookFormat.PDF -> PdfLock.NONE
+        layout.scroll -> PdfLock.SCROLL
+        else -> PdfLock.PAGES
+    }
+    return layout.copy(pdfLock = lock)
 }
 
 /** Page and text colors for a theme, ARGB; also used to tint the reader's own controls. */
@@ -104,9 +122,12 @@ fun ReadingPreferences.toEpubPreferences(layout: ReaderLayout): EpubPreferences 
     )
 }
 
-/** PDFs: page-by-page sideways, or a continuous vertical scroll. */
+/**
+ * PDFs: page-by-page sideways, or a continuous vertical scroll. A locked page always
+ * fits whole: fit-width would cut off the bottom with no way to pan to it.
+ */
 fun ReadingPreferences.toPdfiumPreferences(layout: ReaderLayout): PdfiumPreferences = PdfiumPreferences(
-    fit = if (pdfFit == PdfFit.PAGE) Fit.CONTAIN else Fit.WIDTH,
+    fit = if (layout.pdfLock == PdfLock.PAGES || pdfFit == PdfFit.PAGE) Fit.CONTAIN else Fit.WIDTH,
     pageSpacing = 8.0,
     scrollAxis = if (layout.scroll) Axis.VERTICAL else Axis.HORIZONTAL,
 )

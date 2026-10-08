@@ -17,6 +17,8 @@ readium = "3.1.2"
 junit = "4.13.2"
 desugar = "2.1.5"
 serializationJson = "1.8.1"
+# The PDF view inside Readium's pdfium adapter; pinned to the version Readium 3.1.2 brings in.
+pdfViewer = "3.2.8"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -45,6 +47,7 @@ readium-navigator = { group = "org.readium.kotlin-toolkit", name = "readium-navi
 readium-adapter-pdfium = { group = "org.readium.kotlin-toolkit", name = "readium-adapter-pdfium", version.ref = "readium" }
 desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugar" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serializationJson" }
+android-pdf-viewer = { group = "com.github.marain87", name = "AndroidPdfViewer", version.ref = "pdfViewer" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]

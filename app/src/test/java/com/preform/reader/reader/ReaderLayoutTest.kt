@@ -36,10 +36,10 @@ class ReaderLayoutTest {
     }
 
     @Test
-    fun `auto-scroll is scroll mode that moves on its own`() {
+    fun `scroll mode scrolls in one column`() {
         assertEquals(
-            ReaderLayout(scroll = true, spread = false, autoScroll = true, tabletop = false),
-            resolveLayout(ReadingMode.AUTO_SCROLL, BookFormat.EPUB, inner, tabletop = false),
+            ReaderLayout(scroll = true, spread = false, tabletop = false),
+            resolveLayout(ReadingMode.SCROLL, BookFormat.EPUB, inner, tabletop = false),
         )
     }
 
@@ -48,6 +48,31 @@ class ReaderLayoutTest {
         ReadingMode.entries.forEach { mode ->
             assertTrue(resolveLayout(mode, BookFormat.EPUB, inner, tabletop = true).tabletop)
         }
+    }
+
+    private fun lockFor(mode: ReadingMode, format: BookFormat, pageLock: Boolean = true) =
+        resolveLayout(mode, format, cover, tabletop = false, pageLock = pageLock).pdfLock
+
+    @Test
+    fun `locked pdf pages hold one whole page`() {
+        assertEquals(PdfLock.PAGES, lockFor(ReadingMode.PAGES, BookFormat.PDF))
+        // Spread falls back to single pages for PDFs, and those lock the same way.
+        assertEquals(PdfLock.PAGES, lockFor(ReadingMode.SPREAD, BookFormat.PDF))
+    }
+
+    @Test
+    fun `locked pdf scrolling only goes up and down`() {
+        assertEquals(PdfLock.SCROLL, lockFor(ReadingMode.SCROLL, BookFormat.PDF))
+    }
+
+    @Test
+    fun `epubs never need a lock`() {
+        ReadingMode.entries.forEach { assertEquals(PdfLock.NONE, lockFor(it, BookFormat.EPUB)) }
+    }
+
+    @Test
+    fun `lock off leaves pdfs free`() {
+        ReadingMode.entries.forEach { assertEquals(PdfLock.NONE, lockFor(it, BookFormat.PDF, pageLock = false)) }
     }
 
     @Test

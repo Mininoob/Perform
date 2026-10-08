@@ -48,6 +48,7 @@ import com.preform.reader.foldable.PostureSnapshot
 import com.preform.reader.foldable.RearDisplayCover
 import com.preform.reader.library.BookFormat
 import com.preform.reader.settings.AppTheme
+import com.preform.reader.settings.PdfFit
 import com.preform.reader.settings.ReadingMode
 import com.preform.reader.settings.ReadingPreferences
 import com.preform.reader.settings.SettingsFormat
@@ -63,6 +64,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.github.barteksc.pdfviewer.PDFView
 import org.readium.adapter.pdfium.navigator.PdfiumEngineProvider
 import org.readium.adapter.pdfium.navigator.PdfiumPreferences
 import org.readium.adapter.pdfium.navigator.PdfiumSettings
@@ -91,6 +93,8 @@ class ReaderActivity : FragmentActivity() {
     private lateinit var session: ReaderSession
     private lateinit var prefs: StateFlow<ReadingPreferences>
     private lateinit var rearCover: RearDisplayCover
+    /** Exists from before the navigator is created: Readium consults it on every PDF load. */
+    private val pdfLock = PdfPageLock()
     private val navigator = MutableStateFlow<ReaderNavigator?>(null)
     private val controlsVisible = MutableStateFlow(false)
 
@@ -119,15 +123,12 @@ class ReaderActivity : FragmentActivity() {
             cover = { session.cover },
             title = { session.book.title },
             onBackSwipe = { direction ->
-                val visual = navigator.value?.visual
-                when {
-                    visual == null || !swipeEnabled.value -> false
-                    // A right-to-left book's next page is the other way, as with a paper one.
-                    (direction == swipeForNext.value) != session.book.rightToLeft -> visual.goForward(animated = true)
-                    else -> visual.goBackward(animated = true)
-                }
+                // A right-to-left book's next page is the other way, as with a paper one.
+                swipeEnabled.value && turnPage(forward = (direction == swipeForNext.value) != session.book.rightToLeft)
             },
         )
+
+        if (session.book.format == BookFormat.PDF) pdfLock.attach(window.decorView)
 
         val postures = FoldStateRepository(this).snapshots()
         setContent { Reader(postures) }
@@ -159,24 +160,25 @@ class ReaderActivity : FragmentActivity() {
             format = session.book.format,
             windowWidthDp = LocalConfiguration.current.screenWidthDp.toFloat(),
             tabletop = tabletop,
+            pageLock = prefs.pageLock == true,
         )
 
-        LaunchedEffect(nav, prefs, layout) { nav?.apply(prefs, layout) }
+        // A jump made elsewhere (the progress slider) lands a locked page off-center.
+        LaunchedEffect(locator) { pdfLock.recenter() }
+
+        LaunchedEffect(nav, prefs, layout) {
+            // Before applying: a changed fit or lock makes Readium reload the PDF, and the
+            // load hook must already see the new values.
+            pdfLock.update(layout.pdfLock, wholePage = showsWholePage(prefs, layout))
+            nav?.apply(prefs, layout)
+        }
 
         // Book Mode: the outside cover while open, the full-screen cover while shut.
         LaunchedEffect(Unit) { rearCover.run() }
         LaunchedEffect(bookMode, closed, posture != null) { rearCover.setWanted(bookMode && posture != null && !closed) }
 
-        val autoScrolling = layout.autoScroll && !controls && !coverShowing
-        BookModeWindowEffects(coverShowing = coverShowing, keepAwake = keepScreenOn || autoScrolling)
+        BookModeWindowEffects(coverShowing = coverShowing, keepAwake = keepScreenOn)
         SystemBars(visible = (controls || tabletop) && !coverShowing)
-
-        if (autoScrolling && nav != null) {
-            val pageHeightDp = LocalConfiguration.current.screenHeightDp
-            LaunchedEffect(nav, prefs.autoScrollSpeed) {
-                nav!!.autoScroll(prefs.autoScrollSpeed ?: 40.0, pageHeightDp)
-            }
-        }
 
         val colors = prefs.colors()
         val chrome = colors.toChrome()
@@ -211,7 +213,18 @@ class ReaderActivity : FragmentActivity() {
                                 },
                             ),
                     ) {
-                        NavigatorHost()
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                // Locked PDF pages don't move under a drag, so a swipe
+                                // turns the page instead. EPUB pages turn on their own.
+                                .pageSwipes(enabled = layout.pdfLock == PdfLock.PAGES) { dx ->
+                                    // Right-to-left swipes go forward, or backward in a right-to-left book.
+                                    turnPage(forward = (dx < 0) != session.book.rightToLeft)
+                                },
+                        ) {
+                            NavigatorHost()
+                        }
                         if (hinge == null) {
                             Fade(controls, Modifier.align(Alignment.TopCenter)) {
                                 ReaderTopBar(
@@ -234,8 +247,8 @@ class ReaderActivity : FragmentActivity() {
                             chapter = locator?.title,
                             progression = progression,
                             colors = chrome,
-                            onPrevious = { nav?.visual?.goBackward(animated = true) },
-                            onNext = { nav?.visual?.goForward(animated = true) },
+                            onPrevious = { turnPage(forward = false) },
+                            onNext = { turnPage(forward = true) },
                             onSeek = seek,
                             onOpenSettings = { showSettings = true },
                             onBack = ::finish,
@@ -306,6 +319,22 @@ class ReaderActivity : FragmentActivity() {
     private fun attach(fragment: Fragment) {
         if (navigator.value?.fragment === fragment) return
         val visual = fragment as OverflowableNavigator
+        // Locked PDF pages: edge taps turn through turnPage, which centers the page.
+        // First in line, so the adapter below never moves a locked PDF itself.
+        visual.addInputListener(object : InputListener {
+            override fun onTap(event: TapEvent): Boolean {
+                if (pdfLock.lock != PdfLock.PAGES) return false
+                val width = fragment.view?.width?.takeIf { it > 0 } ?: return false
+                val leftEdge = when {
+                    event.point.x < width * EDGE_FRACTION -> true
+                    event.point.x > width * (1 - EDGE_FRACTION) -> false
+                    else -> return false
+                }
+                // The left edge goes back, except in a right-to-left book.
+                turnPage(forward = leftEdge == session.book.rightToLeft)
+                return true
+            }
+        })
         visual.addInputListener(DirectionalNavigationAdapter(visual, animatedTransition = true))
         visual.addInputListener(object : InputListener {
             override fun onTap(event: TapEvent): Boolean {
@@ -314,6 +343,13 @@ class ReaderActivity : FragmentActivity() {
             }
         })
         navigator.value = ReaderNavigator(fragment, visual)
+    }
+
+    /** One page forward or back: centered by hand for locked PDF pages, by Readium otherwise. */
+    private fun turnPage(forward: Boolean): Boolean {
+        if (pdfLock.lock == PdfLock.PAGES) return pdfLock.turn(forward)
+        val visual = navigator.value?.visual ?: return false
+        return if (forward) visual.goForward(animated = true) else visual.goBackward(animated = true)
     }
 
     /**
@@ -356,6 +392,8 @@ class ReaderActivity : FragmentActivity() {
     }
 
     override fun onDestroy() {
+        if (::rearCover.isInitialized) rearCover.close()
+        pdfLock.detach()
         super.onDestroy()
         if (::session.isInitialized && isFinishing) container.openBooks.close(session.book.id)
     }
@@ -366,7 +404,9 @@ class ReaderActivity : FragmentActivity() {
             format = session.book.format,
             windowWidthDp = resources.configuration.screenWidthDp.toFloat(),
             tabletop = false,
+            pageLock = session.initialPreferences.pageLock == true,
         )
+        pdfLock.update(layout.pdfLock, wholePage = showsWholePage(session.initialPreferences, layout))
         return when (session.book.format) {
             BookFormat.EPUB -> EpubNavigatorFactory(session.publication).createFragmentFactory(
                 initialLocator = session.initialLocator,
@@ -377,7 +417,14 @@ class ReaderActivity : FragmentActivity() {
                     }
                 },
             )
-            BookFormat.PDF -> PdfNavigatorFactory(session.publication, PdfiumEngineProvider()).createFragmentFactory(
+            BookFormat.PDF -> PdfNavigatorFactory(
+                session.publication,
+                PdfiumEngineProvider(
+                    listener = object : PdfiumEngineProvider.Listener {
+                        override fun onConfigurePdfView(configurator: PDFView.Configurator) = pdfLock.configure(configurator)
+                    },
+                ),
+            ).createFragmentFactory(
                 initialLocator = session.initialLocator,
                 initialPreferences = session.initialPreferences.toPdfiumPreferences(layout),
             )
@@ -386,6 +433,9 @@ class ReaderActivity : FragmentActivity() {
 
     companion object {
         private const val EXTRA_BOOK_ID = "book_id"
+
+        /** Same as Readium's tap zones: the outer 30% on each side. */
+        private const val EDGE_FRACTION = 0.3f
 
         fun intent(context: Context, bookId: Long): Intent =
             Intent(context, ReaderActivity::class.java).putExtra(EXTRA_BOOK_ID, bookId)
@@ -401,6 +451,10 @@ private fun Fade(visible: Boolean, modifier: Modifier, content: @Composable () -
     AnimatedVisibility(visible, modifier, enter = fadeIn(), exit = fadeOut()) { content() }
 }
 
+/** A locked page always shows whole; otherwise it's the reader's fit choice. */
+private fun showsWholePage(prefs: ReadingPreferences, layout: ReaderLayout): Boolean =
+    layout.pdfLock == PdfLock.PAGES || prefs.pdfFit == PdfFit.PAGE
+
 /** One navigator, EPUB or PDF, behind the few operations the reader needs. */
 class ReaderNavigator(val fragment: Fragment, val visual: OverflowableNavigator) {
 
@@ -411,17 +465,6 @@ class ReaderNavigator(val fragment: Fragment, val visual: OverflowableNavigator)
             is PdfNavigatorFragment<*, *> ->
                 (fragment as PdfNavigatorFragment<PdfiumSettings, PdfiumPreferences>)
                     .submitPreferences(prefs.toPdfiumPreferences(layout))
-        }
-    }
-
-    /** Runs until cancelled. PDFs turn a page roughly every screenful at the same speed. */
-    suspend fun autoScroll(pixelsPerSecond: Double, pageHeightDp: Int) {
-        when (fragment) {
-            is EpubNavigatorFragment -> AutoScroller.runEpub(fragment, pixelsPerSecond)
-            else -> AutoScroller.runPaged(
-                visual,
-                pageIntervalMs = (pageHeightDp / pixelsPerSecond * 1000).toLong().coerceIn(4_000, 120_000),
-            )
         }
     }
 }

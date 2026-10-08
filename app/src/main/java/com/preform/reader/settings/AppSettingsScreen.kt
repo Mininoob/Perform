@@ -120,7 +120,7 @@ fun AppSettingsScreen(state: AppSettingsState, actions: AppSettingsActions) {
                 Link("Default reading settings", "Mode, theme, text size, font, spacing", actions.onReadingDefaults)
                 Toggle(
                     label = "Keep screen on while reading",
-                    detail = "Uses noticeably more battery. Auto-scroll always keeps the screen on.",
+                    detail = "Uses noticeably more battery.",
                     checked = state.keepScreenOn,
                     onChange = actions.onKeepScreenOn,
                 )
@@ -133,21 +133,17 @@ fun AppSettingsScreen(state: AppSettingsState, actions: AppSettingsActions) {
                     checked = state.backSwipeEnabled,
                     onChange = actions.onBackSwipeEnabled,
                 )
-                Column(Modifier.alpha(if (state.backSwipeEnabled) 1f else 0.4f)) {
-                    Choice(
-                        label = "Swipe left for the next page",
-                        selected = state.backSwipeForNext == SwipeDirection.LEFT,
-                        enabled = state.backSwipeEnabled,
-                        onSelect = { actions.onBackSwipeForNext(SwipeDirection.LEFT) },
-                    )
-                    Choice(
-                        label = "Swipe right for the next page",
-                        selected = state.backSwipeForNext == SwipeDirection.RIGHT,
-                        enabled = state.backSwipeEnabled,
-                        onSelect = { actions.onBackSwipeForNext(SwipeDirection.RIGHT) },
-                    )
-                }
-                Hint("Directions are as you see them from the front, and flip for right-to-left books.")
+                val flipped = state.backSwipeForNext == SwipeDirection.RIGHT
+                Toggle(
+                    label = "Flip swipe direction",
+                    detail = (if (flipped) "Swipe right for the next page" else "Swipe left for the next page") +
+                        ", as you see it from the front. Right-to-left books go the other way.",
+                    checked = flipped,
+                    enabled = state.backSwipeEnabled,
+                    onChange = { flip ->
+                        actions.onBackSwipeForNext(if (flip) SwipeDirection.RIGHT else SwipeDirection.LEFT)
+                    },
+                )
             }
 
             if (state.showDiagnostics) {
@@ -194,11 +190,18 @@ private fun Link(label: String, detail: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun Toggle(label: String, detail: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+private fun Toggle(
+    label: String,
+    detail: String,
+    checked: Boolean,
+    onChange: (Boolean) -> Unit,
+    enabled: Boolean = true,
+) {
     Row(
         Modifier
             .fillMaxWidth()
-            .toggleable(value = checked, onValueChange = onChange, role = Role.Switch)
+            .alpha(if (enabled) 1f else 0.4f)
+            .toggleable(value = checked, enabled = enabled, onValueChange = onChange, role = Role.Switch)
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -206,7 +209,7 @@ private fun Toggle(label: String, detail: String, checked: Boolean, onChange: (B
             Text(label, style = MaterialTheme.typography.bodyLarge)
             Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Switch(checked = checked, onCheckedChange = null, modifier = Modifier.padding(start = 12.dp))
+        Switch(checked = checked, onCheckedChange = null, enabled = enabled, modifier = Modifier.padding(start = 12.dp))
     }
 }
 

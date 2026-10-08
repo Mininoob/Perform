@@ -14,10 +14,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -28,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
@@ -63,23 +66,25 @@ fun ReadingSettingsPanel(
                     // Readium's free PDF engine can't lay out spreads.
                     if (epub) add(ReadingMode.SPREAD to "Two-page")
                     add(ReadingMode.SCROLL to "Scroll")
-                    add(ReadingMode.AUTO_SCROLL to "Auto-scroll")
                 },
                 selected = prefs.mode,
                 onSelect = { mode -> onChange { it.copy(mode = mode) } },
             )
-            if (prefs.mode == ReadingMode.SPREAD) {
+            if (prefs.mode == ReadingMode.SPREAD && epub) {
                 Hint("Two pages side by side when the phone is open; one page on the cover screen.")
             }
-            if (prefs.mode == ReadingMode.AUTO_SCROLL) {
-                LabeledSlider(
-                    label = "Speed",
-                    value = (prefs.autoScrollSpeed ?: 40.0).toFloat(),
-                    range = 10f..150f,
-                    display = { "${it.roundToInt()}" },
-                    onDone = { speed -> onChange { it.copy(autoScrollSpeed = speed.toDouble()) } },
+            if (pdf) {
+                Toggle(
+                    label = if (format == SettingsFormat.ANY) "Lock PDF pages" else "Lock pages",
+                    detail = if (prefs.mode == ReadingMode.SCROLL) {
+                        "Scroll up and down only, with no zooming or drifting sideways. Turn off to zoom freely."
+                    } else {
+                        "One whole page at a time. Swipe, or tap the left or right edge, to turn it. " +
+                            "Turn off to zoom and drag freely."
+                    },
+                    checked = prefs.pageLock == true,
+                    onChange = { lock -> onChange { it.copy(pageLock = lock) } },
                 )
-                Hint("Tap the page to pause and show controls.${if (pdf) " PDFs turn a page at a time instead of scrolling." else ""}")
             }
         }
 
@@ -152,6 +157,9 @@ fun ReadingSettingsPanel(
                     selected = prefs.pdfFit,
                     onSelect = { fit -> onChange { it.copy(pdfFit = fit) } },
                 )
+                if (prefs.pageLock == true && prefs.mode != ReadingMode.SCROLL) {
+                    Hint("Locked pages always show the whole page; this applies when scrolling.")
+                }
             }
         }
     }
@@ -167,6 +175,23 @@ private fun Section(title: String, content: @Composable () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         content()
+    }
+}
+
+@Composable
+private fun Toggle(label: String, detail: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .toggleable(value = checked, onValueChange = onChange, role = Role.Switch),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyLarge)
+            Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Spacer(Modifier.width(12.dp))
+        Switch(checked = checked, onCheckedChange = null)
     }
 }
 

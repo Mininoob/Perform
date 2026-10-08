@@ -60,6 +60,16 @@ class RearDisplayCover(
         sync()
     }
 
+    /**
+     * Hands the outer screen back. Must be called when the reader closes: the session
+     * outlives the activity that started it, so without this the old book's cover stays
+     * up and the next book finds the outer screen already taken.
+     */
+    fun close() {
+        wanted = false
+        session?.close()
+    }
+
     private fun presentStatus(): WindowAreaCapability.Status? =
         rearArea
             ?.getCapability(WindowAreaCapability.Operation.OPERATION_PRESENT_ON_AREA)

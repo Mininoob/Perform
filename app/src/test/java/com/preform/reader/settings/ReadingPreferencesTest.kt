@@ -33,7 +33,7 @@ class ReadingPreferencesTest {
 
     @Test
     fun `round trips through JSON`() {
-        val prefs = ReadingPreferences(mode = ReadingMode.AUTO_SCROLL, textColor = 0xFF1E1A16.toInt(), lineHeight = 1.5)
+        val prefs = ReadingPreferences(mode = ReadingMode.SCROLL, textColor = 0xFF1E1A16.toInt(), lineHeight = 1.5, pageLock = false)
 
         assertEquals(prefs, ReadingPreferences.fromJson(prefs.toJson()))
     }
@@ -49,5 +49,18 @@ class ReadingPreferencesTest {
         val prefs = ReadingPreferences.fromJson("""{"theme":"SEPIA","someFutureSetting":3}""")
 
         assertEquals(ReadingTheme.SEPIA, prefs.theme)
+    }
+
+    @Test
+    fun `settings saved with the removed auto-scroll mode keep everything else`() {
+        val saved = """{"mode":"AUTO_SCROLL","theme":"BLACK","fontSize":1.4,"autoScrollSpeed":60.0}"""
+
+        val prefs = ReadingPreferences.fromJson(saved)
+
+        assertEquals(null, prefs.mode)
+        assertEquals(ReadingTheme.BLACK, prefs.theme)
+        assertEquals(1.4, prefs.fontSize!!, 0.0)
+        // With no mode of its own, the book falls back to the default.
+        assertEquals(ReadingMode.SPREAD, ReadingPreferences.resolve(prefs, ReadingPreferences()).mode)
     }
 }
