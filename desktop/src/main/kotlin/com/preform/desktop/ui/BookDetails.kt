@@ -20,6 +20,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -41,12 +42,13 @@ fun BookDetails(
     shown: List<LibraryBook>,
     place: Place,
     onEdit: (LibraryBook) -> Unit,
+    onTrashCopy: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.verticalScroll(rememberScrollState()).padding(24.dp)) {
         when (selected.size) {
             0 -> PlaceSummary(place, shown)
-            1 -> OneBook(service, covers, selected.single(), onEdit = { onEdit(selected.single()) })
+            1 -> OneBook(service, covers, selected.single(), onEdit = { onEdit(selected.single()) }, onTrashCopy = onTrashCopy)
             else -> ManyBooks(selected, covers)
         }
     }
@@ -54,7 +56,13 @@ fun BookDetails(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ColumnScope.OneBook(service: LibraryService, covers: CoverCache, book: LibraryBook, onEdit: () -> Unit) {
+private fun ColumnScope.OneBook(
+    service: LibraryService,
+    covers: CoverCache,
+    book: LibraryBook,
+    onEdit: () -> Unit,
+    onTrashCopy: (String) -> Unit,
+) {
     val c = book.catalog
     BookCover(book, covers, Modifier.fillMaxWidth(0.78f).align(Alignment.CenterHorizontally), full = true)
     Spacer(Modifier.height(22.dp))
@@ -89,6 +97,16 @@ private fun ColumnScope.OneBook(service: LibraryService, covers: CoverCache, boo
     Fact("File", book.relativePath.substringAfterLast('/'))
     Fact("Format", "${c.format.name} · ${size(c.sizeBytes)}")
     if (c.rightToLeft) Fact("Reads", "Right to left")
+    if (book.unreadable) Fact("Note", "This file couldn't be opened as a book.")
+
+    // The same file elsewhere in the library.
+    service.library.identicalCopies[c.contentId].orEmpty().forEach { copy ->
+        Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Copy", color = colors.muted, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.width(64.dp))
+            Text(copy, color = colors.text, fontSize = 12.sp, modifier = Modifier.weight(1f))
+            TextButton(onClick = { onTrashCopy(copy) }) { Text("To ${service.platform.trashName}", fontSize = 12.sp, color = colors.danger) }
+        }
+    }
 
     Spacer(Modifier.height(16.dp))
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

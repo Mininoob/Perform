@@ -174,6 +174,17 @@ class Actions(
 
     suspend fun findCover(title: String, author: String?): ByteArray? = service.findCover(title, author)
 
+    /** The extra identical copies of these books (never the books themselves) go to the bin. */
+    fun trashExtraCopies(books: List<LibraryBook>) = run {
+        val copies = books.flatMap { service.library.identicalCopies[it.catalog.contentId].orEmpty() }
+        val gone = copies.count { service.trashCopy(it) }
+        state.notice = Notice("Moved $gone extra ${if (gone == 1) "copy" else "copies"} to the ${platform.trashName}")
+    }
+
+    fun trashCopy(path: String) = run {
+        if (service.trashCopy(path)) state.notice = Notice("Moved the copy to the ${platform.trashName}")
+    }
+
     fun lookUpAgain(books: List<LibraryBook>) = run {
         service.lookUpAgain(books.map { it.catalog.contentId })
         state.notice = Notice("Looking up ${count(books.size)} again")

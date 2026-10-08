@@ -36,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.preform.desktop.CheckKind
 import com.preform.desktop.LibraryBook
 import com.preform.desktop.LibraryService
 import com.preform.sync.Genres
@@ -46,6 +47,7 @@ sealed interface Place {
     data object Recent : Place
     data class Folder(val path: String) : Place
     data class Genre(val name: String) : Place
+    data class Check(val kind: CheckKind) : Place
     data object Phones : Place
     data object Settings : Place
 }
@@ -114,8 +116,15 @@ class WindowState {
 }
 
 /** The books [place] shows, searched and sorted. */
-fun visibleBooks(books: List<LibraryBook>, place: Place, query: String, sort: SortOrder): List<LibraryBook> {
+fun visibleBooks(
+    books: List<LibraryBook>,
+    place: Place,
+    query: String,
+    sort: SortOrder,
+    checks: Map<CheckKind, List<LibraryBook>> = emptyMap(),
+): List<LibraryBook> {
     val inPlace = when (place) {
+        is Place.Check -> checks[place.kind].orEmpty()
         Place.All -> books
         Place.Recent -> books.sortedByDescending { it.catalog.addedAt }.take(RECENT_COUNT)
         is Place.Folder -> books.filter { it.catalog.folder == place.path || it.catalog.folder.startsWith(place.path + "/") }
@@ -131,7 +140,8 @@ fun visibleBooks(books: List<LibraryBook>, place: Place, query: String, sort: So
                 b.relativePath.contains(q, true)
         }
     }
-    if (place == Place.Recent && query.isBlank()) return searched
+    // Recent keeps its order; checks keep copies and twins side by side.
+    if ((place == Place.Recent && query.isBlank()) || place is Place.Check) return searched
     return when (sort) {
         SortOrder.TITLE -> searched.sortedBy { sortableTitle(it.catalog.title) }
         SortOrder.AUTHOR -> searched.sortedWith(compareBy<LibraryBook> { it.catalog.author?.let(::surnameFirst) ?: "￿" }.thenBy { sortableTitle(it.catalog.title) })
@@ -159,6 +169,7 @@ fun LibraryWindow(service: LibraryService, covers: CoverCache, state: WindowStat
     val status by service.status.collectAsState()
     val activity by service.activity.collectAsState()
     val config by service.configFlow.collectAsState()
+    val checks by service.checks.collectAsState()
 
     val scope = rememberCoroutineScope()
     val actions = remember(service, state) { Actions(service, state, scope) }
@@ -176,6 +187,7 @@ fun LibraryWindow(service: LibraryService, covers: CoverCache, state: WindowStat
             actions = actions,
             books = books,
             folders = folders,
+            checks = checks,
             status = status,
             activity = activity,
             modifier = Modifier.width(248.dp).fillMaxHeight(),
@@ -186,7 +198,9 @@ fun LibraryWindow(service: LibraryService, covers: CoverCache, state: WindowStat
                 Place.Phones -> PhonesScreen(service, state)
                 Place.Settings -> SettingsScreen(service, config, status)
                 else -> {
-                    val shown = remember(books, place, state.query, state.sort) { visibleBooks(books, place, state.query, state.sort) }
+                    val shown = remember(books, checks, place, state.query, state.sort) {
+                        visibleBooks(books, place, state.query, state.sort, checks)
+                    }
                     state.visible = shown
                     state.allBooks = books
                     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -211,6 +225,7 @@ fun LibraryWindow(service: LibraryService, covers: CoverCache, state: WindowStat
                             shown = shown,
                             place = place,
                             onEdit = { state.dialog = Dialog.Edit(it) },
+                            onTrashCopy = actions::trashCopy,
                             modifier = Modifier.width(320.dp).fillMaxHeight(),
                         )
                         }

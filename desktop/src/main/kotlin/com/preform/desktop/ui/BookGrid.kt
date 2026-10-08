@@ -59,6 +59,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.preform.desktop.CheckKind
 import com.preform.desktop.LibraryBook
 import com.preform.sync.Genres
 
@@ -76,6 +77,7 @@ fun BookGrid(
 ) {
     Column(modifier) {
         Toolbar(state, books.size, actions, onRescan)
+        (state.place as? Place.Check)?.let { CheckBanner(it.kind, books, actions) }
         when {
             !libraryFound -> Empty("Your library folder can't be found.", "Choose it again in Settings.") { state.go(Place.Settings) }
             libraryEmpty -> Empty("No books yet.", "Add EPUB or PDF files to your library folder, or drop them here.", null)
@@ -121,6 +123,7 @@ private fun Toolbar(state: WindowState, count: Int, actions: Actions, onRescan: 
 }
 
 fun placeTitle(place: Place): String = when (place) {
+    is Place.Check -> place.kind.label
     Place.All -> "All books"
     Place.Recent -> "Recently added"
     is Place.Folder -> place.path.substringAfterLast('/')
@@ -320,6 +323,30 @@ private fun BookCard(book: LibraryBook, covers: CoverCache, selected: Boolean, m
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+/** What a check means, and the fix that applies to all of its books at once. */
+@Composable
+private fun CheckBanner(kind: CheckKind, books: List<LibraryBook>, actions: Actions) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(start = 28.dp, end = 24.dp, bottom = 12.dp)
+            .background(colors.raised, RoundedCornerShape(10.dp))
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(kind.hint, color = colors.muted, fontSize = 13.sp, modifier = Modifier.weight(1f))
+        if (books.isEmpty()) return@Row
+        when (kind) {
+            CheckKind.IDENTICAL -> TextButton(onClick = { actions.trashExtraCopies(books) }) {
+                Text("Move extra copies to the ${actions.platform.trashName}", color = colors.accent, fontSize = 13.sp)
+            }
+            CheckKind.TITLE_FROM_FILE, CheckKind.NO_AUTHOR, CheckKind.NO_COVER, CheckKind.NO_GENRE ->
+                TextButton(onClick = { actions.lookUpAgain(books) }) { Text("Look them all up again", color = colors.accent, fontSize = 13.sp) }
+            else -> Unit
+        }
     }
 }
 

@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.preform.desktop.CheckKind
 import com.preform.desktop.LibraryBook
 import com.preform.desktop.Status
 import com.preform.sync.Genres
@@ -51,6 +52,7 @@ fun Sidebar(
     actions: Actions,
     books: List<LibraryBook>,
     folders: List<String>,
+    checks: Map<CheckKind, List<LibraryBook>>,
     status: Status,
     activity: String?,
     modifier: Modifier = Modifier,
@@ -82,6 +84,14 @@ fun Sidebar(
                 genres.forEach { (genre, count) ->
                     Item(Glyphs.Tag, genre, count, state.place == Place.Genre(genre)) { state.go(Place.Genre(genre)) }
                 }
+            }
+            Heading("Checks")
+            val found = checks.filter { it.value.isNotEmpty() }
+            if (found.isEmpty()) {
+                Text("All tidy.", color = colors.muted, fontSize = 12.sp, modifier = Modifier.padding(start = 10.dp, bottom = 4.dp))
+            }
+            found.forEach { (kind, list) ->
+                Item(Glyphs.Check, kind.label, list.size, state.place == Place.Check(kind)) { state.go(Place.Check(kind)) }
             }
             Spacer(Modifier.height(12.dp))
         }

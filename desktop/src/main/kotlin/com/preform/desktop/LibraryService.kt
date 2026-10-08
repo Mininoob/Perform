@@ -73,6 +73,10 @@ class LibraryService(private val paths: AppPaths, val platform: Platform = Platf
     private val _folders = MutableStateFlow(library.folders())
     val folders: StateFlow<List<String>> = _folders
 
+    /** Tidy-up checks over the whole library, kept current with it. */
+    private val _checks = MutableStateFlow(emptyMap<CheckKind, List<LibraryBook>>())
+    val checks: StateFlow<Map<CheckKind, List<LibraryBook>>> = _checks
+
     /** What the app is busy with, for the status line; null when idle. */
     private val _activity = MutableStateFlow<String?>(null)
     val activity: StateFlow<String?> = _activity
@@ -112,8 +116,10 @@ class LibraryService(private val paths: AppPaths, val platform: Platform = Platf
     }
 
     fun refreshLists() {
-        _books.value = store.liveBooks()
+        val books = store.liveBooks()
+        _books.value = books
         _folders.value = library.folders()
+        _checks.value = runChecks(books, library.identicalCopies)
     }
 
     // Organizing: run off the UI thread; the lists refresh as soon as each finishes.

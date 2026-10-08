@@ -365,7 +365,8 @@ class Library(
     enum class CoverSize(val suffix: String, val maxPx: Int) { THUMB("thumb", 480), FULL("full", 1400) }
 
     private fun add(file: Path, contentId: String, relative: String, format: Format, size: Long, modified: Long, now: Long) {
-        val meta = BookMetadata.read(file, format)
+        val readable = BookMetadata.readOrNull(file, format)
+        val meta = readable ?: BookMetadata.read(file, format)
         val genres = Genres.classify(meta.subjects)
         val etag = meta.cover?.let { image ->
             val thumb = BookMetadata.jpeg(image, CoverSize.THUMB.maxPx)
@@ -395,6 +396,7 @@ class Library(
                 // No genres in the book itself: left for the online lookup.
                 genreSource = if (genres.isNotEmpty()) "book" else null,
                 titleFromFile = meta.titleFromFile,
+                unreadable = readable == null,
             ),
         )
     }

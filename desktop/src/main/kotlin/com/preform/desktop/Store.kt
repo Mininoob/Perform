@@ -25,6 +25,8 @@ data class LibraryBook(
     val titleFromFile: Boolean = false,
     /** Null until Open Library has been asked about this book. */
     val lookup: String? = null,
+    /** The file couldn't be opened as a book when it was added. */
+    val unreadable: Boolean = false,
 )
 
 /** "Fiction/Fantasy/The Hobbit.epub" becomes "Fiction/Fantasy"; "" for a book at the top. */
@@ -83,6 +85,7 @@ class Store(file: Path) : AutoCloseable {
         addColumnIfMissing("books", "lookup", "TEXT")
         addColumnIfMissing("books", "series", "TEXT")
         addColumnIfMissing("books", "series_index", "REAL")
+        addColumnIfMissing("books", "unreadable", "INTEGER NOT NULL DEFAULT 0")
         db.createStatement().use {
             // Ids books had before information was written into their files.
             it.executeUpdate("CREATE TABLE IF NOT EXISTS aliases (old_id TEXT PRIMARY KEY, new_id TEXT NOT NULL)")
@@ -129,14 +132,14 @@ class Store(file: Path) : AutoCloseable {
         val c = book.catalog
         db.prepareStatement(
             """INSERT INTO books(content_id, rel_path, title, author, format, size, modified, rtl, cover_etag, added_at, removed, rev,
-                 genres, genre_source, description, year, title_from_file, lookup, series, series_index)
-               VALUES(?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?,?,?,?,?)
+                 genres, genre_source, description, year, title_from_file, lookup, series, series_index, unreadable)
+               VALUES(?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?,?,?,?,?,?)
                ON CONFLICT(content_id) DO UPDATE SET rel_path = excluded.rel_path, title = excluded.title,
                  author = excluded.author, format = excluded.format, size = excluded.size, modified = excluded.modified,
                  rtl = excluded.rtl, cover_etag = excluded.cover_etag, removed = 0, rev = excluded.rev,
                  genres = excluded.genres, genre_source = excluded.genre_source, description = excluded.description,
                  year = excluded.year, title_from_file = excluded.title_from_file, lookup = excluded.lookup,
-                 series = excluded.series, series_index = excluded.series_index""",
+                 series = excluded.series, series_index = excluded.series_index, unreadable = excluded.unreadable""",
         ).use { p ->
             p.setString(1, c.contentId)
             p.setString(2, book.relativePath)
@@ -157,6 +160,7 @@ class Store(file: Path) : AutoCloseable {
             p.setString(17, book.lookup)
             p.setString(18, c.series)
             c.seriesIndex?.let { p.setDouble(19, it) } ?: p.setNull(19, java.sql.Types.REAL)
+            p.setInt(20, if (book.unreadable) 1 else 0)
             p.executeUpdate()
         }
     }
@@ -452,6 +456,7 @@ class Store(file: Path) : AutoCloseable {
         genreSource = getString("genre_source"),
         titleFromFile = getInt("title_from_file") == 1,
         lookup = getString("lookup"),
+        unreadable = getInt("unreadable") == 1,
     )
 
     private fun ResultSet.toDevice() = Device(

@@ -143,14 +143,14 @@ class OpenLibrary(
         }.getOrNull()
 
         /** "Dune: Deluxe Edition (Book 1)" → "Dune". */
-        internal fun cleanTitle(title: String): String =
+        fun cleanTitle(title: String): String =
             title.replace(Regex("""[(\[].*?[)\]]"""), " ")
                 .substringBefore(':')
                 .replace(Regex("""\s+"""), " ")
                 .trim()
 
         /** Lowercase letters and digits only, without a leading article: "The Hobbit" matches "Hobbit". */
-        internal fun normalize(title: String): String =
+        fun normalize(title: String): String =
             title.lowercase().replace(Regex("""^(the|a|an)\s+"""), "").filter(Char::isLetterOrDigit)
 
         /** "Terry Pratchett, Neil Gaiman" → "Terry Pratchett". */
