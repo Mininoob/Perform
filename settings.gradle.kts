@@ -16,3 +16,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "Preform"
 include(":app")
+include(":sync-protocol")
+include(":desktop")
