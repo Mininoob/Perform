@@ -82,6 +82,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.preform.reader.ui.CloudIcon
 import com.preform.reader.ui.Literata
 import com.preform.reader.ui.LiterataDisplay
 import com.preform.reader.ui.TypeCover
@@ -476,14 +477,30 @@ private fun Caption(book: BookEntity) {
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
     )
-    furniture(book)?.let {
-        Text(
-            it,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+    val onPc = !book.downloaded
+    if (furniture(book) != null || onPc) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            furniture(book)?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+            }
+            if (onPc) {
+                // On the PC, not on the phone yet: a hairline mark in the caption, never on the cover.
+                Spacer(Modifier.width(4.dp))
+                Icon(
+                    CloudIcon.Outline,
+                    contentDescription = "On your PC",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(12.dp),
+                )
+            }
+        }
     }
     if (book.progression > 0) {
         Spacer(Modifier.height(6.dp))
@@ -491,12 +508,11 @@ private fun Caption(book: BookEntity) {
     }
 }
 
-/** "Austen · 1815": the author's surname and the year; "On your PC" while it isn't on the phone yet. */
+/** "Austen · 1815": the author's surname and the year. */
 private fun furniture(book: BookEntity): String? =
     listOfNotNull(
         book.author?.split(',', '&', ';')?.first()?.trim()?.substringAfterLast(' ')?.ifBlank { null },
         book.year?.toString(),
-        "On your PC".takeIf { !book.downloaded },
     ).joinToString(" · ").ifBlank { null }
 
 @OptIn(ExperimentalFoundationApi::class)
