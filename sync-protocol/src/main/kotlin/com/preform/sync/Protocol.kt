@@ -81,6 +81,39 @@ data class CatalogBook(
     val folder: String = "",
     /** From [Genres]; empty until the PC has worked them out. */
     val genres: List<String> = emptyList(),
+    val description: String? = null,
+    /** First published. */
+    val year: Int? = null,
+    /**
+     * Ids this book had before the PC wrote information into the file (which changes its
+     * bytes, so its id). A phone that knew it by one of these keeps its download and place.
+     */
+    val previousIds: List<String> = emptyList(),
+)
+
+/** A book only the phone has, which it asks the PC to look up. */
+@Serializable
+data class LookupQuery(
+    /** The phone's own key for the book, echoed back. */
+    val key: String,
+    val title: String,
+    val author: String? = null,
+    /** The title is only the file name, so the PC may correct it. */
+    val titleFromFile: Boolean = false,
+)
+
+/** What the PC found for a [LookupQuery]; [found] false means nothing matched. */
+@Serializable
+data class LookupResult(
+    val key: String,
+    val found: Boolean,
+    val title: String? = null,
+    val author: String? = null,
+    val genres: List<String> = emptyList(),
+    val description: String? = null,
+    val year: Int? = null,
+    /** Fetch with GET /lookup/cover/{coverId}. */
+    val coverId: Long? = null,
 )
 
 /** Catalog changes since a cursor. */

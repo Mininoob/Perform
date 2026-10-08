@@ -3,6 +3,10 @@ package com.preform.desktop
 import com.preform.sync.BookState
 import com.preform.sync.CatalogPage
 import com.preform.sync.Format
+import com.preform.sync.LookupQuery
+import com.preform.sync.LookupResult
+import io.ktor.http.ContentType
+import io.ktor.server.response.respondBytes
 import com.preform.sync.PairRequest
 import com.preform.sync.PairResponse
 import com.preform.sync.Protocol
@@ -52,6 +56,9 @@ class ServerDeps(
     val serverName: () -> String,
     val tempDir: Path,
     val clock: () -> Long = System::currentTimeMillis,
+    /** Looks up books only a phone has; null result when lookups are off or offline. */
+    val lookup: (List<LookupQuery>) -> List<LookupResult>? = { null },
+    val lookupCover: (Long) -> ByteArray? = { null },
 )
 
 fun Application.preformModule(deps: ServerDeps) {
@@ -93,7 +100,8 @@ fun Application.preformModule(deps: ServerDeps) {
 
         get("/books/{id}/file") {
             call.device(deps) ?: return@get
-            val book = call.parameters["id"]?.takeIf(::isContentId)?.let(deps.store::book)
+            // An id from before information was written into the file still finds the book.
+            val book = call.parameters["id"]?.takeIf(::isContentId)?.let(deps.store::resolve)?.let(deps.store::book)
             val file = book?.let(deps.library::file)
             if (file == null) {
                 call.respond(HttpStatusCode.NotFound)
@@ -104,7 +112,7 @@ fun Application.preformModule(deps: ServerDeps) {
 
         get("/books/{id}/cover") {
             call.device(deps) ?: return@get
-            val id = call.parameters["id"]?.takeIf(::isContentId)
+            val id = call.parameters["id"]?.takeIf(::isContentId)?.let(deps.store::resolve)
             val size = if (call.request.queryParameters["size"] == "full") Library.CoverSize.FULL else Library.CoverSize.THUMB
             val cover = id?.let { deps.library.cover(it, size) }
             if (cover == null) {
@@ -145,7 +153,29 @@ fun Application.preformModule(deps: ServerDeps) {
                 call.respond(HttpStatusCode.BadRequest)
                 return@post
             }
-            call.respond(incoming.map(deps.store::mergeState))
+            call.respond(incoming.map { deps.store.mergeState(it.copy(contentId = deps.store.resolve(it.contentId))) })
+        }
+
+        post("/lookup") {
+            call.device(deps) ?: return@post
+            val queries = call.receive<List<LookupQuery>>()
+            val results = withContext(Dispatchers.IO) { deps.lookup(queries) }
+            if (results == null) {
+                call.respond(HttpStatusCode.ServiceUnavailable, "The PC can't look books up right now.")
+            } else {
+                call.respond(results)
+            }
+        }
+
+        get("/lookup/cover/{coverId}") {
+            call.device(deps) ?: return@get
+            val coverId = call.parameters["coverId"]?.toLongOrNull()
+            val bytes = coverId?.let { withContext(Dispatchers.IO) { deps.lookupCover(it) } }
+            if (bytes == null) {
+                call.respond(HttpStatusCode.NotFound)
+            } else {
+                call.respondBytes(bytes, ContentType.Image.JPEG)
+            }
         }
     }
 }

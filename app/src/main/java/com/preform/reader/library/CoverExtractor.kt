@@ -26,7 +26,12 @@ data class BookDetails(
     val coverFullPath: String?,
     val coverColor: Int?,
     val genres: List<String> = emptyList(),
+    /** No title inside the book; [title] is its file name. */
+    val titleFromFile: Boolean = false,
 )
+
+/** A cover saved to disk: both sizes and its dominant color. */
+data class SavedCover(val thumbPath: String, val fullPath: String, val color: Int)
 
 /**
  * Reads metadata and saves the cover to disk.
@@ -57,6 +62,17 @@ class CoverExtractor(context: Context) {
             coverFullPath = full,
             coverColor = color,
             genres = Genres.classify(metadata.subjects.map { it.name }),
+            titleFromFile = metadata.title.isNullOrBlank(),
+        )
+    }
+
+    /** Saves a cover found for a book that had none (looked up by the PC). */
+    fun saveCover(uri: String, bitmap: Bitmap): SavedCover {
+        val key = sha1(uri)
+        return SavedCover(
+            thumbPath = save(bitmap, File(coverDir, "${key}_thumb.jpg"), THUMB_PX),
+            fullPath = save(bitmap, File(coverDir, "${key}_full.jpg"), FULL_PX),
+            color = Palette.from(bitmap).generate().getDominantColor(Color.DKGRAY),
         )
     }
 

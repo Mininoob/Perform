@@ -10,6 +10,8 @@ import com.preform.reader.library.BookDao
 import com.preform.reader.library.BookEntity
 import com.preform.reader.library.BookFormat
 import com.preform.reader.library.BookSource
+import com.preform.reader.library.CoverExtractor
+import com.preform.sync.LookupQuery
 import com.preform.reader.library.GENRE_SEPARATOR
 import com.preform.sync.CatalogBook
 import com.preform.sync.Format
@@ -46,6 +48,7 @@ class LibrarySync(
     private val context: Context,
     private val dao: BookDao,
     val settings: SyncSettings,
+    private val covers: CoverExtractor,
 ) {
     private val coverDir = File(context.filesDir, "covers").apply { mkdirs() }
     private val bookDir = File(context.filesDir, "library").apply { mkdirs() }
@@ -122,6 +125,7 @@ class LibrarySync(
                 page.removed.forEach { id -> dao.serverBook(id)?.let { forget(it) } }
                 settings.setCatalogCursor(page.cursor)
                 settings.setLastSync(System.currentTimeMillis())
+                lookUpLocalBooks(client)
                 Unit
             }
         }
@@ -139,7 +143,9 @@ class LibrarySync(
     }
 
     private suspend fun upsert(client: LibraryClient, book: CatalogBook) {
+        // The PC wrote information into the file, which gave it a new id: same book.
         val existing = dao.serverBook(book.contentId)
+            ?: book.previousIds.firstNotNullOfOrNull { dao.serverBook(it) }
         val coversChanged = existing == null || existing.coverEtag != book.coverEtag
         val covers = if (coversChanged) fetchCovers(client, book) else null
         if (coversChanged && existing != null) deleteCovers(existing)
@@ -163,11 +169,20 @@ class LibrarySync(
                     coverEtag = book.coverEtag,
                     shelf = book.folder,
                     genres = book.genres.joinToString(GENRE_SEPARATOR),
+                    description = book.description,
+                    year = book.year,
                 ),
             )
         } else {
             dao.update(
                 existing.copy(
+                    // A re-keyed book keeps its download: the old copy reads the same, only
+                    // its information was behind.
+                    contentId = book.contentId,
+                    uri = "$URI_SCHEME${book.contentId}",
+                    sizeBytes = if (existing.localPath == null) book.sizeBytes else existing.sizeBytes,
+                    description = book.description,
+                    year = book.year,
                     title = book.title,
                     author = book.author,
                     rightToLeft = book.rightToLeft,
@@ -197,6 +212,51 @@ class LibrarySync(
             null
         }
         return Covers(thumb.path.takeIf { gotThumb }, full.path.takeIf { gotFull }, color)
+    }
+
+    /**
+     * Asks the PC to look up books only this phone has (its own folder and imports), a
+     * few at a time, and fills in what they lack. Quietly stops if the PC can't look up.
+     */
+    private suspend fun lookUpLocalBooks(client: LibraryClient) {
+        while (true) {
+            val batch = dao.localBooksAwaitingLookup(LOOKUP_BATCH)
+            if (batch.isEmpty()) return
+            val results = try {
+                client.lookup(batch.map { LookupQuery(it.id.toString(), it.title, it.author, it.titleFromFile) })
+            } catch (e: IOException) {
+                return // Lookups are off on the PC, or it's out of reach: try again next sync.
+            }.associateBy { it.key }
+            for (book in batch) {
+                val result = results[book.id.toString()]
+                if (result == null || !result.found) {
+                    dao.update(book.copy(lookedUp = true))
+                    continue
+                }
+                val cover = if (book.coverThumbPath == null) {
+                    result.coverId
+                        ?.let { runCatching { client.lookupCover(it) }.getOrNull() }
+                        ?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+                        ?.let { covers.saveCover(book.uri, it) }
+                } else {
+                    null
+                }
+                dao.update(
+                    book.copy(
+                        title = if (book.titleFromFile) result.title ?: book.title else book.title,
+                        titleFromFile = book.titleFromFile && result.title == null,
+                        author = book.author ?: result.author,
+                        genres = book.genres.ifEmpty { result.genres.joinToString(GENRE_SEPARATOR) },
+                        description = book.description ?: result.description,
+                        year = book.year ?: result.year,
+                        coverThumbPath = cover?.thumbPath ?: book.coverThumbPath,
+                        coverFullPath = cover?.fullPath ?: book.coverFullPath,
+                        coverColor = cover?.color ?: book.coverColor,
+                        lookedUp = true,
+                    ),
+                )
+            }
+        }
     }
 
     // Downloads
@@ -286,6 +346,9 @@ class LibrarySync(
     companion object {
         /** Placeholder uri for PC books: unique per book, never opened directly. */
         const val URI_SCHEME = "preform-server:"
+
+        /** The PC looks up one book a second, so a small batch answers well within the timeout. */
+        private const val LOOKUP_BATCH = 8
     }
 }
 

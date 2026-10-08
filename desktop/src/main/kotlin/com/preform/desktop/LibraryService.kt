@@ -30,12 +30,16 @@ class LibraryService(private val paths: AppPaths) {
     private val identity = TlsIdentity(paths.identity, config.keystorePassword)
     private val pairing = PairingWindow()
     private val library = Library({ Path.of(config.libraryRoot) }, store, paths.covers)
+    private val bookInfo = BookInfoService(store, library, OpenLibrary(), paths.backups, { config })
     private val server = LibraryServer(
-        ServerDeps(store, library, pairing, config.serverId, { config.serverName }, paths.temp),
+        ServerDeps(
+            store, library, pairing, config.serverId, { config.serverName }, paths.temp,
+            lookup = bookInfo::lookUpForPhone,
+            lookupCover = bookInfo::cover,
+        ),
         identity,
         config.port,
     )
-    private val genreLookup = GenreLookup()
     private val discovery = Discovery(config.serverId, config.serverName, config.port)
     private val scope = CoroutineScope(Dispatchers.IO)
     private var scanning: Job? = null
@@ -61,26 +65,27 @@ class LibraryService(private val paths: AppPaths) {
     fun rescan() {
         runCatching { library.scan() }
         _status.value = status()
-        if (config.lookUpGenres) lookUpGenres()
-    }
-
-    /**
-     * Fills in genres for books that don't declare any, one request a second (Open Library
-     * asks for gentle use). Stops at the first network failure and resumes next rescan.
-     */
-    @Synchronized
-    private fun lookUpGenres() {
-        for (book in store.booksAwaitingGenres()) {
-            if (!config.lookUpGenres) return
-            val genres = genreLookup.genres(book.catalog.title, book.catalog.author) ?: return
-            store.setGenres(book.catalog.contentId, genres, if (genres.isEmpty()) "none" else "online")
-            Thread.sleep(1_000)
+        if (config.lookUpOnline) {
+            runCatching { bookInfo.lookUpPending() }
+            _status.value = status()
         }
     }
 
-    fun setLookUpGenres(on: Boolean) {
-        config = config.copy(lookUpGenres = on).also { it.save(paths) }
-        if (on) scope.launch { lookUpGenres() }
+    fun setLookUpOnline(on: Boolean) {
+        config = config.copy(lookUpOnline = on).also { it.save(paths) }
+        if (on) scope.launch { rescan() }
+    }
+
+    fun setWriteIntoFiles(on: Boolean) {
+        config = config.copy(writeIntoFiles = on).also { it.save(paths) }
+    }
+
+    val backupCount: Int get() = bookInfo.backupCount()
+
+    /** Puts every original book file back, and stops writing into files. */
+    fun restoreOriginals(): Int {
+        setWriteIntoFiles(false)
+        return bookInfo.restoreOriginals().also { _status.value = status() }
     }
 
     /** Opens a five-minute pairing window and returns what the QR code shows. */

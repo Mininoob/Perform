@@ -1,0 +1,224 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 5,
+    "identityHash": "a2c3954c172d77e5f19b7d8c7170f84e",
+    "entities": [
+      {
+        "tableName": "books",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `uri` TEXT NOT NULL, `source` TEXT NOT NULL, `format` TEXT NOT NULL, `title` TEXT NOT NULL, `author` TEXT, `sizeBytes` INTEGER NOT NULL, `lastModified` INTEGER NOT NULL, `coverThumbPath` TEXT, `coverFullPath` TEXT, `coverColor` INTEGER, `rightToLeft` INTEGER NOT NULL, `locatorJson` TEXT, `progression` REAL NOT NULL, `addedAt` INTEGER NOT NULL, `lastOpenedAt` INTEGER, `hidden` INTEGER NOT NULL, `prefsOverrideJson` TEXT, `bookMode` INTEGER, `contentId` TEXT, `localPath` TEXT, `pinned` INTEGER NOT NULL DEFAULT 0, `coverEtag` TEXT, `positionAt` INTEGER, `settingsAt` INTEGER, `bookModeAt` INTEGER, `stateDirty` INTEGER NOT NULL DEFAULT 0, `shelf` TEXT NOT NULL DEFAULT '', `genres` TEXT NOT NULL DEFAULT '', `description` TEXT, `year` INTEGER, `titleFromFile` INTEGER NOT NULL DEFAULT 0, `lookedUp` INTEGER NOT NULL DEFAULT 0)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "uri",
+            "columnName": "uri",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "source",
+            "columnName": "source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "format",
+            "columnName": "format",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "author",
+            "columnName": "author",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sizeBytes",
+            "columnName": "sizeBytes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModified",
+            "columnName": "lastModified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "coverThumbPath",
+            "columnName": "coverThumbPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "coverFullPath",
+            "columnName": "coverFullPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "coverColor",
+            "columnName": "coverColor",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "rightToLeft",
+            "columnName": "rightToLeft",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "locatorJson",
+            "columnName": "locatorJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "progression",
+            "columnName": "progression",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "addedAt",
+            "columnName": "addedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastOpenedAt",
+            "columnName": "lastOpenedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "hidden",
+            "columnName": "hidden",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "prefsOverrideJson",
+            "columnName": "prefsOverrideJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "bookMode",
+            "columnName": "bookMode",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "contentId",
+            "columnName": "contentId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "localPath",
+            "columnName": "localPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pinned",
+            "columnName": "pinned",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "coverEtag",
+            "columnName": "coverEtag",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "positionAt",
+            "columnName": "positionAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "settingsAt",
+            "columnName": "settingsAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "bookModeAt",
+            "columnName": "bookModeAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "stateDirty",
+            "columnName": "stateDirty",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "shelf",
+            "columnName": "shelf",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "genres",
+            "columnName": "genres",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "year",
+            "columnName": "year",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "titleFromFile",
+            "columnName": "titleFromFile",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "lookedUp",
+            "columnName": "lookedUp",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_books_uri",
+            "unique": true,
+            "columnNames": [
+              "uri"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_books_uri` ON `${TABLE_NAME}` (`uri`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a2c3954c172d77e5f19b7d8c7170f84e')"
+    ]
+  }
+}

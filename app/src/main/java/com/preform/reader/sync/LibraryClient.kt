@@ -3,6 +3,8 @@ package com.preform.reader.sync
 import com.preform.sync.BookState
 import com.preform.sync.CatalogBook
 import com.preform.sync.CatalogPage
+import com.preform.sync.LookupQuery
+import com.preform.sync.LookupResult
 import com.preform.sync.PairRequest
 import com.preform.sync.PairResponse
 import com.preform.sync.Protocol
@@ -105,6 +107,21 @@ class LibraryClient(
         return call(slow, "/books?name=$encoded") { put(body) }.use { response ->
             Protocol.json.decodeFromString(CatalogBook.serializer(), response.body!!.string())
         }
+    }
+
+    /** Asks the PC to look up books only this phone has. */
+    suspend fun lookup(queries: List<LookupQuery>): List<LookupResult> {
+        val body = Protocol.json.encodeToString(ListSerializer(LookupQuery.serializer()), queries).toRequestBody(JSON)
+        return call(slow, "/lookup") { post(body) }.use { response ->
+            Protocol.json.decodeFromString(ListSerializer(LookupResult.serializer()), response.body!!.string())
+        }
+    }
+
+    /** A cover the PC found online, as JPEG bytes; null if there's none. */
+    suspend fun lookupCover(coverId: Long): ByteArray? = try {
+        call(slow, "/lookup/cover/$coverId") { get() }.use { it.body!!.bytes() }
+    } catch (e: ServerException) {
+        if (e.code == 404) null else throw e
     }
 
     private suspend fun <T> getJson(path: String, parse: (String) -> T): T =

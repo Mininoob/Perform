@@ -71,7 +71,7 @@ object TestBooks {
         return file
     }
 
-    private fun jpeg(): ByteArray {
+    fun jpeg(): ByteArray {
         val image = BufferedImage(120, 180, BufferedImage.TYPE_INT_RGB)
         image.createGraphics().apply { color = Color(122, 74, 43); fillRect(0, 0, 120, 180); dispose() }
         return ByteArrayOutputStream().also { ImageIO.write(image, "jpg", it) }.toByteArray()

@@ -18,6 +18,10 @@ data class LibraryBook(
     val modified: Long,
     /** Where the genres came from: "book", "online", "none" (looked, found nothing), or null (not looked yet). */
     val genreSource: String? = null,
+    /** No title inside the file; the catalog title is its file name until a lookup finds better. */
+    val titleFromFile: Boolean = false,
+    /** Null until Open Library has been asked about this book. */
+    val lookup: String? = null,
 )
 
 /** "Fiction/Fantasy/The Hobbit.epub" becomes "Fiction/Fantasy"; "" for a book at the top. */
@@ -62,6 +66,15 @@ class Store(file: Path) : AutoCloseable {
         // Added after the first release of the table.
         addColumnIfMissing("books", "genres", "TEXT NOT NULL DEFAULT ''")
         addColumnIfMissing("books", "genre_source", "TEXT")
+        addColumnIfMissing("books", "description", "TEXT")
+        addColumnIfMissing("books", "year", "INTEGER")
+        addColumnIfMissing("books", "title_from_file", "INTEGER NOT NULL DEFAULT 0")
+        // Null until Open Library has been asked; "done" afterwards, found or not.
+        addColumnIfMissing("books", "lookup", "TEXT")
+        db.createStatement().use {
+            // Ids books had before information was written into their files.
+            it.executeUpdate("CREATE TABLE IF NOT EXISTS aliases (old_id TEXT PRIMARY KEY, new_id TEXT NOT NULL)")
+        }
     }
 
     private fun addColumnIfMissing(table: String, column: String, definition: String) {
@@ -103,12 +116,13 @@ class Store(file: Path) : AutoCloseable {
         val c = book.catalog
         db.prepareStatement(
             """INSERT INTO books(content_id, rel_path, title, author, format, size, modified, rtl, cover_etag, added_at, removed, rev,
-                 genres, genre_source)
-               VALUES(?,?,?,?,?,?,?,?,?,?,0,?,?,?)
+                 genres, genre_source, description, year, title_from_file, lookup)
+               VALUES(?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?,?,?)
                ON CONFLICT(content_id) DO UPDATE SET rel_path = excluded.rel_path, title = excluded.title,
                  author = excluded.author, format = excluded.format, size = excluded.size, modified = excluded.modified,
                  rtl = excluded.rtl, cover_etag = excluded.cover_etag, removed = 0, rev = excluded.rev,
-                 genres = excluded.genres, genre_source = excluded.genre_source""",
+                 genres = excluded.genres, genre_source = excluded.genre_source, description = excluded.description,
+                 year = excluded.year, title_from_file = excluded.title_from_file, lookup = excluded.lookup""",
         ).use { p ->
             p.setString(1, c.contentId)
             p.setString(2, book.relativePath)
@@ -123,6 +137,10 @@ class Store(file: Path) : AutoCloseable {
             p.setLong(11, nextRev())
             p.setString(12, c.genres.joinToString(GENRE_SEPARATOR))
             p.setString(13, book.genreSource)
+            p.setString(14, c.description)
+            c.year?.let { p.setInt(15, it) } ?: p.setNull(15, java.sql.Types.INTEGER)
+            p.setInt(16, if (book.titleFromFile) 1 else 0)
+            p.setString(17, book.lookup)
             p.executeUpdate()
         }
     }
@@ -149,23 +167,96 @@ class Store(file: Path) : AutoCloseable {
             p.executeQuery().use { if (it.next()) it.getLong(1) else 0L }
         }
 
-    /** Records genres worked out after the book was added (looked up online). */
+    /** Live books Open Library hasn't been asked about yet. */
+    fun booksAwaitingLookup(): List<LibraryBook> =
+        db.prepareStatement("SELECT * FROM books WHERE removed = 0 AND lookup IS NULL").use { p ->
+            p.executeQuery().use { rs -> buildList { while (rs.next()) add(rs.toBook()) } }
+        }
+
+    /** Saves what a lookup found (already merged with what the book had), so phones hear about it. */
     @Synchronized
-    fun setGenres(contentId: String, genres: List<String>, source: String) {
-        db.prepareStatement("UPDATE books SET genres = ?, genre_source = ?, rev = ? WHERE content_id = ?").use { p ->
-            p.setString(1, genres.joinToString(GENRE_SEPARATOR))
-            p.setString(2, source)
-            p.setLong(3, nextRev())
-            p.setString(4, contentId)
+    fun saveInfo(book: LibraryBook) {
+        val c = book.catalog
+        db.prepareStatement(
+            """UPDATE books SET title = ?, author = ?, genres = ?, genre_source = ?, description = ?, year = ?,
+                 title_from_file = ?, cover_etag = ?, lookup = ?, rev = ? WHERE content_id = ?""",
+        ).use { p ->
+            p.setString(1, c.title)
+            p.setString(2, c.author)
+            p.setString(3, c.genres.joinToString(GENRE_SEPARATOR))
+            p.setString(4, book.genreSource)
+            p.setString(5, c.description)
+            c.year?.let { p.setInt(6, it) } ?: p.setNull(6, java.sql.Types.INTEGER)
+            p.setInt(7, if (book.titleFromFile) 1 else 0)
+            p.setString(8, c.coverEtag)
+            p.setString(9, book.lookup)
+            p.setLong(10, nextRev())
+            p.setString(11, c.contentId)
             p.executeUpdate()
         }
     }
 
-    /** Live books whose genres haven't been worked out yet. */
-    fun booksAwaitingGenres(): List<LibraryBook> =
-        db.prepareStatement("SELECT * FROM books WHERE removed = 0 AND genre_source IS NULL").use { p ->
-            p.executeQuery().use { rs -> buildList { while (rs.next()) add(rs.toBook()) } }
+    /**
+     * The book's file was rewritten (information written in, or the original restored), so
+     * its bytes and id changed. Moves everything known under the old id to the new one and
+     * remembers the old id, so phones that knew it, and old requests, still find the book.
+     */
+    @Synchronized
+    fun rekey(oldId: String, newId: String, size: Long, modified: Long) {
+        db.autoCommit = false
+        try {
+            db.prepareStatement("UPDATE books SET content_id = ?, size = ?, modified = ?, rev = ? WHERE content_id = ?").use { p ->
+                p.setString(1, newId)
+                p.setLong(2, size)
+                p.setLong(3, modified)
+                p.setLong(4, nextRev())
+                p.setString(5, oldId)
+                p.executeUpdate()
+            }
+            // Earlier ids now lead here too; an id being returned to is no longer an alias.
+            db.prepareStatement("UPDATE aliases SET new_id = ? WHERE new_id = ?").use { p ->
+                p.setString(1, newId)
+                p.setString(2, oldId)
+                p.executeUpdate()
+            }
+            db.prepareStatement("DELETE FROM aliases WHERE old_id = ?").use { p ->
+                p.setString(1, newId)
+                p.executeUpdate()
+            }
+            db.prepareStatement("INSERT OR REPLACE INTO aliases(old_id, new_id) VALUES(?, ?)").use { p ->
+                p.setString(1, oldId)
+                p.setString(2, newId)
+                p.executeUpdate()
+            }
+            state(oldId)?.let { moved ->
+                db.prepareStatement("DELETE FROM states WHERE content_id = ?").use { p ->
+                    p.setString(1, oldId)
+                    p.executeUpdate()
+                }
+                mergeState(moved.copy(contentId = newId))
+            }
+            db.commit()
+        } catch (e: Exception) {
+            db.rollback()
+            throw e
+        } finally {
+            db.autoCommit = true
         }
+    }
+
+    /** The current id for [id]: itself, or what it became after its file was rewritten. */
+    fun resolve(id: String): String =
+        db.prepareStatement("SELECT new_id FROM aliases WHERE old_id = ?").use { p ->
+            p.setString(1, id)
+            p.executeQuery().use { if (it.next()) it.getString(1) else id }
+        }
+
+    private fun previousIds(): Map<String, List<String>> =
+        db.prepareStatement("SELECT old_id, new_id FROM aliases").use { p ->
+            p.executeQuery().use { rs ->
+                buildList { while (rs.next()) add(rs.getString(2) to rs.getString(1)) }
+            }
+        }.groupBy({ it.first }, { it.second })
 
     @Synchronized
     fun markRemoved(contentId: String) {
@@ -191,11 +282,17 @@ class Store(file: Path) : AutoCloseable {
     fun catalogSince(since: Long): Triple<List<CatalogBook>, List<String>, Long> {
         val books = mutableListOf<CatalogBook>()
         val removed = mutableListOf<String>()
+        val aliases = previousIds()
         db.prepareStatement("SELECT * FROM books WHERE rev > ? ORDER BY rev").use { p ->
             p.setLong(1, since)
             p.executeQuery().use { rs ->
                 while (rs.next()) {
-                    if (rs.getInt("removed") == 1) removed += rs.getString("content_id") else books += rs.toBook().catalog
+                    if (rs.getInt("removed") == 1) {
+                        removed += rs.getString("content_id")
+                    } else {
+                        val book = rs.toBook().catalog
+                        books += book.copy(previousIds = aliases[book.contentId].orEmpty())
+                    }
                 }
             }
         }
@@ -299,10 +396,14 @@ class Store(file: Path) : AutoCloseable {
             addedAt = getLong("added_at"),
             folder = folderOf(getString("rel_path")),
             genres = getString("genres").orEmpty().split(GENRE_SEPARATOR).filter(String::isNotEmpty),
+            description = getString("description"),
+            year = getInt("year").takeIf { !wasNull() },
         ),
         relativePath = getString("rel_path"),
         modified = getLong("modified"),
         genreSource = getString("genre_source"),
+        titleFromFile = getInt("title_from_file") == 1,
+        lookup = getString("lookup"),
     )
 
     private fun ResultSet.toDevice() = Device(

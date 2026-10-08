@@ -20,6 +20,8 @@ class AppPaths(val data: Path) {
     val identity: Path = data.resolve("identity.jks")
     val covers: Path = data.resolve("covers")
     val temp: Path = data.resolve("temp")
+    /** Originals of book files that information was written into. */
+    val backups: Path = data.resolve("originals")
 
     init {
         data.createDirectories()
@@ -44,8 +46,10 @@ data class AppConfig(
     /** Protects the TLS key file on disk; generated once, never shown. */
     val keystorePassword: String,
     val startWithWindows: Boolean = false,
-    /** Ask Open Library for the genres of books that don't declare any. */
-    val lookUpGenres: Boolean = true,
+    /** Ask Open Library for what books don't say about themselves (genres, author, cover...). */
+    val lookUpOnline: Boolean = true,
+    /** Also write what was found into the book files, keeping the originals as backups. */
+    val writeIntoFiles: Boolean = true,
 ) {
     fun save(paths: AppPaths) = paths.config.writeText(Protocol.json.encodeToString(serializer(), this))
 

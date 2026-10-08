@@ -193,22 +193,47 @@ private fun LibraryWindow(service: LibraryService, pairing: Boolean, onPairingCh
             }
         }
 
-        Section("Genres") {
-            var lookUp by remember { mutableStateOf(service.config.lookUpGenres) }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Look up genres online")
+        Section("Book information") {
+            var lookUp by remember { mutableStateOf(service.config.lookUpOnline) }
+            var write by remember { mutableStateOf(service.config.writeIntoFiles) }
+            var backups by remember { mutableStateOf(service.backupCount) }
+            var confirmRestore by remember { mutableStateOf(false) }
+            LaunchedEffect(status) { backups = service.backupCount }
+
+            SettingSwitch(
+                title = "Look up book information online",
+                detail = "Genres, missing titles and authors, covers, descriptions and years from Open Library. " +
+                    "Only titles, authors and file names are sent.",
+                checked = lookUp,
+                onChange = { lookUp = it; service.setLookUpOnline(it) },
+            )
+            SettingSwitch(
+                title = "Write it into the book files",
+                detail = "Fills in only what a file is missing, so it shows in other apps too. " +
+                    "Each original is kept and can be put back.",
+                checked = write,
+                enabled = lookUp,
+                onChange = { write = it; service.setWriteIntoFiles(it) },
+            )
+            if (backups > 0) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "For books that don't list a genre, ask Open Library. Only the title and author are sent.",
+                        "$backups original ${if (backups == 1) "file" else "files"} kept",
                         color = Ink.muted,
                         fontSize = 12.sp,
+                        modifier = Modifier.weight(1f),
                     )
+                    if (confirmRestore) {
+                        TextButton(onClick = { confirmRestore = false }) { Text("Cancel") }
+                        Button(onClick = {
+                            confirmRestore = false
+                            write = false
+                            Thread { service.restoreOriginals(); backups = service.backupCount }.start()
+                        }) { Text("Put originals back") }
+                    } else {
+                        TextButton(onClick = { confirmRestore = true }) { Text("Restore originals…") }
+                    }
                 }
-                Switch(
-                    checked = lookUp,
-                    onCheckedChange = { lookUp = it; service.setLookUpGenres(it) },
-                    colors = SwitchDefaults.colors(checkedTrackColor = Ink.accent),
-                )
             }
         }
 
@@ -228,6 +253,22 @@ private fun LibraryWindow(service: LibraryService, pairing: Boolean, onPairingCh
             "Closing this window keeps the library running in the tray.",
             color = Ink.muted,
             fontSize = 12.sp,
+        )
+    }
+}
+
+@Composable
+private fun SettingSwitch(title: String, detail: String, checked: Boolean, onChange: (Boolean) -> Unit, enabled: Boolean = true) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(title, color = if (enabled) Ink.text else Ink.muted)
+            Text(detail, color = Ink.muted, fontSize = 12.sp)
+        }
+        Switch(
+            checked = checked,
+            enabled = enabled,
+            onCheckedChange = onChange,
+            colors = SwitchDefaults.colors(checkedTrackColor = Ink.accent),
         )
     }
 }

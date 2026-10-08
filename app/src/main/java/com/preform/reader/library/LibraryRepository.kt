@@ -95,6 +95,7 @@ class LibraryRepository(
                             addedAt = System.currentTimeMillis(),
                             shelf = file.folder,
                             genres = details.genres.joinToString(GENRE_SEPARATOR),
+                            titleFromFile = details.titleFromFile,
                         ),
                     )
                 }
@@ -114,6 +115,9 @@ class LibraryRepository(
                             rightToLeft = details.rightToLeft,
                             shelf = file.folder,
                             genres = details.genres.joinToString(GENRE_SEPARATOR),
+                            titleFromFile = details.titleFromFile,
+                            // A changed file is looked up afresh.
+                            lookedUp = false,
                         ),
                     )
                 }
@@ -200,6 +204,7 @@ class LibraryRepository(
                 rightToLeft = details.rightToLeft,
                 addedAt = System.currentTimeMillis(),
                 genres = details.genres.joinToString(GENRE_SEPARATOR),
+                titleFromFile = details.titleFromFile,
             ),
         )
         Result.success(id)

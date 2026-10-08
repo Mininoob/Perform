@@ -35,12 +35,13 @@ class AppContainer(context: Context) {
     val preferences = PreferencesStore(context)
     val readium = ReadiumServices(context)
     private val database = LibraryDatabase.create(context)
-    val sync = LibrarySync(context, database.books(), SyncSettings(context))
+    private val covers = CoverExtractor(context)
+    val sync = LibrarySync(context, database.books(), SyncSettings(context), covers)
     val library = LibraryRepository(
         context = context,
         dao = database.books(),
         readium = readium,
-        covers = CoverExtractor(context),
+        covers = covers,
         preferences = preferences,
     )
     val openBooks = OpenBooks()

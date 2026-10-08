@@ -21,6 +21,8 @@ data class Metadata(
     val cover: BufferedImage?,
     /** Subjects or keywords the book declares, for [com.preform.sync.Genres]. */
     val subjects: List<String> = emptyList(),
+    /** No title inside the file: [title] is only its file name. */
+    val titleFromFile: Boolean = false,
 )
 
 /**
@@ -36,12 +38,16 @@ object BookMetadata {
         else -> null
     }
 
-    fun read(file: Path, format: Format): Metadata = runCatching {
+    fun read(file: Path, format: Format): Metadata =
+        readOrNull(file, format) ?: Metadata(file.nameWithoutExtension, null, rightToLeft = false, cover = null, titleFromFile = true)
+
+    /** Null when the file can't be read as a book at all. */
+    fun readOrNull(file: Path, format: Format): Metadata? = runCatching {
         when (format) {
             Format.EPUB -> readEpub(file)
             Format.PDF -> readPdf(file)
         }
-    }.getOrElse { Metadata(file.nameWithoutExtension, null, rightToLeft = false, cover = null) }
+    }.getOrNull()
 
     private fun readEpub(file: Path): Metadata = ZipFile(file.toFile()).use { zip ->
         val container = zip.xml("META-INF/container.xml")
@@ -70,6 +76,7 @@ object BookMetadata {
 
         Metadata(
             title = text("title") ?: file.nameWithoutExtension,
+            titleFromFile = text("title") == null,
             author = text("creator"),
             rightToLeft = spine?.getAttribute("page-progression-direction") == "rtl",
             cover = cover,
@@ -83,6 +90,7 @@ object BookMetadata {
         val cover = if (pdf.numberOfPages > 0) PDFRenderer(pdf).renderImageWithDPI(0, 110f) else null
         Metadata(
             title = pdf.documentInformation?.title?.trim()?.ifBlank { null } ?: file.nameWithoutExtension,
+            titleFromFile = pdf.documentInformation?.title.isNullOrBlank(),
             author = pdf.documentInformation?.author?.trim()?.ifBlank { null },
             rightToLeft = false,
             cover = cover,
@@ -94,6 +102,11 @@ object BookMetadata {
     }
 
     private fun ZipFile.xml(name: String) = getInputStream(getEntry(name) ?: error("missing $name")).use { stream ->
+        parseXml(stream.readBytes()).documentElement
+    }
+
+    /** Parses XML from a book file: namespace-aware, and never fetching or expanding anything outside it. */
+    fun parseXml(bytes: ByteArray): org.w3c.dom.Document =
         DocumentBuilderFactory.newInstance().apply {
             isNamespaceAware = true
             // Book files come from anywhere: a doctype is tolerated (some EPUB 2 manifests
@@ -103,8 +116,7 @@ object BookMetadata {
             setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
             isXIncludeAware = false
             isExpandEntityReferences = false
-        }.newDocumentBuilder().parse(ByteArrayInputStream(stream.readBytes())).documentElement
-    }
+        }.newDocumentBuilder().parse(ByteArrayInputStream(bytes))
 
     /** Scales [image] to fit within [maxPx] on its longer side and encodes it as JPEG. */
     fun jpeg(image: BufferedImage, maxPx: Int): ByteArray {

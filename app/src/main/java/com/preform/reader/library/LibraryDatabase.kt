@@ -71,6 +71,13 @@ data class BookEntity(
     @ColumnInfo(defaultValue = "") val shelf: String = "",
     /** Genres from [com.preform.sync.Genres], joined by [GENRE_SEPARATOR]. */
     @ColumnInfo(defaultValue = "") val genres: String = "",
+    val description: String? = null,
+    /** First published. */
+    val year: Int? = null,
+    /** No title inside the file: [title] is the file name until a lookup finds the real one. */
+    @ColumnInfo(defaultValue = "0") val titleFromFile: Boolean = false,
+    /** A phone-only book the PC has looked up (found or not). */
+    @ColumnInfo(defaultValue = "0") val lookedUp: Boolean = false,
 ) {
     val genreList: List<String> get() = genres.split(GENRE_SEPARATOR).filter(String::isNotEmpty)
 
@@ -137,11 +144,15 @@ interface BookDao {
 
     @Query("UPDATE books SET pinned = :pinned WHERE id = :id")
     suspend fun setPinned(id: Long, pinned: Boolean)
+
+    /** Books only this phone has, not yet looked up by the PC. */
+    @Query("SELECT * FROM books WHERE source != 'SERVER' AND lookedUp = 0 AND hidden = 0 LIMIT :limit")
+    suspend fun localBooksAwaitingLookup(limit: Int): List<BookEntity>
 }
 
 @Database(
     entities = [BookEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = true,
     autoMigrations = [
         // v2: per-book Book Mode.
@@ -150,6 +161,8 @@ interface BookDao {
         AutoMigration(from = 2, to = 3),
         // v4: shelves (folders) and genres.
         AutoMigration(from = 3, to = 4),
+        // v5: descriptions, years and lookups.
+        AutoMigration(from = 4, to = 5),
     ],
 )
 abstract class LibraryDatabase : RoomDatabase() {

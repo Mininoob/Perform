@@ -589,7 +589,18 @@ private fun BookInfoDialog(book: BookEntity, onDismiss: () -> Unit) {
         title = { Text(book.title, fontFamily = FontFamily.Serif) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                book.author?.let { Text("By $it") }
+                book.author?.let { Text("By $it" + (book.year?.let { year -> " · $year" } ?: "")) }
+                    ?: book.year?.let { Text("First published $it") }
+                book.genreList.takeIf { it.isNotEmpty() }?.let { Text(it.joinToString(" · ")) }
+                book.description?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 8,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 Text("${book.format.name} · ${"%.1f".format(book.sizeBytes / 1_048_576.0)} MB")
                 Text(
                     when (book.source) {
