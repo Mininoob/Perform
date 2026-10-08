@@ -142,7 +142,7 @@ fun LibraryScreen(
         },
     ) { padding ->
         PullToRefreshBox(
-            isRefreshing = false,
+            isRefreshing = state.refreshing,
             onRefresh = onRefresh,
             modifier = Modifier
                 .fillMaxSize()

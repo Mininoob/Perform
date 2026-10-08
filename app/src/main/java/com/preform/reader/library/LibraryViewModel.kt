@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -41,6 +42,8 @@ data class LibraryUiState(
     val opening: Long? = null,
     /** PC books downloading, by id, with progress 0..1. */
     val downloads: Map<Long, Float> = emptyMap(),
+    /** A pull-to-refresh is running: the folder scan and the PC sync. */
+    val refreshing: Boolean = false,
     val view: LibraryView = LibraryView.SHELVES,
     /** Inside a shelf: its folder path or genre. Null at the top. */
     val location: String? = null,
@@ -61,6 +64,7 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
     private val query = MutableStateFlow("")
     private val sort = MutableStateFlow(LibrarySort.RECENT)
     private val opening = MutableStateFlow<Long?>(null)
+    private val refreshing = MutableStateFlow(false)
 
     private val _events = Channel<LibraryEvent>(Channel.BUFFERED)
     val events: Flow<LibraryEvent> = _events.receiveAsFlow()
@@ -83,8 +87,8 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
         container.preferences.libraryFolder,
         library.scanState,
         opening,
-        container.sync.downloads,
-    ) { (books, q, s, v, l), folder, scan, openingId, downloads ->
+        combine(container.sync.downloads, refreshing) { downloads, busy -> downloads to busy },
+    ) { (books, q, s, v, l), folder, scan, openingId, (downloads, busy) ->
         val filtered = if (q.isBlank()) books else books.filter {
             it.title.contains(q, ignoreCase = true) || it.author?.contains(q, ignoreCase = true) == true
         }
@@ -106,6 +110,7 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
             scan = scan,
             opening = openingId,
             downloads = downloads,
+            refreshing = busy,
             loaded = true,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
@@ -137,13 +142,23 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun refresh() {
+        if (refreshing.value) return
+        refreshing.value = true
         viewModelScope.launch {
-            library.syncFolder().onFailure {
-                _events.send(LibraryEvent.Message("Couldn't read the library folder. Choose it again in Settings."))
+            try {
+                coroutineScope {
+                    launch {
+                        library.syncFolder().onFailure {
+                            _events.send(LibraryEvent.Message("Couldn't read the library folder. Choose it again in Settings."))
+                        }
+                    }
+                    // The PC library syncs alongside; being away from it is normal, so no message.
+                    launch { container.sync.sync() }
+                }
+            } finally {
+                refreshing.value = false
             }
         }
-        // The PC library syncs alongside; being away from it is normal, so no message.
-        viewModelScope.launch { container.sync.sync() }
     }
 
     fun downloadAction(book: BookEntity, action: DownloadAction) {
