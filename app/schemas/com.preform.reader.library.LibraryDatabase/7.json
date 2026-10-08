@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 7,
-    "identityHash": "ec34b4030396e25e038e0e41c4b3c543",
+    "identityHash": "ba0aa9cadf94e75055b5945d78c03aa5",
     "entities": [
       {
         "tableName": "books",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `uri` TEXT NOT NULL, `source` TEXT NOT NULL, `format` TEXT NOT NULL, `title` TEXT NOT NULL, `author` TEXT, `sizeBytes` INTEGER NOT NULL, `lastModified` INTEGER NOT NULL, `coverThumbPath` TEXT, `coverFullPath` TEXT, `coverColor` INTEGER, `rightToLeft` INTEGER NOT NULL, `locatorJson` TEXT, `progression` REAL NOT NULL, `addedAt` INTEGER NOT NULL, `lastOpenedAt` INTEGER, `hidden` INTEGER NOT NULL, `prefsOverrideJson` TEXT, `bookMode` INTEGER, `contentId` TEXT, `localPath` TEXT, `pinned` INTEGER NOT NULL DEFAULT 0, `coverEtag` TEXT, `positionAt` INTEGER, `settingsAt` INTEGER, `bookModeAt` INTEGER, `stateDirty` INTEGER NOT NULL DEFAULT 0, `shelf` TEXT NOT NULL DEFAULT '', `genres` TEXT NOT NULL DEFAULT '', `description` TEXT, `year` INTEGER, `titleFromFile` INTEGER NOT NULL DEFAULT 0, `lookedUp` INTEGER NOT NULL DEFAULT 0, `series` TEXT, `seriesIndex` REAL, `shelfDirty` INTEGER NOT NULL DEFAULT 0, `hashedSize` INTEGER, `hashedModified` INTEGER, `onPc` INTEGER NOT NULL DEFAULT 0)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `uri` TEXT NOT NULL, `source` TEXT NOT NULL, `format` TEXT NOT NULL, `title` TEXT NOT NULL, `author` TEXT, `sizeBytes` INTEGER NOT NULL, `lastModified` INTEGER NOT NULL, `coverThumbPath` TEXT, `coverFullPath` TEXT, `coverColor` INTEGER, `rightToLeft` INTEGER NOT NULL, `locatorJson` TEXT, `progression` REAL NOT NULL, `addedAt` INTEGER NOT NULL, `lastOpenedAt` INTEGER, `hidden` INTEGER NOT NULL, `prefsOverrideJson` TEXT, `bookMode` INTEGER, `contentId` TEXT, `localPath` TEXT, `pinned` INTEGER NOT NULL DEFAULT 0, `coverEtag` TEXT, `positionAt` INTEGER, `settingsAt` INTEGER, `bookModeAt` INTEGER, `stateDirty` INTEGER NOT NULL DEFAULT 0, `shelf` TEXT NOT NULL DEFAULT '', `genres` TEXT NOT NULL DEFAULT '', `description` TEXT, `year` INTEGER, `titleFromFile` INTEGER NOT NULL DEFAULT 0, `lookedUp` INTEGER NOT NULL DEFAULT 0, `series` TEXT, `seriesIndex` REAL, `hashedSize` INTEGER, `hashedModified` INTEGER, `onPc` INTEGER NOT NULL DEFAULT 0)",
         "fields": [
           {
             "fieldPath": "id",
@@ -207,13 +207,6 @@
             "affinity": "REAL"
           },
           {
-            "fieldPath": "shelfDirty",
-            "columnName": "shelfDirty",
-            "affinity": "INTEGER",
-            "notNull": true,
-            "defaultValue": "0"
-          },
-          {
             "fieldPath": "hashedSize",
             "columnName": "hashedSize",
             "affinity": "INTEGER"
@@ -250,9 +243,66 @@
         ]
       },
       {
-        "tableName": "folders",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`path` TEXT NOT NULL, `removed` INTEGER NOT NULL DEFAULT 0, `at` INTEGER NOT NULL, PRIMARY KEY(`path`))",
+        "tableName": "library_books",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`serverId` TEXT NOT NULL, `bookId` INTEGER NOT NULL, `folder` TEXT NOT NULL DEFAULT '', `folderDirty` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`serverId`, `bookId`))",
         "fields": [
+          {
+            "fieldPath": "serverId",
+            "columnName": "serverId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bookId",
+            "columnName": "bookId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "folder",
+            "columnName": "folder",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "folderDirty",
+            "columnName": "folderDirty",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "serverId",
+            "bookId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_library_books_bookId",
+            "unique": false,
+            "columnNames": [
+              "bookId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_library_books_bookId` ON `${TABLE_NAME}` (`bookId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "folders",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`serverId` TEXT NOT NULL DEFAULT '', `path` TEXT NOT NULL, `removed` INTEGER NOT NULL DEFAULT 0, `at` INTEGER NOT NULL, PRIMARY KEY(`serverId`, `path`))",
+        "fields": [
+          {
+            "fieldPath": "serverId",
+            "columnName": "serverId",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
           {
             "fieldPath": "path",
             "columnName": "path",
@@ -276,19 +326,27 @@
         "primaryKey": {
           "autoGenerate": false,
           "columnNames": [
+            "serverId",
             "path"
           ]
         }
       },
       {
         "tableName": "pending_changes",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `json` TEXT NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `serverId` TEXT NOT NULL DEFAULT '', `json` TEXT NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
             "columnName": "id",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "serverId",
+            "columnName": "serverId",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
           },
           {
             "fieldPath": "json",
@@ -307,7 +365,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'ec34b4030396e25e038e0e41c4b3c543')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'ba0aa9cadf94e75055b5945d78c03aa5')"
     ]
   }
 }

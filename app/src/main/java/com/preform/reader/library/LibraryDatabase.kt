@@ -82,8 +82,6 @@ data class BookEntity(
     val series: String? = null,
     /** Place in the series; fractional for in-between books (2.5). */
     val seriesIndex: Double? = null,
-    /** Moved on this phone and not yet confirmed by the PC: a sync mustn't put it back. */
-    @ColumnInfo(defaultValue = "0") val shelfDirty: Boolean = false,
     /** Phone books: the size and date [contentId] was worked out at, so it's only hashed again after a change. */
     val hashedSize: Long? = null,
     val hashedModified: Long? = null,
@@ -102,18 +100,33 @@ data class BookEntity(
     val movable: Boolean get() = source != BookSource.FOLDER
 }
 
-/** A folder as the library knows it, so an empty one still shows as a shelf. */
-@Entity(tableName = "folders")
+/**
+ * A paired library having a PC book: the same book on two computers is one [BookEntity]
+ * (one download, one place in the reading) with a row here for each, holding its folder
+ * there. [folderDirty]: moved on this phone and not yet confirmed by that library.
+ */
+@Entity(tableName = "library_books", primaryKeys = ["serverId", "bookId"], indices = [Index("bookId")])
+data class LibraryBookEntity(
+    val serverId: String,
+    val bookId: Long,
+    @ColumnInfo(defaultValue = "") val folder: String = "",
+    @ColumnInfo(defaultValue = "0") val folderDirty: Boolean = false,
+)
+
+/** A folder as a library knows it, so an empty one still shows as a shelf. "" is the phone's own. */
+@Entity(tableName = "folders", primaryKeys = ["serverId", "path"])
 data class FolderEntity(
-    @PrimaryKey val path: String,
+    @ColumnInfo(defaultValue = "") val serverId: String = "",
+    val path: String,
     @ColumnInfo(defaultValue = "0") val removed: Boolean = false,
     val at: Long,
 )
 
-/** An organizing change made here and waiting to reach the PC, as OrganizeChange JSON. */
+/** An organizing change made here and waiting to reach library [serverId], as OrganizeChange JSON. */
 @Entity(tableName = "pending_changes")
 data class PendingChangeEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(defaultValue = "") val serverId: String = "",
     val json: String,
 )
 
@@ -178,19 +191,50 @@ interface BookDao {
     @Query("SELECT * FROM books WHERE source != 'SERVER' AND lookedUp = 0 AND hidden = 0 LIMIT :limit")
     suspend fun localBooksAwaitingLookup(limit: Int): List<BookEntity>
 
+    // Which libraries have which PC books
+
+    @Query("SELECT * FROM library_books")
+    fun observeMemberships(): Flow<List<LibraryBookEntity>>
+
+    @Query("SELECT * FROM library_books WHERE bookId = :bookId")
+    suspend fun memberships(bookId: Long): List<LibraryBookEntity>
+
+    @Query("SELECT * FROM library_books WHERE serverId = :serverId")
+    suspend fun membershipsIn(serverId: String): List<LibraryBookEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveMembership(membership: LibraryBookEntity)
+
+    @Query("DELETE FROM library_books WHERE serverId = :serverId AND bookId = :bookId")
+    suspend fun removeMembership(serverId: String, bookId: Long)
+
+    @Query("DELETE FROM library_books WHERE serverId = :serverId")
+    suspend fun removeMemberships(serverId: String)
+
+    /** PC books no paired library has any more. */
+    @Query("SELECT * FROM books WHERE source = 'SERVER' AND id NOT IN (SELECT bookId FROM library_books)")
+    suspend fun orphanServerBooks(): List<BookEntity>
+
+    @Query("UPDATE library_books SET folder = :folder, folderDirty = :dirty WHERE serverId = :serverId AND bookId IN (:bookIds)")
+    suspend fun setMembershipFolder(serverId: String, bookIds: List<Long>, folder: String, dirty: Boolean)
+
+    @Query("SELECT bookId FROM library_books WHERE serverId = :serverId AND folderDirty = 1")
+    suspend fun dirtyMemberships(serverId: String): List<Long>
+
+    @Query("UPDATE library_books SET folderDirty = 0 WHERE serverId = :serverId AND bookId IN (:bookIds)")
+    suspend fun clearMembershipDirty(serverId: String, bookIds: List<Long>)
+
     // Organizing
 
-    @Query("UPDATE books SET shelf = :shelf, shelfDirty = :dirty WHERE id IN (:ids)")
-    suspend fun setShelf(ids: List<Long>, shelf: String, dirty: Boolean)
+    @Query("UPDATE books SET shelf = :shelf WHERE id IN (:ids)")
+    suspend fun setShelf(ids: List<Long>, shelf: String)
 
-    @Query("SELECT * FROM books WHERE source != 'FOLDER' AND (shelf = :path OR shelf LIKE :path || '/%')")
-    suspend fun movableUnder(path: String): List<BookEntity>
+    /** The phone's own movable books (imports) in a folder or below it. */
+    @Query("SELECT * FROM books WHERE source = 'IMPORTED' AND (shelf = :path OR shelf LIKE :path || '/%')")
+    suspend fun importsUnder(path: String): List<BookEntity>
 
-    @Query("SELECT id FROM books WHERE shelfDirty = 1")
-    suspend fun dirtyShelves(): List<Long>
-
-    @Query("UPDATE books SET shelfDirty = 0 WHERE id IN (:ids)")
-    suspend fun clearShelfDirty(ids: List<Long>)
+    @Query("SELECT * FROM library_books WHERE serverId = :serverId AND (folder = :path OR folder LIKE :path || '/%')")
+    suspend fun membershipsUnder(serverId: String, path: String): List<LibraryBookEntity>
 
     @Query("SELECT * FROM folders")
     fun observeFolders(): Flow<List<FolderEntity>>
@@ -201,17 +245,20 @@ interface BookDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveFolder(folder: FolderEntity)
 
+    @Query("DELETE FROM folders WHERE serverId = :serverId")
+    suspend fun removeFolders(serverId: String)
+
     @Insert
     suspend fun queue(change: PendingChangeEntity): Long
 
-    @Query("SELECT * FROM pending_changes ORDER BY id")
-    suspend fun pending(): List<PendingChangeEntity>
+    @Query("SELECT * FROM pending_changes WHERE serverId = :serverId ORDER BY id")
+    suspend fun pending(serverId: String): List<PendingChangeEntity>
 
     @Query("DELETE FROM pending_changes WHERE id IN (:ids)")
     suspend fun clearPending(ids: List<Long>)
 
-    @Query("DELETE FROM pending_changes")
-    suspend fun clearAllPending()
+    @Query("DELETE FROM pending_changes WHERE serverId = :serverId")
+    suspend fun clearPendingFor(serverId: String)
 
     // Full sync
 
@@ -242,7 +289,7 @@ interface BookDao {
 }
 
 @Database(
-    entities = [BookEntity::class, FolderEntity::class, PendingChangeEntity::class],
+    entities = [BookEntity::class, LibraryBookEntity::class, FolderEntity::class, PendingChangeEntity::class],
     version = 7,
     exportSchema = true,
     autoMigrations = [
@@ -256,7 +303,7 @@ interface BookDao {
         AutoMigration(from = 4, to = 5),
         // v6: series.
         AutoMigration(from = 5, to = 6),
-        // v7: organizing on the phone: folders, moves waiting for the PC.
+        // v7: several libraries, organizing on the phone (folders, moves waiting for each library), full sync.
         AutoMigration(from = 6, to = 7),
     ],
 )

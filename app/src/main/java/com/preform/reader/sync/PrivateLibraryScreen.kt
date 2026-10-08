@@ -58,25 +58,26 @@ import com.preform.sync.PairingInvite
 import com.preform.sync.Protocol
 import kotlinx.coroutines.launch
 
-/** Settings → Private library: pair with the PC, see sync status, manage downloads. */
-@OptIn(ExperimentalMaterial3Api::class)
+/** Settings → Private library: the libraries this phone is paired with, full sync for each, downloads. */
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun PrivateLibraryScreen(sync: LibrarySync, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
-    val connection by sync.settings.connection.collectAsState(null)
-    val keepAll by sync.settings.keepAll.collectAsState(initial = false)
-    val shareLocal by sync.settings.shareLocal.collectAsState(initial = true)
+    val connections by sync.settings.connections.collectAsState(emptyList())
+    val statuses by sync.statuses.collectAsState()
+    val lastSyncs by sync.settings.lastSyncs.collectAsState(emptyMap())
     val keepAllProgress by sync.keepAllProgress.collectAsState()
+    val shareLocal by sync.settings.shareLocal.collectAsState(initial = true)
+    val uploadTo by sync.settings.uploadTo.collectAsState(initial = null)
     val status by sync.status.collectAsState()
-    val lastSync by sync.settings.lastSync.collectAsState(null)
     val used by sync.storageUsed.collectAsState(0L)
     val limit by sync.settings.storageLimit.collectAsState(SyncSettings.DEFAULT_STORAGE_LIMIT)
 
     var busy by remember { mutableStateOf(false) }
     var manual by remember { mutableStateOf(false) }
-    var confirmUnpair by remember { mutableStateOf(false) }
+    var unpairing by remember { mutableStateOf<Connection?>(null) }
 
     fun paired(result: Result<String>) {
         busy = false
@@ -123,73 +124,78 @@ fun PrivateLibraryScreen(sync: LibrarySync, onBack: () -> Unit) {
                 .padding(horizontal = 24.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            val current = connection
-            if (current == null) {
+            if (connections.isEmpty()) {
                 Text(
-                    "Read the books on your PC from anywhere. Run Preform Library on the PC, " +
+                    "Read the books on your computers from anywhere. Run Preform Library on a PC or Mac, " +
                         "choose Pair a phone, then scan its code here.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+
+            if (connections.isNotEmpty()) {
+                Group(if (connections.size == 1) "Library" else "Libraries") {
+                    connections.forEach { c ->
+                        LibraryCard(
+                            connection = c,
+                            status = statuses[c.serverId],
+                            lastSync = lastSyncs[c.serverId],
+                            progress = keepAllProgress[c.serverId],
+                            onSync = { scope.launch { sync.sync() } },
+                            syncing = status == SyncStatus.Syncing,
+                            onKeepAll = { on ->
+                                scope.launch {
+                                    sync.settings.setKeepAll(c.serverId, on)
+                                    if (on) LibraryWorker.runSoon(context)
+                                }
+                            },
+                            onUnpair = { unpairing = c },
+                        )
+                    }
+                }
+            }
+
+            // Pairing (another) library.
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (busy) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         CircularProgressIndicator(Modifier.padding(4.dp), strokeWidth = 2.dp)
                         Text("Pairing…")
                     }
                 } else {
-                    Button(onClick = ::scan) { Text("Scan the PC's code") }
+                    if (connections.isEmpty()) {
+                        Button(onClick = ::scan) { Text("Scan the computer's code") }
+                    } else {
+                        OutlinedButton(onClick = ::scan) { Text("Pair another computer") }
+                    }
                     TextButton(onClick = { manual = true }) { Text("Type the code instead") }
                 }
                 Hint(
-                    "Books stay on your PC and download when you open them. Away from home, " +
-                        "turn on Tailscale on both the PC and this phone.",
+                    "Books stay on your computers and download when you open them. A book on two of them shows once. " +
+                        "Away from home, turn on Tailscale on the computer and this phone.",
                 )
-            } else {
-                Group("PC") {
-                    Text(current.serverName, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        when (val s = status) {
-                            SyncStatus.Syncing -> "Syncing…"
-                            is SyncStatus.Offline -> s.reason
-                            else -> lastSync?.let { "Synced ${DateUtils.getRelativeTimeSpanString(it)}" } ?: "Not synced yet"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { scope.launch { sync.sync() } }, enabled = status != SyncStatus.Syncing) {
-                            Text("Sync now")
-                        }
-                        TextButton(onClick = { confirmUnpair = true }) { Text("Unpair") }
-                    }
-                }
+            }
 
-                Group("Full sync") {
+            if (connections.isNotEmpty()) {
+                Group("This phone's books") {
                     Toggle(
-                        title = "Keep every book on this phone",
-                        detail = when {
-                            !keepAll -> "Books download when you open them."
-                            keepAllProgress == null -> "Downloads on Wi-Fi, newest first."
-                            keepAllProgress!!.outOfRoom ->
-                                "${keepAllProgress!!.onPhone} of ${keepAllProgress!!.total} books fit. Raise the limit below to keep the rest."
-                            keepAllProgress!!.onPhone < keepAllProgress!!.total ->
-                                "${keepAllProgress!!.onPhone} of ${keepAllProgress!!.total} on this phone. The rest download on Wi-Fi."
-                            else -> "All ${keepAllProgress!!.total} books are on this phone."
-                        },
-                        checked = keepAll,
-                    ) { on ->
-                        scope.launch {
-                            sync.settings.setKeepAll(on)
-                            if (on) LibraryWorker.runSoon(context)
-                        }
-                    }
-                    Toggle(
-                        title = "Add this phone's books to ${current.serverName}",
-                        detail = "Books in your folder here and books you add go into the PC library, on the shelf they're on. Removing one here never removes it from the PC.",
+                        title = "Add this phone's books to a library",
+                        detail = "Books in your folder here and books you add go into it, on the shelf they're on. Removing one here never removes it there.",
                         checked = shareLocal,
                     ) { on ->
                         scope.launch {
                             sync.settings.setShareLocal(on)
                             if (on) LibraryWorker.runSoon(context)
+                        }
+                    }
+                    if (shareLocal && connections.size > 1) {
+                        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            connections.forEach { c ->
+                                FilterChip(
+                                    selected = uploadTo == c.serverId,
+                                    onClick = { scope.launch { sync.settings.setUploadTo(c.serverId); LibraryWorker.runSoon(context) } },
+                                    label = { Text(c.serverName) },
+                                )
+                            }
                         }
                     }
                 }
@@ -208,13 +214,17 @@ fun PrivateLibraryScreen(sync: LibrarySync, onBack: () -> Unit) {
                                     scope.launch {
                                         sync.settings.setStorageLimit(bytes)
                                         sync.freeUpSpace()
+                                        LibraryWorker.runSoon(context)
                                     }
                                 },
                                 label = { Text(if (gb == 0L) "No limit" else "$gb GB") },
                             )
                         }
                     }
-                    Hint("Over the limit, the books you read longest ago are cleared. Books you keep downloaded stay.")
+                    Hint(
+                        "Over the limit, the books you read longest ago are cleared. Books you keep downloaded, " +
+                            "and books from a library kept in full, stay.",
+                    )
                     OutlinedButton(onClick = { scope.launch { sync.freeUpSpace(everything = true) } }) { Text("Free up space") }
                 }
             }
@@ -233,16 +243,58 @@ fun PrivateLibraryScreen(sync: LibrarySync, onBack: () -> Unit) {
         )
     }
 
-    if (confirmUnpair) {
+    unpairing?.let { c ->
         AlertDialog(
-            onDismissRequest = { confirmUnpair = false },
-            title = { Text("Unpair from ${connection?.serverName ?: "your PC"}?") },
-            text = { Text("Its books and their downloads leave this phone. Nothing on the PC changes.") },
+            onDismissRequest = { unpairing = null },
+            title = { Text("Unpair from ${c.serverName}?") },
+            text = { Text("Its books leave this phone, unless another library has them too. Nothing on ${c.serverName} changes.") },
             confirmButton = {
-                TextButton(onClick = { confirmUnpair = false; scope.launch { sync.unpair() } }) { Text("Unpair") }
+                TextButton(onClick = { unpairing = null; scope.launch { sync.unpair(c.serverId) } }) { Text("Unpair") }
             },
-            dismissButton = { TextButton(onClick = { confirmUnpair = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { unpairing = null }) { Text("Cancel") } },
         )
+    }
+}
+
+/** One paired library: its name and state, syncing it, keeping all of it on the phone, unpairing. */
+@Composable
+private fun LibraryCard(
+    connection: Connection,
+    status: SyncStatus?,
+    lastSync: Long?,
+    progress: LibrarySync.KeepAll?,
+    syncing: Boolean,
+    onSync: () -> Unit,
+    onKeepAll: (Boolean) -> Unit,
+    onUnpair: () -> Unit,
+) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(connection.serverName, style = MaterialTheme.typography.titleLarge, fontFamily = com.preform.reader.ui.LiterataDisplay)
+        Text(
+            when (status) {
+                SyncStatus.Syncing -> "Syncing…"
+                is SyncStatus.Offline -> status.reason
+                else -> lastSync?.let { "Synced ${DateUtils.getRelativeTimeSpanString(it)}" } ?: "Not synced yet"
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Toggle(
+            title = "Keep every book from ${connection.serverName}",
+            detail = when {
+                !connection.keepAll -> "Off: its books download when you open them."
+                progress == null -> "Downloads on Wi-Fi, newest first."
+                progress.outOfRoom -> "${progress.onPhone} of ${progress.total} fit. Raise the limit below to keep the rest."
+                progress.onPhone < progress.total -> "${progress.onPhone} of ${progress.total} on this phone. The rest download on Wi-Fi."
+                else -> "All ${progress.total} of its books are on this phone."
+            },
+            checked = connection.keepAll,
+            onChange = onKeepAll,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = onSync, enabled = !syncing) { Text("Sync now") }
+            TextButton(onClick = onUnpair) { Text("Unpair") }
+        }
     }
 }
 

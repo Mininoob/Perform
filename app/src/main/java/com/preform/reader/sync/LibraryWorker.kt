@@ -16,15 +16,15 @@ import com.preform.reader.container
 import java.util.concurrent.TimeUnit
 
 /**
- * The library's background sync, for when the app isn't open: send moves made here,
- * bring the catalog over, send the phone's own books, and (on Wi-Fi) download every
- * book when "Keep every book on this phone" is on.
+ * The libraries' background sync, for when the app isn't open: send moves made here,
+ * bring each catalog over, send the phone's own books, and (on Wi-Fi) download every
+ * book of each library kept in full.
  */
 class LibraryWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
         val sync = applicationContext.container.sync
-        if (sync.settings.connectionNow() == null) return Result.success()
+        if (sync.settings.connectionsNow().isEmpty()) return Result.success()
         if (sync.sync().isFailure) return Result.retry()
         sync.hashLocalBooks()
         runCatching { sync.uploadLocalBooks() }

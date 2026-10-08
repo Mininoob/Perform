@@ -117,7 +117,7 @@ class MainActivity : ComponentActivity() {
                             organize = remember(library) {
                                 OrganizeActions(
                                     onMove = library::moveBooks,
-                                    onNewFolder = library::makeFolder,
+                                    onNewFolder = { parent, name, books, lib -> library.makeFolder(parent, name, books, lib) },
                                     onRenameFolder = library::renameFolder,
                                     onRemoveFolder = library::removeFolder,
                                     onSelect = library::select,
@@ -139,11 +139,11 @@ class MainActivity : ComponentActivity() {
                         val coverControls by prefs.coverControls.collectAsStateWithLifecycle(CoverControls.SWIPE_AND_TAP)
                         val swipeForNext by prefs.backSwipeForNext.collectAsStateWithLifecycle(SwipeDirection.LEFT)
                         val folder by prefs.libraryFolder.collectAsStateWithLifecycle(null)
-                        val pc by container.sync.settings.connection.collectAsStateWithLifecycle(null)
+                        val libraries by container.sync.settings.connections.collectAsStateWithLifecycle(emptyList())
                         AppSettingsScreen(
                             state = AppSettingsState(
                                 folderLabel = folder?.let(::folderLabel),
-                                privateLibrary = pc?.serverName,
+                                privateLibrary = libraries.map { it.serverName }.ifEmpty { null }?.joinToString(" · "),
                                 appTheme = appTheme,
                                 themeSchedule = schedule,
                                 keepScreenOn = keepScreenOn,

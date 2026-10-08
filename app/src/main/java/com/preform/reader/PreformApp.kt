@@ -51,8 +51,11 @@ class AppContainer(context: Context) {
     val openBooks = OpenBooks()
 
     /** Folders made, renamed and removed here, and books moved; the PC follows on the next sync. */
-    val organizer = LibraryOrganizer(database.books(), paired = { sync.settings.connectionNow() != null })
+    val organizer = LibraryOrganizer(database.books(), paired = { sync.settings.connectionsNow().map { it.serverId }.toSet() })
     val folders = database.books().observeFolders()
+
+    /** Which paired libraries have which PC books, and their folder in each. */
+    val memberships = database.books().observeMemberships()
 }
 
 val Context.container: AppContainer

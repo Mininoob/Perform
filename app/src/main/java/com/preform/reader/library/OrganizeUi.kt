@@ -48,8 +48,8 @@ import com.preform.reader.ui.LiterataDisplay
 /** Organizing callbacks: moving books, folders, selection. */
 class OrganizeActions(
     val onMove: (List<BookEntity>, String) -> Unit,
-    /** Makes a folder in a parent; the books given go into it. */
-    val onNewFolder: (parent: String, name: String, thenMove: List<BookEntity>) -> Unit,
+    /** Makes a folder in a parent of a library (null: the one being browsed); the books given go into it. */
+    val onNewFolder: (parent: String, name: String, thenMove: List<BookEntity>, library: String?) -> Unit,
     val onRenameFolder: (path: String, name: String) -> Unit,
     val onRemoveFolder: (path: String) -> Unit,
     val onSelect: (BookEntity) -> Unit,
@@ -59,7 +59,7 @@ class OrganizeActions(
 
 /** What the folder-name dialog is for. */
 sealed interface FolderNaming {
-    data class New(val parent: String, val thenMove: List<BookEntity> = emptyList()) : FolderNaming
+    data class New(val parent: String, val thenMove: List<BookEntity> = emptyList(), val library: String? = null) : FolderNaming
     data class Rename(val path: String) : FolderNaming
 }
 
@@ -137,11 +137,17 @@ private fun FolderRow(name: String, depth: Int, isHere: Boolean, onClick: () -> 
     }
 }
 
-/** Naming a new folder, or renaming one. */
+/**
+ * Naming a new folder, or renaming one. A new folder with several libraries paired and
+ * none being browsed asks which library it's for (or the phone's own books).
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-fun FolderNameDialog(naming: FolderNaming, onDismiss: () -> Unit, onDone: (String) -> Unit) {
-    val initial = (naming as? FolderNaming.Rename)?.path?.substringAfterLast('/').orEmpty()
+fun FolderNameDialog(naming: FolderNaming, libraries: List<LibraryInfo> = emptyList(), onDismiss: () -> Unit, onDone: (String, String?) -> Unit) {
+    val initial = (naming as? FolderNaming.Rename)?.path?.substringAfter('|')?.substringAfterLast('/').orEmpty()
     var name by remember { mutableStateOf(initial) }
+    val choosing = naming is FolderNaming.New && naming.library == null && libraries.size > 1
+    var library by remember { mutableStateOf((naming as? FolderNaming.New)?.library ?: libraries.firstOrNull()?.id) }
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     val title = when (naming) {
@@ -161,12 +167,27 @@ fun FolderNameDialog(naming: FolderNaming, onDismiss: () -> Unit, onDone: (Strin
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     modifier = Modifier.fillMaxWidth().focusRequester(focus),
                 )
+                if (choosing) {
+                    Spacer(Modifier.height(12.dp))
+                    Text("In", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(4.dp))
+                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                        (libraries.map { it.id to it.name } + (LibraryOrganizer.PHONE to "This phone")).forEach { (id, label) ->
+                            androidx.compose.material3.FilterChip(selected = library == id, onClick = { library = id }, label = { Text(label) })
+                        }
+                    }
+                }
                 Spacer(Modifier.height(8.dp))
-                Text("Your PC follows on the next sync.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    if (library == LibraryOrganizer.PHONE && choosing) "For books added on this phone."
+                    else "The library follows on the next sync.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         },
         confirmButton = {
-            TextButton(onClick = { onDone(name) }, enabled = name.isNotBlank() && name.trim() != initial) {
+            TextButton(onClick = { onDone(name, if (choosing) library else (naming as? FolderNaming.New)?.library) }, enabled = name.isNotBlank() && name.trim() != initial) {
                 Text(if (naming is FolderNaming.Rename) "Rename" else "Make folder")
             }
         },
@@ -175,7 +196,8 @@ fun FolderNameDialog(naming: FolderNaming, onDismiss: () -> Unit, onDone: (Strin
 }
 
 @Composable
-fun RemoveFolderDialog(path: String, onDismiss: () -> Unit, onRemove: () -> Unit) {
+fun RemoveFolderDialog(key: String, onDismiss: () -> Unit, onRemove: () -> Unit) {
+    val path = key.substringAfter('|')
     val parent = path.substringBeforeLast('/', "")
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -183,7 +205,7 @@ fun RemoveFolderDialog(path: String, onDismiss: () -> Unit, onRemove: () -> Unit
         text = {
             Text(
                 "Its books move up to ${if (parent.isEmpty()) "the top of the library" else "“${parent.substringAfterLast('/')}”"}, " +
-                    "here and on your PC. No book is deleted.",
+                    "here and in the library. No book is deleted.",
             )
         },
         confirmButton = { TextButton(onClick = onRemove) { Text("Remove folder") } },

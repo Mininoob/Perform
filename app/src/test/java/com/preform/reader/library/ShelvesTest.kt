@@ -70,4 +70,17 @@ class ShelvesTest {
     fun `shelf titles read as a path`() {
         assertEquals("Fiction › Fantasy", shelfTitle("Fiction/Fantasy"))
     }
+
+    @Test
+    fun `one library's shelves come from where that library keeps each book`() {
+        // Dune is in both libraries, in different folders; Emma only in the Mac's.
+        val folders = mapOf("pc" to mapOf(dune.id to "Sci-Fi"), "mac" to mapOf(dune.id to "Novels", emma.id to "Novels"))
+        val pc = folderPage(all, "", keyPrefix = "pc|") { folders["pc"]!![it.id] }
+        val mac = folderPage(all, "", keyPrefix = "mac|") { folders["mac"]!![it.id] }
+        assertEquals(listOf("pc|Sci-Fi"), pc.shelves.map { it.key })
+        assertEquals(listOf(dune), pc.shelves.single().books)
+        assertEquals(listOf("mac|Novels"), mac.shelves.map { it.key })
+        assertEquals(listOf(dune, emma), mac.shelves.single().books)
+        assertEquals(emptyList<BookEntity>(), pc.loose)
+    }
 }

@@ -118,7 +118,8 @@ fun LibraryScreen(
     var naming by remember { mutableStateOf<FolderNaming?>(null) }
     var removing by remember { mutableStateOf<String?>(null) }
     val selecting = state.selection.isNotEmpty()
-    val here = if (state.view == LibraryView.SHELVES) state.location.orEmpty() else ""
+    // The folder being browsed, without the library part of the key.
+    val here = if (state.view == LibraryView.SHELVES) state.location.orEmpty().substringAfter('|') else ""
     // Back climbs out of a shelf before it leaves the library.
     BackHandler(enabled = state.location != null && state.query.isBlank() && !selecting, onBack = shelfActions.onUp)
     BackHandler(enabled = selecting, onBack = organize.onClearSelection)
@@ -131,7 +132,9 @@ fun LibraryScreen(
     )
     val actions: @Composable () -> Unit = {
         if (state.view == LibraryView.SHELVES) {
-            IconButton(onClick = { naming = FolderNaming.New(here) }) { Icon(FolderGlyphs.New, contentDescription = "New folder") }
+            IconButton(onClick = { naming = FolderNaming.New(here, library = state.locationLibrary) }) {
+                Icon(FolderGlyphs.New, contentDescription = "New folder")
+            }
         }
         IconButton(onClick = { searching = true }) { Icon(Icons.Default.Search, contentDescription = "Search") }
         IconButton(onClick = onAddBook) { Icon(Icons.Default.Add, contentDescription = "Add book") }
@@ -215,7 +218,7 @@ fun LibraryScreen(
         }
     }
 
-    details?.let { book -> BookSheet(book, onDismiss = { details = null }, onOpen = { details = null; onOpen(book) }) }
+    details?.let { book -> BookSheet(book, state.owners[book.id].orEmpty(), onDismiss = { details = null }, onOpen = { details = null; onOpen(book) }) }
     moving?.let { books ->
         MoveSheet(
             books = books,
@@ -223,14 +226,14 @@ fun LibraryScreen(
             here = here,
             onDismiss = { moving = null },
             onMove = { folder -> moving = null; organize.onMove(books, folder) },
-            onNewFolder = { moving = null; naming = FolderNaming.New(here, books) },
+            onNewFolder = { moving = null; naming = FolderNaming.New(here, books, state.locationLibrary) },
         )
     }
     naming?.let { n ->
-        FolderNameDialog(n, onDismiss = { naming = null }) { name ->
+        FolderNameDialog(n, libraries = state.libraries, onDismiss = { naming = null }) { name, library ->
             naming = null
             when (n) {
-                is FolderNaming.New -> organize.onNewFolder(n.parent, name, n.thenMove)
+                is FolderNaming.New -> organize.onNewFolder(n.parent, name, n.thenMove, library)
                 is FolderNaming.Rename -> organize.onRenameFolder(n.path, name)
             }
         }
@@ -240,10 +243,11 @@ fun LibraryScreen(
     }
 }
 
-/** "Library" at the top; inside a shelf or genre, its name. */
+/** "Library" at the top; inside a shelf or genre, its name; at a library's own top, the library's. */
 private fun pageTitle(state: LibraryUiState): String {
     val location = state.location ?: return "Library"
-    return if (state.view == LibraryView.SHELVES) location.substringAfterLast('/') else location
+    state.locationTitle?.let { return it }
+    return if (state.view == LibraryView.SHELVES) location.substringAfter('|').substringAfterLast('/') else location
 }
 
 @Composable
@@ -288,7 +292,33 @@ private fun BookGrid(
             }
         }
 
-        val tiles = page?.loose ?: state.books
+        // Several libraries: a section each, its folders as shelves, its loose books as one more.
+        state.sections?.forEach { section ->
+            item(span = { GridItemSpan(maxLineSpan) }, key = "section:${section.library}") {
+                SectionTitle(section, onOpen = { shelfActions.onEnter("${section.library}|") })
+            }
+            section.page.shelves.forEach { shelf ->
+                item(span = { GridItemSpan(maxLineSpan) }, key = "shelf:${shelf.key}") {
+                    ShelfRow(
+                        shelf, state, onOpen, onDetails,
+                        onEnter = { shelfActions.onEnter(shelf.key) },
+                        folderMenu = true,
+                        onRename = { onRenameFolder(shelf.key) },
+                        onRemove = { onRemoveFolder(shelf.key) },
+                    )
+                }
+            }
+            if (section.page.loose.isNotEmpty()) {
+                item(span = { GridItemSpan(maxLineSpan) }, key = "loose:${section.library}") {
+                    ShelfRow(
+                        Shelf("${section.library}|", "Not in a folder", section.page.loose), state, onOpen, onDetails,
+                        onEnter = { shelfActions.onEnter("${section.library}|") },
+                    )
+                }
+            }
+        }
+
+        val tiles = if (state.sections != null) emptyList() else page?.loose ?: state.books
         page?.shelves?.forEach { shelf ->
             item(span = { GridItemSpan(maxLineSpan) }, key = "shelf:${shelf.key}") {
                 ShelfRow(
@@ -478,6 +508,35 @@ private fun GridHead(title: String?, count: Int, sort: LibrarySort, onSortChange
                 }
             }
         }
+    }
+}
+
+/** A library's name over its shelves, with an online dot and a way into its own top level. */
+@Composable
+private fun SectionTitle(section: ShelfSection, onOpen: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            section.name,
+            style = MaterialTheme.typography.headlineSmall,
+            fontFamily = LiterataDisplay,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
+        )
+        if (section.library.isNotEmpty()) {
+            Spacer(Modifier.width(10.dp))
+            Box(
+                Modifier.size(7.dp).background(
+                    if (section.online) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                    CircleShape,
+                ),
+            )
+        }
+        Spacer(Modifier.weight(1f))
+        TextButton(onClick = onOpen, colors = quiet()) { Text("${section.count} books") }
     }
 }
 
@@ -735,7 +794,7 @@ private fun ProgressRule(progress: Double, modifier: Modifier) {
 /** The book's full card: the third fold of the same object, after spine-row and cover. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BookSheet(book: BookEntity, onDismiss: () -> Unit, onOpen: () -> Unit) {
+private fun BookSheet(book: BookEntity, owners: List<String>, onDismiss: () -> Unit, onOpen: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = 32.dp)) {
             Row {
@@ -786,10 +845,14 @@ private fun BookSheet(book: BookEntity, onDismiss: () -> Unit, onOpen: () -> Uni
                 when (book.source) {
                     BookSource.FOLDER -> "In your library folder"
                     BookSource.IMPORTED -> "Added to Preform"
-                    BookSource.SERVER -> when {
-                        book.localPath == null -> "On your PC · downloads when opened"
-                        book.pinned -> "On your PC · kept downloaded"
-                        else -> "On your PC · downloaded"
+                    BookSource.SERVER -> {
+                        // Every library that has it: the same book, one download.
+                        val on = "On " + owners.ifEmpty { listOf("your PC") }.joinToString(" · ")
+                        when {
+                            book.localPath == null -> "$on · downloads when opened"
+                            book.pinned -> "$on · kept downloaded"
+                            else -> "$on · downloaded"
+                        }
                     }
                 },
             )
