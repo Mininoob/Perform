@@ -252,7 +252,7 @@ fun NoticeBar(state: WindowState, scope: CoroutineScope, modifier: Modifier = Mo
         Text(notice.text, color = colors.background, fontSize = 13.sp, modifier = Modifier.padding(vertical = 6.dp))
         notice.undo?.let { undo ->
             Spacer(Modifier.width(8.dp))
-            TextButton(onClick = {
+            TextButton(colors = quietButton(), onClick = {
                 state.notice = null
                 scope.launch { runCatching { undo() } }
             }) { Text("Undo", color = colors.background, fontWeight = FontWeight.Bold) }
@@ -329,7 +329,7 @@ private fun NameDialog(title: String, initial: String, confirm: String, onDismis
         confirmButton = {
             Button(onClick = { onConfirm(value.text) }, enabled = value.text.isNotBlank()) { Text(confirm) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(colors = quietButton(), onClick = onDismiss) { Text("Cancel") } },
     )
 }
 
@@ -346,7 +346,7 @@ private fun Confirm(title: String, text: String, confirm: String, onDismiss: () 
                 colors = if (danger) ButtonDefaults.buttonColors(containerColor = colors.danger) else ButtonDefaults.buttonColors(),
             ) { Text(confirm) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(colors = quietButton(), onClick = onDismiss) { Text("Cancel") } },
     )
 }
 
@@ -385,7 +385,7 @@ private fun MoveToDialog(folders: List<String>, onDismiss: () -> Unit, onPick: (
             }
         },
         confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(colors = quietButton(), onClick = onDismiss) { Text("Cancel") } },
     )
 }
 

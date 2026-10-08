@@ -117,6 +117,7 @@ fun EditBookDialog(
                             Text("Choose image…", fontSize = 13.sp)
                         }
                         TextButton(
+                            colors = quietButton(),
                             enabled = !finding,
                             onClick = {
                                 finding = true
@@ -176,7 +177,7 @@ fun EditBookDialog(
                         fontSize = 12.sp,
                         modifier = Modifier.weight(1f),
                     )
-                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    TextButton(colors = quietButton(), onClick = onDismiss) { Text("Cancel") }
                     Spacer(Modifier.width(8.dp))
                     Button(
                         enabled = valid,

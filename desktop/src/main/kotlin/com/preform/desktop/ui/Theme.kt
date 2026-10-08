@@ -90,6 +90,13 @@ val LocalPalette = staticCompositionLocalOf { palette(ThemeBase.INK, ThemeAccent
 /** The current palette, for colors Material's scheme doesn't name. */
 val colors: Palette @Composable get() = LocalPalette.current
 
+/**
+ * Secondary text actions (Cancel, Find online, Organize…): the muted ink. The accent is kept
+ * for the way forward; give an action the accent by setting its text colour explicitly.
+ */
+@Composable
+fun quietButton() = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = colors.text)
+
 @Composable
 fun PreformTheme(base: ThemeBase, accent: ThemeAccent, content: @Composable () -> Unit) {
     val p = palette(base, accent)

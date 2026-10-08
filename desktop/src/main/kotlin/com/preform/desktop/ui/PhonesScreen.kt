@@ -165,7 +165,7 @@ private fun PairPanel(service: LibraryService, onDone: () -> Unit) {
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Expires in %d:%02d".format(secondsLeft / 60, secondsLeft % 60), color = colors.muted, fontSize = 12.sp, modifier = Modifier.weight(1f))
-                TextButton(onClick = onDone) { Text("Cancel") }
+                TextButton(colors = quietButton(), onClick = onDone) { Text("Cancel") }
             }
         }
     }
@@ -187,10 +187,10 @@ private fun DeviceRow(device: Device, onRevoke: () -> Unit) {
             )
         }
         if (confirming) {
-            TextButton(onClick = { confirming = false }) { Text("Keep") }
+            TextButton(colors = quietButton(), onClick = { confirming = false }) { Text("Keep") }
             Button(onClick = onRevoke, colors = ButtonDefaults.buttonColors(containerColor = colors.danger)) { Text("Remove") }
         } else {
-            TextButton(onClick = { confirming = true }) { Text("Remove", color = colors.danger) }
+            TextButton(colors = quietButton(), onClick = { confirming = true }) { Text("Remove", color = colors.danger) }
         }
     }
 }

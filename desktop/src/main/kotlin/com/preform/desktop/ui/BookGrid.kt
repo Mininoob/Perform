@@ -112,8 +112,8 @@ private fun Toolbar(state: WindowState, count: Int, actions: Actions, onRescan: 
                 Spacer(Modifier.width(4.dp))
                 SortMenu(state)
             }
-            TextButton(onClick = { state.dialog = Dialog.Organize }) { Text("Organize…", color = colors.text, fontSize = 13.sp) }
-            TextButton(onClick = actions::chooseFilesToAdd) { Text("Add books", color = colors.accent, fontSize = 13.sp) }
+            TextButton(colors = quietButton(), onClick = { state.dialog = Dialog.Organize }) { Text("Organize…", color = colors.text, fontSize = 13.sp) }
+            TextButton(colors = quietButton(), onClick = actions::chooseFilesToAdd) { Text("Add books", color = colors.accent, fontSize = 13.sp) }
             IconButton(onClick = onRescan) { Icon(Glyphs.Refresh, "Check the folder for changes", tint = colors.muted, modifier = Modifier.size(18.dp)) }
         }
     }
@@ -167,7 +167,7 @@ private fun SearchField(query: String, onChange: (String) -> Unit, modifier: Mod
 private fun SortMenu(state: WindowState) {
     var open by remember { mutableStateOf(false) }
     Box {
-        TextButton(onClick = { open = true }) {
+        TextButton(colors = quietButton(), onClick = { open = true }) {
             Text(state.sort.label, color = colors.text, fontSize = 13.sp)
             Spacer(Modifier.width(4.dp))
             Icon(Glyphs.ChevronDown, "Sort by", tint = colors.muted, modifier = Modifier.size(14.dp))
@@ -343,19 +343,17 @@ private fun CheckBanner(kind: CheckKind, books: List<LibraryBook>, actions: Acti
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(start = 28.dp, end = 24.dp, bottom = 12.dp)
-            .background(colors.raised, RoundedCornerShape(10.dp))
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(start = 28.dp, end = 24.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(kind.hint, color = colors.muted, fontSize = 13.sp, modifier = Modifier.weight(1f))
         if (books.isEmpty()) return@Row
         when (kind) {
-            CheckKind.IDENTICAL -> TextButton(onClick = { actions.trashExtraCopies(books) }) {
+            CheckKind.IDENTICAL -> TextButton(colors = quietButton(), onClick = { actions.trashExtraCopies(books) }) {
                 Text("Move extra copies to the ${actions.platform.trashName}", color = colors.accent, fontSize = 13.sp)
             }
             CheckKind.TITLE_FROM_FILE, CheckKind.NO_AUTHOR, CheckKind.NO_COVER, CheckKind.NO_GENRE ->
-                TextButton(onClick = { actions.lookUpAgain(books) }) { Text("Look them all up again", color = colors.accent, fontSize = 13.sp) }
+                TextButton(colors = quietButton(), onClick = { actions.lookUpAgain(books) }) { Text("Look them all up again", color = colors.accent, fontSize = 13.sp) }
             else -> Unit
         }
     }
@@ -373,7 +371,7 @@ private fun Empty(title: String, detail: String?, action: (() -> Unit)?) {
         }
         action?.let {
             Spacer(Modifier.height(12.dp))
-            TextButton(onClick = it) { Text("Open Settings") }
+            TextButton(colors = quietButton(), onClick = it) { Text("Open Settings") }
         }
     }
 }

@@ -79,7 +79,7 @@ private fun ColumnScope.OneBook(
     Text(c.author ?: "Unknown author", color = colors.muted, fontSize = 15.sp, fontFamily = Literata, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
     c.series?.let {
         Spacer(Modifier.height(2.dp))
-        Text(it + (c.seriesIndex?.let { n -> " · #${indexText(n)}" } ?: ""), color = colors.accent, fontSize = 13.sp)
+        Text(it + (c.seriesIndex?.let { n -> " · #${indexText(n)}" } ?: ""), color = colors.muted, fontSize = 13.sp)
     }
     c.year?.let {
         Spacer(Modifier.height(2.dp))
@@ -120,7 +120,7 @@ private fun ColumnScope.OneBook(
         Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Copy", color = colors.muted, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.width(64.dp))
             Text(copy, color = colors.text, fontSize = 12.sp, modifier = Modifier.weight(1f))
-            TextButton(onClick = { onTrashCopy(copy) }) { Text("To ${service.platform.trashName}", fontSize = 12.sp, color = colors.danger) }
+            TextButton(colors = quietButton(), onClick = { onTrashCopy(copy) }) { Text("To ${service.platform.trashName}", fontSize = 12.sp, color = colors.danger) }
         }
     }
 
@@ -160,16 +160,6 @@ private fun PlaceSummary(place: Place, shown: List<LibraryBook>) {
     if (authors > 0) Text("$authors ${if (authors == 1) "author" else "authors"}", color = colors.muted, fontSize = 13.sp)
     Spacer(Modifier.height(18.dp))
     Text("Select a book to see its details.", color = colors.muted, fontSize = 13.sp)
-}
-
-@Composable
-fun Chip(text: String) {
-    Text(
-        text,
-        color = colors.text,
-        fontSize = 12.sp,
-        modifier = Modifier.background(colors.raised, RoundedCornerShape(12.dp)).padding(horizontal = 10.dp, vertical = 4.dp),
-    )
 }
 
 @Composable

@@ -149,7 +149,7 @@ fun OrganizeDialog(state: WindowState, actions: Actions, onDismiss: () -> Unit) 
                 Spacer(Modifier.height(18.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.weight(1f))
-                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    TextButton(colors = quietButton(), onClick = onDismiss) { Text("Cancel") }
                     Spacer(Modifier.width(8.dp))
                     Button(enabled = chosen.isNotEmpty(), onClick = { onDismiss(); actions.applyPlan(chosen) }) {
                         Text(if (chosen.size == 1) "Move 1 book" else "Move ${chosen.size} books")

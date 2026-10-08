@@ -63,10 +63,10 @@ fun SettingsScreen(service: LibraryService, config: AppConfig, status: Status) {
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { chooseFolder(platform, status.libraryRoot)?.let(service::setLibraryRoot) }) { Text("Change…") }
-                TextButton(onClick = { runCatching { java.awt.Desktop.getDesktop().open(File(status.libraryRoot)) } }) {
+                TextButton(colors = quietButton(), onClick = { runCatching { java.awt.Desktop.getDesktop().open(File(status.libraryRoot)) } }) {
                     Text("Open in ${platform.fileManagerName}")
                 }
-                TextButton(onClick = service::rescanSoon) { Text("Check for changes") }
+                TextButton(colors = quietButton(), onClick = service::rescanSoon) { Text("Check for changes") }
             }
 
             Section("Book information")
@@ -140,13 +140,13 @@ private fun RestoreOriginals(service: LibraryService) {
             modifier = Modifier.weight(1f),
         )
         if (confirm) {
-            TextButton(onClick = { confirm = false }) { Text("Cancel") }
+            TextButton(colors = quietButton(), onClick = { confirm = false }) { Text("Cancel") }
             Button(onClick = {
                 confirm = false
                 Thread { service.restoreOriginals(); backups = service.backupCount }.start()
             }) { Text("Put originals back") }
         } else {
-            TextButton(onClick = { confirm = true }) { Text("Restore originals…") }
+            TextButton(colors = quietButton(), onClick = { confirm = true }) { Text("Restore originals…") }
         }
     }
 }
