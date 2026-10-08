@@ -30,12 +30,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.preform.reader.reader.ReadingColors
 import com.preform.reader.reader.colors
 import kotlin.math.roundToInt
 
@@ -63,14 +65,13 @@ fun ReadingSettingsPanel(
             Chips(
                 options = buildList {
                     add(ReadingMode.PAGES to "Pages")
-                    // Readium's free PDF engine can't lay out spreads.
-                    if (epub) add(ReadingMode.SPREAD to "Two-page")
+                    add(ReadingMode.SPREAD to "Two-page")
                     add(ReadingMode.SCROLL to "Scroll")
                 },
                 selected = prefs.mode,
                 onSelect = { mode -> onChange { it.copy(mode = mode) } },
             )
-            if (prefs.mode == ReadingMode.SPREAD && epub) {
+            if (prefs.mode == ReadingMode.SPREAD) {
                 Hint("Two pages side by side when the phone is open; one page on the cover screen.")
             }
             if (pdf) {
@@ -88,7 +89,9 @@ fun ReadingSettingsPanel(
             }
         }
 
-        Section("Theme") {
+        // Reading themes recolor text and pages; a PDF's pages are fixed images, and PDFs
+        // follow the app theme instead.
+        if (epub) Section("Theme") {
             ThemeRow(prefs.theme) { theme -> onChange { it.copy(theme = theme) } }
             if (prefs.theme == ReadingTheme.CUSTOM) {
                 Spacer(Modifier.height(6.dp))
@@ -237,9 +240,14 @@ private fun LabeledSlider(
 
 @Composable
 private fun ThemeRow(selected: ReadingTheme?, onSelect: (ReadingTheme) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+    // Drawn inside the app theme, so its page and text colors are what "App" borrows.
+    val appColors = ReadingColors(
+        MaterialTheme.colorScheme.background.toArgb(),
+        MaterialTheme.colorScheme.onBackground.toArgb(),
+    )
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         ReadingTheme.entries.forEach { theme ->
-            val colors = ReadingPreferences(theme = theme).colors()
+            val colors = ReadingPreferences(theme = theme).colors(appColors)
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(
                     modifier = Modifier
@@ -265,6 +273,7 @@ private fun ThemeRow(selected: ReadingTheme?, onSelect: (ReadingTheme) -> Unit) 
 
 private val ReadingTheme.label: String
     get() = when (this) {
+        ReadingTheme.APP -> "App"
         ReadingTheme.LIGHT -> "Light"
         ReadingTheme.SEPIA -> "Sepia"
         ReadingTheme.DARK -> "Dark"

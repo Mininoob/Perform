@@ -39,6 +39,11 @@ internal class CoverView(
      * the cover inert to touch.
      */
     private val onSwipe: ((dxPx: Float) -> Boolean)? = null,
+    /**
+     * Back-of-phone tapping. Receives where the tap landed across this view, 0..1 in
+     * its own coordinates, and returns whether a page turned. Null ignores taps.
+     */
+    private val onTap: ((xFraction: Float) -> Boolean)? = null,
 ) : View(context) {
 
     private val dp = resources.displayMetrics.density
@@ -153,9 +158,11 @@ internal class CoverView(
     private var downTime = 0L
     private var tracking = false
 
+    private val tapSlopPx = 12 * dp
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        val handler = onSwipe ?: return super.onTouchEvent(event)
+        if (onSwipe == null && onTap == null) return super.onTouchEvent(event)
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 downX = event.x
@@ -169,11 +176,16 @@ internal class CoverView(
             MotionEvent.ACTION_UP -> {
                 val dx = event.x - downX
                 val dy = event.y - downY
-                val quick = event.eventTime - downTime <= MAX_SWIPE_MS
-                val horizontal = abs(dx) >= minSwipePx && abs(dx) > abs(dy) * 1.5f
-                if (tracking && quick && horizontal && handler(dx)) {
-                    performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
+                val elapsed = event.eventTime - downTime
+                val swipe = elapsed <= MAX_SWIPE_MS && abs(dx) >= minSwipePx && abs(dx) > abs(dy) * 1.5f
+                val tap = elapsed <= MAX_TAP_MS && abs(dx) < tapSlopPx && abs(dy) < tapSlopPx
+                val turned = when {
+                    !tracking -> false
+                    swipe -> onSwipe?.invoke(dx) == true
+                    tap -> onTap?.invoke(event.x / width) == true
+                    else -> false
                 }
+                if (turned) performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
                 tracking = false
             }
         }
@@ -186,5 +198,8 @@ internal class CoverView(
 
         /** A swipe slower than this is treated as a drag or a grip adjustment, not a page turn. */
         const val MAX_SWIPE_MS = 600L
+
+        /** A touch held longer than this is the hand settling, not a tap. */
+        const val MAX_TAP_MS = 300L
     }
 }

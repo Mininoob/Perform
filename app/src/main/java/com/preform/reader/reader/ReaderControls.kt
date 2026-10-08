@@ -44,14 +44,19 @@ import androidx.compose.ui.unit.sp
 import com.preform.reader.settings.ReadingPreferences
 import com.preform.reader.settings.ReadingSettingsPanel
 import com.preform.reader.settings.SettingsFormat
+import com.preform.reader.ui.BookIcons
 import kotlin.math.roundToInt
 
-/** The reading theme's colors, so the controls sit on the page instead of fighting it. */
-data class ChromeColors(val background: Color, val content: Color, val accent: Color = Color(0xFFD6A15C))
+/**
+ * The page's colors, so the controls sit on the page instead of fighting it, with the
+ * app theme's accent for anything highlighted.
+ */
+data class ChromeColors(val background: Color, val content: Color, val accent: Color)
 
-fun ReadingColors.toChrome() = ChromeColors(
+fun ReadingColors.toChrome(accent: Color) = ChromeColors(
     background = Color(background).copy(alpha = 0.96f),
     content = Color(text),
+    accent = accent,
 )
 
 @Composable
@@ -83,11 +88,11 @@ fun ReaderTopBar(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        TextButton(onClick = onToggleBookMode) {
-            Text(
-                if (bookMode) "Book Mode on" else "Book Mode",
-                color = if (bookMode) colors.accent else colors.content.copy(alpha = 0.7f),
-                fontSize = 13.sp,
+        IconButton(onClick = onToggleBookMode) {
+            Icon(
+                imageVector = if (bookMode) BookIcons.On else BookIcons.Off,
+                contentDescription = if (bookMode) "Book Mode on" else "Book Mode off",
+                tint = if (bookMode) colors.accent else colors.content.copy(alpha = 0.7f),
             )
         }
         TextButton(onClick = onOpenSettings) {

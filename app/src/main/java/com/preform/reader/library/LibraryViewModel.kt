@@ -159,7 +159,8 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
                 val cover = book.coverFullPath?.let { path ->
                     withContext(Dispatchers.IO) { BitmapFactory.decodeFile(path) }
                 }
-                container.openBooks.put(ReaderSession(book, publication, locator, preferences, cover))
+                val appTheme = container.preferences.effectiveTheme.first()
+                container.openBooks.put(ReaderSession(book, publication, locator, preferences, cover, appTheme))
                 library.markOpened(book.id)
                 _events.send(LibraryEvent.OpenReader(book.id))
             } finally {

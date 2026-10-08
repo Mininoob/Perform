@@ -1,6 +1,7 @@
 package com.preform.reader.library
 
 import android.content.Context
+import androidx.room.AutoMigration
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -44,6 +45,8 @@ data class BookEntity(
     val hidden: Boolean = false,
     /** This book's ReadingPreferences overrides as JSON; null when it follows the global settings. */
     val prefsOverrideJson: String? = null,
+    /** Book Mode for this book; null until toggled, which counts as on. */
+    val bookMode: Boolean? = null,
 )
 
 @Dao
@@ -84,9 +87,20 @@ interface BookDao {
 
     @Query("UPDATE books SET hidden = :hidden WHERE id = :id")
     suspend fun setHidden(id: Long, hidden: Boolean)
+
+    @Query("UPDATE books SET bookMode = :on WHERE id = :id")
+    suspend fun setBookMode(id: Long, on: Boolean)
 }
 
-@Database(entities = [BookEntity::class], version = 1, exportSchema = true)
+@Database(
+    entities = [BookEntity::class],
+    version = 2,
+    exportSchema = true,
+    autoMigrations = [
+        // v2: per-book Book Mode.
+        AutoMigration(from = 1, to = 2),
+    ],
+)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun books(): BookDao
 

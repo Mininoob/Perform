@@ -215,6 +215,8 @@ class LibraryRepository(
 
     suspend fun clearOverride(id: Long) = dao.updateOverride(id, null)
 
+    suspend fun setBookMode(id: Long, on: Boolean) = dao.setBookMode(id, on)
+
     private suspend fun readDetails(uri: String, fileName: String): BookDetails? {
         val publication = readium.open(uri).getOrNull() ?: return null
         return try {

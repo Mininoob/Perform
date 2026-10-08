@@ -2,6 +2,7 @@ package com.preform.reader.reader
 
 import android.graphics.Bitmap
 import com.preform.reader.library.BookEntity
+import com.preform.reader.settings.AppTheme
 import com.preform.reader.settings.ReadingPreferences
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
@@ -16,6 +17,8 @@ class ReaderSession(
     val initialPreferences: ReadingPreferences,
     /** Full-size cover for Book Mode, decoded off the main thread. */
     val cover: Bitmap?,
+    /** The app theme at open time: a book in the "App theme" reading theme takes its colors. */
+    val appTheme: AppTheme,
 )
 
 /**

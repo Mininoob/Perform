@@ -5,7 +5,8 @@ import kotlinx.serialization.json.Json
 
 enum class ReadingMode { PAGES, SPREAD, SCROLL }
 
-enum class ReadingTheme { LIGHT, SEPIA, DARK, BLACK, CUSTOM }
+/** [APP] borrows the app theme's own page and text colors, so a book matches the rest of the app. */
+enum class ReadingTheme { APP, LIGHT, SEPIA, DARK, BLACK, CUSTOM }
 
 enum class ReadingFont { ORIGINAL, SERIF, SANS_SERIF, MONOSPACE }
 
@@ -67,11 +68,11 @@ data class ReadingPreferences(
     companion object {
         /**
          * What a reader sees before changing anything. Spread, so the open Fold reads
-         * as a book; the warm dark theme the app has used from the start.
+         * as a book; pages in the app theme's colors, so a book matches everything else.
          */
         val DEFAULTS = ReadingPreferences(
             mode = ReadingMode.SPREAD,
-            theme = ReadingTheme.DARK,
+            theme = ReadingTheme.APP,
             fontSize = 1.0,
             fontFamily = ReadingFont.ORIGINAL,
             textColor = 0xFFDDD3C6.toInt(),

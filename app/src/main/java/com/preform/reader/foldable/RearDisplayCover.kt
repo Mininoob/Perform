@@ -31,6 +31,8 @@ class RearDisplayCover(
     private val title: () -> String,
     /** A swipe on the back cover, in the reader's own left/right. Returns whether a page turned. */
     private val onBackSwipe: (SwipeDirection) -> Boolean,
+    /** A tap on the left or right third of the back cover, as the reader sees it. Returns whether a page turned. */
+    private val onBackTap: (side: SwipeDirection) -> Boolean,
 ) {
 
     private val controller = WindowAreaController.getOrCreate()
@@ -84,7 +86,14 @@ class RearDisplayCover(
             wanted && session == null && !requestInFlight && area != null && available -> {
                 requestInFlight = true
                 debugLog(TAG, "requesting rear-display cover session")
-                controller.presentContentOnWindowArea(area.token, activity, mainExecutor, callback)
+                try {
+                    controller.presentContentOnWindowArea(area.token, activity, mainExecutor, callback)
+                } catch (e: SecurityException) {
+                    // Only the app in front may take the outer screen. Callers only want it
+                    // while resumed, but the system can still say no at the last moment.
+                    requestInFlight = false
+                    debugLog(TAG, "outer screen request refused", e)
+                }
             }
             !wanted && session != null -> session?.close()
         }
@@ -109,15 +118,38 @@ class RearDisplayCover(
         override fun onSessionStarted(session: WindowAreaSessionPresenter) {
             requestInFlight = false
             this@RearDisplayCover.session = session
-            session.setContentView(
-                CoverView(session.context, cover(), title()) { dx ->
-                    // This panel faces away from the reader, so its left is their right.
-                    onBackSwipe(if (dx < 0) SwipeDirection.RIGHT else SwipeDirection.LEFT)
-                },
-            )
-            debugLog(TAG, "rear cover session started")
-            // Book Mode may have been switched off while we were waiting.
-            if (!wanted) session.close()
+            // The phone may have been folded, or Book Mode switched off, while we waited.
+            if (!wanted) {
+                session.close()
+                return
+            }
+            try {
+                session.setContentView(
+                    CoverView(
+                        context = session.context,
+                        cover = cover(),
+                        title = title(),
+                        // This panel faces away from the reader, so its left is their right.
+                        onSwipe = { dx -> onBackSwipe(if (dx < 0) SwipeDirection.RIGHT else SwipeDirection.LEFT) },
+                        onTap = { x ->
+                            val readerX = 1f - x
+                            when {
+                                readerX < 1f / 3 -> onBackTap(SwipeDirection.LEFT)
+                                readerX > 2f / 3 -> onBackTap(SwipeDirection.RIGHT)
+                                // The middle is where the hand holds the phone.
+                                else -> false
+                            }
+                        },
+                    ),
+                )
+                debugLog(TAG, "rear cover session started")
+            } catch (e: RuntimeException) {
+                // Folding mid-handshake can remove the outer display before we draw on it
+                // (WindowManager.InvalidDisplayException). Give the session back; the next
+                // unfold asks again.
+                debugLog(TAG, "outer display went away before the cover was shown", e)
+                session.close()
+            }
         }
 
         override fun onSessionEnded(t: Throwable?) {

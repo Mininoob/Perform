@@ -35,6 +35,16 @@ class PdfPageLock {
     var wholePage: Boolean = false
         private set
 
+    /**
+     * The color around and between pages. The viewer otherwise paints its own, ignoring
+     * the theme, which shows as a hard black frame around a fitted page.
+     */
+    var background: Int? = null
+        set(value) {
+            field = value
+            enforce()
+        }
+
     /** Call before Readium reloads with new settings, so the load hook sees the new values. */
     fun update(lock: PdfLock, wholePage: Boolean) {
         this.lock = lock
@@ -118,8 +128,17 @@ class PdfPageLock {
 
     private fun find(): PDFView? = root?.let(::find)
 
+    private var paintedView: PDFView? = null
+    private var paintedColor: Int? = null
+
     private fun enforce() {
         val pdf = find() ?: return
+        val color = background
+        if (color != null && (pdf !== paintedView || color != paintedColor)) {
+            pdf.setBackgroundColor(color)
+            paintedView = pdf
+            paintedColor = color
+        }
         if (pdf.isSwipeEnabled != dragAllowed) {
             pdf.setSwipeEnabled(dragAllowed)
             debugLog(TAG, "drag enabled=$dragAllowed")

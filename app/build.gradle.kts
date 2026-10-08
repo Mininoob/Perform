@@ -47,6 +47,12 @@ android {
         buildConfig = true
     }
 
+    testOptions {
+        // Readium's preference types touch Android classes as they load; let the JVM
+        // test stubs return defaults instead of throwing.
+        unitTests.isReturnDefaultValues = true
+    }
+
     packaging {
         // Readium's dependencies ship duplicate license files.
         resources.excludes += setOf("META-INF/DEPENDENCIES", "META-INF/LICENSE*", "META-INF/NOTICE*")

@@ -28,9 +28,11 @@ import com.preform.reader.settings.AppSettingsActions
 import com.preform.reader.settings.AppSettingsScreen
 import com.preform.reader.settings.AppSettingsState
 import com.preform.reader.settings.AppTheme
+import com.preform.reader.settings.CoverControls
 import com.preform.reader.settings.ReadingDefaultsScreen
 import com.preform.reader.settings.ReadingPreferences
 import com.preform.reader.settings.SwipeDirection
+import com.preform.reader.settings.ThemeSchedule
 import com.preform.reader.ui.PreformTheme
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -54,8 +56,11 @@ class MainActivity : ComponentActivity() {
         val prefs = container.preferences
 
         setContent {
-            val appTheme by prefs.appTheme.collectAsStateWithLifecycle(AppTheme.SYSTEM)
-            PreformTheme(appTheme) {
+            // What's showing now (the day or night theme when switching by time), versus
+            // the theme picked in settings.
+            val effectiveTheme by prefs.effectiveTheme.collectAsStateWithLifecycle(AppTheme.DEFAULT)
+            val appTheme by prefs.appTheme.collectAsStateWithLifecycle(AppTheme.DEFAULT)
+            PreformTheme(effectiveTheme) {
                 val library: LibraryViewModel = viewModel { LibraryViewModel(container) }
                 val state by library.state.collectAsStateWithLifecycle()
                 val navController = rememberNavController()
@@ -100,15 +105,17 @@ class MainActivity : ComponentActivity() {
                     }
                     composable("settings") {
                         val keepScreenOn by prefs.keepScreenOn.collectAsStateWithLifecycle(false)
-                        val swipeEnabled by prefs.backSwipeEnabled.collectAsStateWithLifecycle(true)
+                        val schedule by prefs.themeSchedule.collectAsStateWithLifecycle(ThemeSchedule.DEFAULT)
+                        val coverControls by prefs.coverControls.collectAsStateWithLifecycle(CoverControls.SWIPE_AND_TAP)
                         val swipeForNext by prefs.backSwipeForNext.collectAsStateWithLifecycle(SwipeDirection.LEFT)
                         val folder by prefs.libraryFolder.collectAsStateWithLifecycle(null)
                         AppSettingsScreen(
                             state = AppSettingsState(
                                 folderLabel = folder?.let(::folderLabel),
                                 appTheme = appTheme,
+                                themeSchedule = schedule,
                                 keepScreenOn = keepScreenOn,
-                                backSwipeEnabled = swipeEnabled,
+                                coverControls = coverControls,
                                 backSwipeForNext = swipeForNext,
                                 showDiagnostics = BuildConfig.DEBUG,
                             ),
@@ -117,10 +124,12 @@ class MainActivity : ComponentActivity() {
                                 onChooseFolder = { pickFolder.launch(null) },
                                 onRescan = library::refresh,
                                 onRemoveFolder = { scope.launch { container.library.clearLibraryFolder() } },
-                                onAppTheme = { scope.launch { prefs.setAppTheme(it) } },
+                                onThemeBase = { scope.launch { prefs.setThemeBase(it) } },
+                                onThemeAccent = { scope.launch { prefs.setThemeAccent(it) } },
+                                onScheduleChange = { change -> scope.launch { prefs.updateThemeSchedule(change) } },
                                 onKeepScreenOn = { scope.launch { prefs.setKeepScreenOn(it) } },
                                 onReadingDefaults = { navController.navigate("reading-defaults") },
-                                onBackSwipeEnabled = { scope.launch { prefs.setBackSwipeEnabled(it) } },
+                                onCoverControls = { scope.launch { prefs.setCoverControls(it) } },
                                 onBackSwipeForNext = { scope.launch { prefs.setBackSwipeForNext(it) } },
                                 onDiagnostics = {
                                     startActivity(Intent(this@MainActivity, DiagnosticsActivity::class.java))

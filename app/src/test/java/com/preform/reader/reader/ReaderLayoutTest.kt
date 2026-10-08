@@ -2,7 +2,11 @@ package com.preform.reader.reader
 
 import com.preform.reader.library.BookFormat
 import com.preform.reader.settings.ReadingMode
+import com.preform.reader.settings.ReadingPreferences
+import com.preform.reader.settings.ReadingTheme
 import org.junit.Assert.assertEquals
+import org.readium.r2.navigator.preferences.ColumnCount
+import org.readium.r2.navigator.preferences.Spread
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -24,8 +28,9 @@ class ReaderLayoutTest {
     }
 
     @Test
-    fun `pdfs never spread`() {
-        assertFalse(resolveLayout(ReadingMode.SPREAD, BookFormat.PDF, inner, tabletop = false).spread)
+    fun `pdfs spread on the open inner display too`() {
+        assertTrue(resolveLayout(ReadingMode.SPREAD, BookFormat.PDF, inner, tabletop = false).spread)
+        assertFalse(resolveLayout(ReadingMode.SPREAD, BookFormat.PDF, cover, tabletop = false).spread)
     }
 
     @Test
@@ -79,5 +84,33 @@ class ReaderLayoutTest {
     fun `600dp is the spread threshold`() {
         assertTrue(resolveLayout(ReadingMode.SPREAD, BookFormat.EPUB, SPREAD_MIN_WIDTH_DP, false).spread)
         assertFalse(resolveLayout(ReadingMode.SPREAD, BookFormat.EPUB, SPREAD_MIN_WIDTH_DP - 1, false).spread)
+    }
+
+    private val noir = ReadingColors(background = 0xFF000000.toInt(), text = 0xFFEDEDED.toInt())
+
+    @Test
+    fun `books follow the app theme unless told otherwise`() {
+        val effective = ReadingPreferences.resolve(
+            ReadingPreferences(),
+            ReadingPreferences(),
+        )
+        assertEquals(noir, effective.colors(noir))
+    }
+
+    @Test
+    fun `a chosen reading theme wins over the app theme`() {
+        val sepia = ReadingPreferences(theme = ReadingTheme.SEPIA)
+        assertEquals(ReadingColors(0xFFFAF4E8.toInt(), 0xFF121212.toInt()), sepia.colors(noir))
+    }
+
+    @Test
+    fun `a reflowable spread is two columns, one page is one`() {
+        val prefs = ReadingPreferences.resolve(ReadingPreferences(), ReadingPreferences())
+        val spread = resolveLayout(ReadingMode.SPREAD, BookFormat.EPUB, inner, tabletop = false)
+        val single = resolveLayout(ReadingMode.SPREAD, BookFormat.EPUB, cover, tabletop = false)
+
+        assertEquals(ColumnCount.TWO, prefs.toEpubPreferences(spread, noir).columnCount)
+        assertEquals(Spread.ALWAYS, prefs.toEpubPreferences(spread, noir).spread)
+        assertEquals(ColumnCount.ONE, prefs.toEpubPreferences(single, noir).columnCount)
     }
 }

@@ -1,6 +1,24 @@
 package com.preform.reader.settings
 
+import android.text.format.DateFormat
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import com.preform.reader.ui.palette
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import com.preform.reader.ui.colorOn
+import com.preform.reader.ui.label
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,23 +33,32 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -40,8 +67,9 @@ import androidx.compose.ui.unit.sp
 data class AppSettingsState(
     val folderLabel: String?,
     val appTheme: AppTheme,
+    val themeSchedule: ThemeSchedule,
     val keepScreenOn: Boolean,
-    val backSwipeEnabled: Boolean,
+    val coverControls: CoverControls,
     val backSwipeForNext: SwipeDirection,
     val showDiagnostics: Boolean,
 )
@@ -51,10 +79,12 @@ class AppSettingsActions(
     val onChooseFolder: () -> Unit,
     val onRescan: () -> Unit,
     val onRemoveFolder: () -> Unit,
-    val onAppTheme: (AppTheme) -> Unit,
+    val onThemeBase: (ThemeBase) -> Unit,
+    val onThemeAccent: (ThemeAccent) -> Unit,
+    val onScheduleChange: ((ThemeSchedule) -> ThemeSchedule) -> Unit,
     val onKeepScreenOn: (Boolean) -> Unit,
     val onReadingDefaults: () -> Unit,
-    val onBackSwipeEnabled: (Boolean) -> Unit,
+    val onCoverControls: (CoverControls) -> Unit,
     val onBackSwipeForNext: (SwipeDirection) -> Unit,
     val onDiagnostics: () -> Unit,
 )
@@ -100,20 +130,46 @@ fun AppSettingsScreen(state: AppSettingsState, actions: AppSettingsActions) {
                 }
             }
 
-            Group("Appearance") {
-                Text("App theme", style = MaterialTheme.typography.bodyLarge)
-                AppTheme.entries.forEach { theme ->
-                    Choice(
-                        label = when (theme) {
-                            AppTheme.SYSTEM -> "Match system"
-                            AppTheme.LIGHT -> "Light"
-                            AppTheme.DARK -> "Dark"
-                        },
-                        selected = state.appTheme == theme,
-                        onSelect = { actions.onAppTheme(theme) },
+            Group("Theme") {
+                val schedule = state.themeSchedule
+                val accent = state.appTheme.accent
+                Toggle(
+                    label = "Switch by time of day",
+                    detail = if (schedule.enabled) {
+                        "Light from ${schedule.dayStartsAt.display()}, dark from ${schedule.nightStartsAt.display()}."
+                    } else {
+                        "A light base by day and a dark one at night."
+                    },
+                    checked = schedule.enabled,
+                    onChange = { on -> actions.onScheduleChange { it.copy(enabled = on) } },
+                )
+                if (schedule.enabled) {
+                    ScheduleHeader("Day", schedule.dayStartsAt) { time ->
+                        actions.onScheduleChange { it.copy(dayStartsAt = time) }
+                    }
+                    BaseRow(
+                        bases = ThemeBase.entries.filter { !it.dark },
+                        selected = schedule.day,
+                        accent = accent,
+                        onSelect = { base -> actions.onScheduleChange { it.copy(day = base) } },
                     )
+                    ScheduleHeader("Night", schedule.nightStartsAt) { time ->
+                        actions.onScheduleChange { it.copy(nightStartsAt = time) }
+                    }
+                    BaseRow(
+                        bases = ThemeBase.entries.filter { it.dark },
+                        selected = schedule.night,
+                        accent = accent,
+                        onSelect = { base -> actions.onScheduleChange { it.copy(night = base) } },
+                    )
+                } else {
+                    BaseRow(ThemeBase.entries.filter { !it.dark }, state.appTheme.base, accent, actions.onThemeBase)
+                    BaseRow(ThemeBase.entries.filter { it.dark }, state.appTheme.base, accent, actions.onThemeBase)
                 }
-                Hint("The library and settings. Books use their own reading theme.")
+                Spacer(Modifier.height(4.dp))
+                Text("Accent  ·  ${accent.label}", style = MaterialTheme.typography.titleSmall)
+                AccentPicker(selected = accent, base = state.appTheme.base, onSelect = actions.onThemeAccent)
+                Hint("The library, settings and reading controls. Books in the App reading theme follow it too.")
             }
 
             Group("Reading") {
@@ -127,19 +183,36 @@ fun AppSettingsScreen(state: AppSettingsState, actions: AppSettingsActions) {
             }
 
             Group("Book Mode") {
-                Toggle(
-                    label = "Swipe the back to turn pages",
-                    detail = "With Book Mode on and the phone open, swipe across the cover on the back.",
-                    checked = state.backSwipeEnabled,
-                    onChange = actions.onBackSwipeEnabled,
+                Text("Cover screen controls", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "With the phone open, turn pages from the cover on the back.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                        CoverControls.OFF to "Off",
+                        CoverControls.SWIPE to "Swipe",
+                        CoverControls.TAP to "Tap",
+                        CoverControls.SWIPE_AND_TAP to "Swipe & tap",
+                    ).forEach { (controls, label) ->
+                        FilterChip(
+                            selected = state.coverControls == controls,
+                            onClick = { actions.onCoverControls(controls) },
+                            label = { Text(label) },
+                        )
+                    }
+                }
+                if (state.coverControls.tap) {
+                    Hint("Tap the left or right third of the back. The middle is left alone so holding the phone doesn't turn pages.")
+                }
                 val flipped = state.backSwipeForNext == SwipeDirection.RIGHT
+                val swipeText = if (flipped) "swipe right or tap the left side" else "swipe left or tap the right side"
                 Toggle(
-                    label = "Flip swipe direction",
-                    detail = (if (flipped) "Swipe right for the next page" else "Swipe left for the next page") +
-                        ", as you see it from the front. Right-to-left books go the other way.",
+                    label = "Flip direction",
+                    detail = "Next page: $swipeText, as you see it from the front. Right-to-left books go the other way.",
                     checked = flipped,
-                    enabled = state.backSwipeEnabled,
+                    enabled = state.coverControls != CoverControls.OFF,
                     onChange = { flip ->
                         actions.onBackSwipeForNext(if (flip) SwipeDirection.RIGHT else SwipeDirection.LEFT)
                     },
@@ -213,17 +286,125 @@ private fun Toggle(
     }
 }
 
+/** "Day · from 7:00 AM", where tapping the time opens a time picker. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun Choice(label: String, selected: Boolean, onSelect: () -> Unit, enabled: Boolean = true) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .selectable(selected = selected, enabled = enabled, onClick = onSelect, role = Role.RadioButton)
-            .padding(vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RadioButton(selected = selected, onClick = null, enabled = enabled)
-        Text(label, modifier = Modifier.padding(start = 12.dp))
+private fun ScheduleHeader(label: String, startsAt: LocalTime, onTimeChange: (LocalTime) -> Unit) {
+    var picking by remember { mutableStateOf(false) }
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp)) {
+        Text(label, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+        TextButton(onClick = { picking = true }) { Text("from ${startsAt.display()}") }
+    }
+    if (picking) {
+        val picker = rememberTimePickerState(
+            initialHour = startsAt.hour,
+            initialMinute = startsAt.minute,
+            is24Hour = DateFormat.is24HourFormat(LocalContext.current),
+        )
+        AlertDialog(
+            onDismissRequest = { picking = false },
+            title = { Text("$label starts at") },
+            text = { TimePicker(state = picker) },
+            confirmButton = {
+                TextButton(onClick = {
+                    onTimeChange(LocalTime.of(picker.hour, picker.minute))
+                    picking = false
+                }) { Text("Set") }
+            },
+            dismissButton = { TextButton(onClick = { picking = false }) { Text("Cancel") } },
+        )
+    }
+}
+
+/** A time the way this phone shows times: 7:00 AM, or 07:00. */
+private fun LocalTime.display(): String = format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT))
+
+/** One row of base themes, each a small preview card wearing the current accent. */
+@Composable
+private fun BaseRow(bases: List<ThemeBase>, selected: ThemeBase, accent: ThemeAccent, onSelect: (ThemeBase) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        bases.forEach { base ->
+            BaseCard(AppTheme(base, accent), base == selected, { onSelect(base) }, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun BaseCard(theme: AppTheme, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
+    val p = theme.palette
+    Column(modifier.selectable(selected = selected, onClick = onClick, role = Role.RadioButton)) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .aspectRatio(1.25f)
+                .clip(RoundedCornerShape(12.dp))
+                .background(p.background)
+                .border(
+                    width = if (selected) 2.5.dp else 1.dp,
+                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                    shape = RoundedCornerShape(12.dp),
+                )
+                .padding(10.dp),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text("Aa", color = p.text, fontFamily = FontFamily.Serif, fontSize = 18.sp)
+                Box(Modifier.fillMaxWidth(0.8f).height(3.dp).clip(RoundedCornerShape(2.dp)).background(p.muted))
+                Box(Modifier.fillMaxWidth(0.55f).height(3.dp).clip(RoundedCornerShape(2.dp)).background(p.muted))
+            }
+            Box(
+                Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(width = 22.dp, height = 10.dp)
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(p.accent),
+            )
+            if (selected) {
+                Icon(
+                    Icons.Default.Check,
+                    contentDescription = null,
+                    tint = p.accent,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(18.dp),
+                )
+            }
+        }
+        Text(
+            theme.base.label,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(top = 6.dp, start = 2.dp),
+        )
+    }
+}
+
+/** The accent palette: a dot per color, shown as it will look on the current base. */
+@Composable
+private fun AccentPicker(selected: ThemeAccent, base: ThemeBase, onSelect: (ThemeAccent) -> Unit) {
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        ThemeAccent.entries.forEach { accent ->
+            val chosen = accent == selected
+            Box(
+                Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.background)
+                    .border(
+                        width = if (chosen) 2.5.dp else 1.dp,
+                        color = if (chosen) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.outlineVariant,
+                        shape = CircleShape,
+                    )
+                    .selectable(selected = chosen, onClick = { onSelect(accent) }, role = Role.RadioButton)
+                    .semantics { contentDescription = accent.label },
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(accent.colorOn(base)),
+                )
+            }
+        }
     }
 }
 

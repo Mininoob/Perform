@@ -11,6 +11,7 @@ import org.readium.adapter.pdfium.navigator.PdfiumPreferences
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.preferences.Axis
 import org.readium.r2.navigator.preferences.Color
+import org.readium.r2.navigator.preferences.ColumnCount
 import org.readium.r2.navigator.preferences.Fit
 import org.readium.r2.navigator.preferences.FontFamily
 import org.readium.r2.navigator.preferences.Spread
@@ -44,7 +45,8 @@ data class ReaderLayout(
  * Resolves the chosen [mode] against the format and the device.
  *
  * Spread only happens on a wide window (the Fold's inner screen), never on the cover
- * screen, and never for PDFs: Readium's free PDF engine has no spread support.
+ * screen. PDF spreads are drawn by [PdfSpreadView], since Readium's free PDF engine
+ * can't lay them out.
  * Tabletop is posture-driven rather than a menu choice. Page lock only means something
  * for PDFs; its kind follows the mode.
  */
@@ -55,7 +57,7 @@ fun resolveLayout(
     tabletop: Boolean,
     pageLock: Boolean = false,
 ): ReaderLayout {
-    val canSpread = format == BookFormat.EPUB && windowWidthDp >= SPREAD_MIN_WIDTH_DP
+    val canSpread = windowWidthDp >= SPREAD_MIN_WIDTH_DP
     val layout = when (mode) {
         ReadingMode.PAGES -> ReaderLayout(scroll = false, spread = false, tabletop = tabletop)
         ReadingMode.SPREAD -> ReaderLayout(scroll = false, spread = canSpread, tabletop = tabletop)
@@ -72,7 +74,9 @@ fun resolveLayout(
 /** Page and text colors for a theme, ARGB; also used to tint the reader's own controls. */
 data class ReadingColors(val background: Int, val text: Int)
 
-fun ReadingPreferences.colors(): ReadingColors = when (theme ?: ReadingTheme.DARK) {
+/** Page colors for these settings; [app] is what the App theme option borrows. */
+fun ReadingPreferences.colors(app: ReadingColors): ReadingColors = when (theme ?: ReadingTheme.APP) {
+    ReadingTheme.APP -> app
     ReadingTheme.LIGHT -> ReadingColors(0xFFFFFFFF.toInt(), 0xFF121212.toInt())
     ReadingTheme.SEPIA -> ReadingColors(0xFFFAF4E8.toInt(), 0xFF121212.toInt())
     ReadingTheme.DARK -> ReadingColors(0xFF12100E.toInt(), 0xFFDDD3C6.toInt())
@@ -91,8 +95,8 @@ fun ReadingColors.isDark(): Boolean {
 }
 
 /** The single boundary where our settings become Readium's EPUB preferences. */
-fun ReadingPreferences.toEpubPreferences(layout: ReaderLayout): EpubPreferences {
-    val colors = colors()
+fun ReadingPreferences.toEpubPreferences(layout: ReaderLayout, app: ReadingColors): EpubPreferences {
+    val colors = colors(app)
     // Readium only honours line height and alignment once the book's own styles are off.
     val overridesBookStyles = lineHeight != null || textAlign != null
     return EpubPreferences(
@@ -118,6 +122,9 @@ fun ReadingPreferences.toEpubPreferences(layout: ReaderLayout): EpubPreferences 
         },
         publisherStyles = !overridesBookStyles,
         scroll = layout.scroll,
+        // Two settings for one idea: Readium lays reflowable books (most novels) out in
+        // columns and only applies spread to fixed-layout ones (comics, picture books).
+        columnCount = if (layout.spread) ColumnCount.TWO else ColumnCount.ONE,
         spread = if (layout.spread) Spread.ALWAYS else Spread.NEVER,
     )
 }
