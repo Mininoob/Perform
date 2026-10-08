@@ -7,8 +7,14 @@ plugins {
     alias(libs.plugins.compose.multiplatform)
 }
 
+// Java 17 bytecode, built with whichever JDK (17 or newer) runs Gradle: the PC has 17,
+// the Mac 21 and 23.
 kotlin {
-    jvmToolchain(17)
+    compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
+}
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
 dependencies {
