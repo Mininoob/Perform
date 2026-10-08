@@ -44,6 +44,9 @@ if ! $unsigned; then
     # jpackage wants the name without the "Developer ID Application: " prefix.
     export PREFORM_SIGN_IDENTITY="${identity#Developer ID Application: }"
     say "Signing as: $identity"
+    # A Gradle daemon left over from another session (e.g. SSH) can't reach this
+    # session's keychain, so signing would fail: start from a fresh one.
+    ./gradlew --stop -q >/dev/null 2>&1 || true
 fi
 
 say "Testing"
