@@ -32,7 +32,7 @@ class ShelvesTest {
         dir.toFile().deleteRecursively()
     }
 
-    private fun catalog() = store.catalogSince(0).first.associateBy { it.title }
+    private fun catalog() = store.catalogSince(0).books.associateBy { it.title }
 
     @Test
     fun `the catalog carries each book's folder`() {
@@ -67,7 +67,7 @@ class ShelvesTest {
         root.resolve("Sci-Fi/dune.epub").moveTo(root.resolve("Sci-Fi/Dune (1965).epub"))
         library.scan()
 
-        assertTrue(store.catalogSince(cursor).first.isEmpty())
+        assertTrue(store.catalogSince(cursor).books.isEmpty())
     }
 
     @Test

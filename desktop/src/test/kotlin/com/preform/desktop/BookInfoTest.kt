@@ -93,7 +93,7 @@ class BookInfoTest {
         val book = only()
         assertNotEquals(oldId, book.catalog.contentId)
         assertEquals(book.catalog.contentId, store.resolve(oldId))
-        assertEquals(listOf(oldId), store.catalogSince(0).first.single().previousIds)
+        assertEquals(listOf(oldId), store.catalogSince(0).books.single().previousIds)
         assertTrue(dir.resolve("originals/$oldId.epub").readBytes().contentEquals(original))
 
         ZipFile(root.resolve("dune.epub").toFile()).use { zip ->

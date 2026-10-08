@@ -5,6 +5,9 @@ import com.preform.sync.CatalogBook
 import com.preform.sync.Format
 import com.preform.sync.PeerKind
 import com.preform.sync.Protocol
+import com.preform.sync.Stamp
+import com.preform.sync.FolderStamp
+import com.preform.sync.CatalogPage
 import com.preform.sync.mergedWith
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -92,6 +95,20 @@ class Store(file: Path) : AutoCloseable {
         addColumnIfMissing("books", "series_index", "REAL")
         addColumnIfMissing("books", "unreadable", "INTEGER NOT NULL DEFAULT 0")
         addColumnIfMissing("devices", "kind", "TEXT NOT NULL DEFAULT 'PHONE'")
+        // Organizing stamps: when and where a book's folder, details or removal last changed.
+        addColumnIfMissing("books", "folder_at", "INTEGER NOT NULL DEFAULT 0")
+        addColumnIfMissing("books", "folder_by", "TEXT NOT NULL DEFAULT ''")
+        addColumnIfMissing("books", "info_at", "INTEGER NOT NULL DEFAULT 0")
+        addColumnIfMissing("books", "info_by", "TEXT NOT NULL DEFAULT ''")
+        addColumnIfMissing("books", "removed_at", "INTEGER NOT NULL DEFAULT 0")
+        addColumnIfMissing("books", "removed_by", "TEXT NOT NULL DEFAULT ''")
+        db.createStatement().use {
+            // Folders as their own facts, so empty ones and removed ones reach phones and mirrors.
+            it.executeUpdate(
+                """CREATE TABLE IF NOT EXISTS folders (path TEXT PRIMARY KEY, removed INTEGER NOT NULL DEFAULT 0,
+                     at INTEGER NOT NULL, by TEXT NOT NULL, rev INTEGER NOT NULL)""",
+            )
+        }
         db.createStatement().use {
             // Ids books had before information was written into their files.
             it.executeUpdate("CREATE TABLE IF NOT EXISTS aliases (old_id TEXT PRIMARY KEY, new_id TEXT NOT NULL)")
@@ -108,6 +125,30 @@ class Store(file: Path) : AutoCloseable {
     }
 
     // Revisions
+
+    // Stamps
+
+    /** This library's id, for stamping its own changes. */
+    @Volatile
+    var origin: String = ""
+
+    var clock: () -> Long = System::currentTimeMillis
+
+    private val applying = ThreadLocal<Stamp?>()
+
+    /** The stamp a change made right now carries: someone else's while applying theirs, else ours. */
+    fun stamp(): Stamp = applying.get() ?: Stamp(clock(), origin)
+
+    /** Runs [work] with every change in it carrying [stamp] (a change applied from another device). */
+    fun <T> stampedAs(stamp: Stamp, work: () -> T): T {
+        val before = applying.get()
+        applying.set(stamp)
+        try {
+            return work()
+        } finally {
+            applying.set(before)
+        }
+    }
 
     @Synchronized
     private fun nextRev(): Long {
@@ -138,9 +179,13 @@ class Store(file: Path) : AutoCloseable {
         val c = book.catalog
         db.prepareStatement(
             """INSERT INTO books(content_id, rel_path, title, author, format, size, modified, rtl, cover_etag, added_at, removed, rev,
-                 genres, genre_source, description, year, title_from_file, lookup, series, series_index, unreadable)
-               VALUES(?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?,?,?,?,?,?)
-               ON CONFLICT(content_id) DO UPDATE SET rel_path = excluded.rel_path, title = excluded.title,
+                 genres, genre_source, description, year, title_from_file, lookup, series, series_index, unreadable,
+                 folder_at, folder_by)
+               VALUES(?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?,?,?,?,?,?,?,?)
+               ON CONFLICT(content_id) DO UPDATE SET
+                 folder_at = CASE WHEN books.removed = 1 THEN excluded.folder_at ELSE books.folder_at END,
+                 folder_by = CASE WHEN books.removed = 1 THEN excluded.folder_by ELSE books.folder_by END,
+                 rel_path = excluded.rel_path, title = excluded.title,
                  author = excluded.author, format = excluded.format, size = excluded.size, modified = excluded.modified,
                  rtl = excluded.rtl, cover_etag = excluded.cover_etag, removed = 0, rev = excluded.rev,
                  genres = excluded.genres, genre_source = excluded.genre_source, description = excluded.description,
@@ -167,6 +212,9 @@ class Store(file: Path) : AutoCloseable {
             p.setString(18, c.series)
             c.seriesIndex?.let { p.setDouble(19, it) } ?: p.setNull(19, java.sql.Types.REAL)
             p.setInt(20, if (book.unreadable) 1 else 0)
+            val stamp = stamp()
+            p.setLong(21, stamp.at)
+            p.setString(22, stamp.by)
             p.executeUpdate()
         }
     }
@@ -177,12 +225,16 @@ class Store(file: Path) : AutoCloseable {
      */
     @Synchronized
     fun movePath(contentId: String, relativePath: String, modified: Long) {
-        val shelfChanged = book(contentId)?.catalog?.folder != folderOf(relativePath)
-        db.prepareStatement("UPDATE books SET rel_path = ?, modified = ?, rev = ? WHERE content_id = ?").use { p ->
+        val current = book(contentId) ?: return
+        val shelfChanged = current.catalog.folder != folderOf(relativePath)
+        val stamp = if (shelfChanged) stamp() else current.catalog.folderStamp
+        db.prepareStatement("UPDATE books SET rel_path = ?, modified = ?, rev = ?, folder_at = ?, folder_by = ? WHERE content_id = ?").use { p ->
             p.setString(1, relativePath)
             p.setLong(2, modified)
             p.setLong(3, if (shelfChanged) nextRev() else rev(contentId))
-            p.setString(4, contentId)
+            p.setLong(4, stamp.at)
+            p.setString(5, stamp.by)
+            p.setString(6, contentId)
             p.executeUpdate()
         }
     }
@@ -199,17 +251,26 @@ class Store(file: Path) : AutoCloseable {
     @Synchronized
     fun renamePathPrefix(oldPrefix: String, newPrefix: String) {
         db.prepareStatement(
-            """UPDATE books SET rel_path = ? || substr(rel_path, ?), rev = ?
+            """UPDATE books SET rel_path = ? || substr(rel_path, ?), rev = ?, folder_at = ?, folder_by = ?
                WHERE substr(rel_path, 1, ?) = ?""",
         ).use { p ->
             val from = "$oldPrefix/"
+            val stamp = stamp()
             p.setString(1, "$newPrefix/")
             p.setInt(2, from.length + 1)
             p.setLong(3, nextRev())
-            p.setInt(4, from.length)
-            p.setString(5, from)
+            p.setLong(4, stamp.at)
+            p.setString(5, stamp.by)
+            p.setInt(6, from.length)
+            p.setString(7, from)
             p.executeUpdate()
         }
+        // The folder and every folder inside it: gone under the old name, made under the new.
+        folders().filter { !it.removed && (it.path == oldPrefix || it.path.startsWith("$oldPrefix/")) }.forEach { f ->
+            saveFolder(f.path, removed = true)
+            saveFolder(newPrefix + f.path.removePrefix(oldPrefix), removed = false)
+        }
+        if (folder(newPrefix)?.removed != false) saveFolder(newPrefix, removed = false)
     }
 
     private fun rev(contentId: String): Long =
@@ -230,7 +291,8 @@ class Store(file: Path) : AutoCloseable {
         val c = book.catalog
         db.prepareStatement(
             """UPDATE books SET title = ?, author = ?, genres = ?, genre_source = ?, description = ?, year = ?,
-                 title_from_file = ?, cover_etag = ?, lookup = ?, series = ?, series_index = ?, rev = ? WHERE content_id = ?""",
+                 title_from_file = ?, cover_etag = ?, lookup = ?, series = ?, series_index = ?, rev = ?,
+                 info_at = ?, info_by = ? WHERE content_id = ?""",
         ).use { p ->
             p.setString(1, c.title)
             p.setString(2, c.author)
@@ -244,7 +306,10 @@ class Store(file: Path) : AutoCloseable {
             p.setString(10, c.series)
             c.seriesIndex?.let { p.setDouble(11, it) } ?: p.setNull(11, java.sql.Types.REAL)
             p.setLong(12, nextRev())
-            p.setString(13, c.contentId)
+            val stamp = stamp()
+            p.setLong(13, stamp.at)
+            p.setString(14, stamp.by)
+            p.setString(15, c.contentId)
             p.executeUpdate()
         }
     }
@@ -313,9 +378,12 @@ class Store(file: Path) : AutoCloseable {
 
     @Synchronized
     fun markRemoved(contentId: String) {
-        db.prepareStatement("UPDATE books SET removed = 1, rev = ? WHERE content_id = ? AND removed = 0").use { p ->
+        db.prepareStatement("UPDATE books SET removed = 1, rev = ?, removed_at = ?, removed_by = ? WHERE content_id = ? AND removed = 0").use { p ->
+            val stamp = stamp()
             p.setLong(1, nextRev())
-            p.setString(2, contentId)
+            p.setLong(2, stamp.at)
+            p.setString(3, stamp.by)
+            p.setString(4, contentId)
             p.executeUpdate()
         }
     }
@@ -331,17 +399,22 @@ class Store(file: Path) : AutoCloseable {
             p.executeQuery().use { rs -> buildList { while (rs.next()) add(rs.toBook()) } }
         }
 
-    /** Changes since [since]: live books touched after it, and books removed after it. */
-    fun catalogSince(since: Long): Triple<List<CatalogBook>, List<String>, Long> {
+    /** Changes since [since]: live books touched after it, books removed after it, and folders made or removed. */
+    @Synchronized
+    fun catalogSince(since: Long): CatalogPage {
         val books = mutableListOf<CatalogBook>()
         val removed = mutableListOf<String>()
+        val removedStamps = HashMap<String, Stamp>()
         val aliases = previousIds()
+        val cursor = currentRev()
         db.prepareStatement("SELECT * FROM books WHERE rev > ? ORDER BY rev").use { p ->
             p.setLong(1, since)
             p.executeQuery().use { rs ->
                 while (rs.next()) {
                     if (rs.getInt("removed") == 1) {
-                        removed += rs.getString("content_id")
+                        val id = rs.getString("content_id")
+                        removed += id
+                        removedStamps[id] = Stamp(rs.getLong("removed_at"), rs.getString("removed_by"))
                     } else {
                         val book = rs.toBook().catalog
                         books += book.copy(previousIds = aliases[book.contentId].orEmpty())
@@ -349,8 +422,53 @@ class Store(file: Path) : AutoCloseable {
                 }
             }
         }
-        return Triple(books, removed, currentRev())
+        val folders = db.prepareStatement("SELECT * FROM folders WHERE rev > ? ORDER BY rev").use { p ->
+            p.setLong(1, since)
+            p.executeQuery().use { rs -> buildList { while (rs.next()) add(rs.toFolder()) } }
+        }
+        return CatalogPage(books, removed, cursor, removedStamps, folders)
     }
+
+    // Folders
+
+    /** Records a folder made ([removed] false) or removed, stamped like any other change. */
+    @Synchronized
+    fun saveFolder(path: String, removed: Boolean) {
+        if (path.isEmpty()) return
+        val stamp = stamp()
+        db.prepareStatement(
+            """INSERT INTO folders(path, removed, at, by, rev) VALUES(?,?,?,?,?)
+               ON CONFLICT(path) DO UPDATE SET removed = excluded.removed, at = excluded.at, by = excluded.by, rev = excluded.rev""",
+        ).use { p ->
+            p.setString(1, path)
+            p.setInt(2, if (removed) 1 else 0)
+            p.setLong(3, stamp.at)
+            p.setString(4, stamp.by)
+            p.setLong(5, nextRev())
+            p.executeUpdate()
+        }
+        changed()
+    }
+
+    fun folder(path: String): FolderStamp? =
+        db.prepareStatement("SELECT * FROM folders WHERE path = ?").use { p ->
+            p.setString(1, path)
+            p.executeQuery().use { if (it.next()) it.toFolder() else null }
+        }
+
+    fun folders(): List<FolderStamp> =
+        db.prepareStatement("SELECT * FROM folders ORDER BY path").use { p ->
+            p.executeQuery().use { rs -> buildList { while (rs.next()) add(rs.toFolder()) } }
+        }
+
+    /** When a removed book went, if it did. */
+    fun removedStamp(contentId: String): Stamp? =
+        db.prepareStatement("SELECT removed_at, removed_by FROM books WHERE content_id = ? AND removed = 1").use { p ->
+            p.setString(1, contentId)
+            p.executeQuery().use { if (it.next()) Stamp(it.getLong(1), it.getString(2)) else null }
+        }
+
+    private fun ResultSet.toFolder() = FolderStamp(getString("path"), getInt("removed") == 1, Stamp(getLong("at"), getString("by")))
 
     fun currentRev(): Long = meta("rev")?.toLong() ?: 0L
 
@@ -457,6 +575,8 @@ class Store(file: Path) : AutoCloseable {
             year = getInt("year").takeIf { !wasNull() },
             series = getString("series"),
             seriesIndex = getDouble("series_index").takeIf { !wasNull() },
+            folderStamp = Stamp(getLong("folder_at"), getString("folder_by")),
+            infoStamp = Stamp(getLong("info_at"), getString("info_by")),
         ),
         relativePath = getString("rel_path"),
         modified = getLong("modified"),

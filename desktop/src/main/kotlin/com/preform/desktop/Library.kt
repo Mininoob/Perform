@@ -1,5 +1,7 @@
 package com.preform.desktop
 
+import com.preform.sync.Stamp
+import com.preform.sync.OrganizeChange
 import com.preform.sync.CatalogBook
 import com.preform.sync.Format
 import com.preform.sync.Genres
@@ -94,9 +96,22 @@ class Library(
 
         val gone = known.filter { it.catalog.contentId !in seen }
         gone.forEach { store.markRemoved(it.catalog.contentId) }
+        reconcileFolders()
         identicalCopies = copies
         copyHashes.keys.retainAll(copies.values.flatten().toSet())
         return ScanResult(added, moved, gone.size)
+    }
+
+    /**
+     * Keeps the folder records in step with the disk, so a folder made or removed in
+     * Explorer or Finder reaches phones and mirrors like one made here.
+     */
+    private fun reconcileFolders() {
+        val onDisk = folders().toSet()
+        val known = store.folders()
+        val live = known.filter { !it.removed }.map { it.path }.toSet()
+        (onDisk - live).forEach { store.saveFolder(it, removed = false) }
+        (live - onDisk).forEach { store.saveFolder(it, removed = true) }
     }
 
     private fun isHidden(root: Path, file: Path) =
@@ -205,7 +220,7 @@ class Library(
         val dir = folderPath(parent).resolve(clean)
         if (dir.exists()) throw OrganizeException("There's already a folder called “$clean” here.")
         dir.createDirectories()
-        return relativeOf(dir)
+        return relativeOf(dir).also { store.saveFolder(it, removed = false) }
     }
 
     /** Renames a folder in place; every book inside keeps its identity. Returns the new path. */
@@ -247,8 +262,64 @@ class Library(
         Files.walk(dir).use { it.sorted(Comparator.reverseOrder()).toList() }.forEach { p ->
             if (p.isDirectory()) runCatching { Files.delete(p) }
         }
+        store.folders().filter { !it.removed && (it.path == path || it.path.startsWith("$path/")) && !folderPath(it.path).exists() }
+            .forEach { store.saveFolder(it.path, removed = true) }
         if (dir.exists()) throw OrganizeException("The books moved out, but the folder still has other files in it, so it was kept.")
     }
+
+    // Changes from other devices
+
+    /**
+     * Applies an organizing change made on another device, stamped [stamp], if it's newer
+     * than what this library has for the same thing; the change keeps that stamp here, so
+     * it doesn't come back as new. Returns false when something newer already won.
+     */
+    @Synchronized
+    fun apply(change: OrganizeChange, stamp: Stamp): Boolean = store.stampedAs(stamp) {
+        when (change) {
+            is OrganizeChange.BookFolder -> {
+                val book = store.book(store.resolve(change.contentId)) ?: return@stampedAs false
+                if (stamp <= book.catalog.folderStamp) return@stampedAs false
+                val folder = cleanPath(change.folder)
+                if (folder.isNotEmpty() && !folderPath(folder).exists()) {
+                    folderPath(folder).createDirectories()
+                    store.saveFolder(folder, removed = false)
+                }
+                if (book.catalog.folder != folder) moveBooks(listOf(book.catalog.contentId), folder)
+                true
+            }
+            is OrganizeChange.Folder -> {
+                val path = cleanPath(change.path)
+                if (path.isEmpty()) return@stampedAs false
+                val known = store.folder(path)
+                if (known != null && stamp <= known.stamp) return@stampedAs false
+                if (change.removed) {
+                    if (folderPath(path).isDirectory()) runCatching { deleteFolder(path) }
+                    store.saveFolder(path, removed = true)
+                } else {
+                    folderPath(path).createDirectories()
+                    store.saveFolder(path, removed = false)
+                }
+                true
+            }
+            is OrganizeChange.FolderRename -> {
+                val from = cleanPath(change.from)
+                val to = cleanPath(change.to)
+                if (from.isEmpty() || to.isEmpty() || from.substringBeforeLast('/', "") != to.substringBeforeLast('/', "")) {
+                    return@stampedAs false
+                }
+                val known = store.folder(from)
+                if (known != null && stamp <= known.stamp) return@stampedAs false
+                if (!folderPath(from).isDirectory()) return@stampedAs false
+                renameFolder(from, to.substringAfterLast('/'))
+                true
+            }
+        }
+    }
+
+    /** A folder path from elsewhere, made safe: each part cleaned, nothing outside the library. */
+    private fun cleanPath(path: String): String =
+        path.split('/').filter { it.isNotBlank() }.joinToString("/") { safeFolderName(it) }.also(::folderPath)
 
     data class ImportResult(val added: Int, val alreadyThere: Int, val notBooks: Int)
 
@@ -327,12 +398,19 @@ class Library(
      * the book either way.
      */
     @Synchronized
-    fun addUpload(temp: Path, originalName: String, contentId: String, format: Format): CatalogBook {
+    fun addUpload(temp: Path, originalName: String, contentId: String, format: Format, folder: String = UPLOAD_FOLDER): CatalogBook {
         store.book(store.resolve(contentId))?.let {
             Files.deleteIfExists(temp)
             return it.catalog
         }
-        val folder = root().resolve(UPLOAD_FOLDER).createDirectories()
+        val clean = cleanPath(folder)
+        val existed = folderPath(clean).exists()
+        val target = folderPath(clean).createDirectories()
+        if (!existed) store.saveFolder(clean, removed = false)
+        return addUploadInto(temp, originalName, contentId, format, target)
+    }
+
+    private fun addUploadInto(temp: Path, originalName: String, contentId: String, format: Format, folder: Path): CatalogBook {
         val target = uniqueName(folder, safeFileName(originalName, format))
         Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING)
         val relative = root().relativize(target).invariantSeparatorsPathString

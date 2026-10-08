@@ -5,7 +5,11 @@ import com.preform.sync.CatalogPage
 import com.preform.sync.Format
 import com.preform.sync.LookupQuery
 import com.preform.sync.PeerHello
+import com.preform.sync.OrganizeChange
+import com.preform.sync.OrganizeRequest
+import com.preform.sync.OrganizeResult
 import com.preform.sync.PeerKind
+import com.preform.sync.Stamp
 import com.preform.sync.LookupResult
 import io.ktor.http.ContentType
 import io.ktor.server.response.respondBytes
@@ -63,6 +67,8 @@ class ServerDeps(
     val lookupCover: (Long) -> ByteArray? = { null },
     /** This library introducing itself to computers on the network. */
     val hello: () -> PeerHello = { PeerHello(serverId, serverName(), platform = "unknown") },
+    /** A phone reorganized the library: its name and how many of its changes took. */
+    val onOrganized: (device: String, applied: Int) -> Unit = { _, _ -> },
 )
 
 fun Application.preformModule(deps: ServerDeps) {
@@ -103,8 +109,7 @@ fun Application.preformModule(deps: ServerDeps) {
 
         get("/library") {
             call.device(deps) ?: return@get
-            val (books, removed, cursor) = deps.store.catalogSince(call.since())
-            call.respond(CatalogPage(books, removed, cursor))
+            call.respond(deps.store.catalogSince(call.since()))
         }
 
         get("/books/{id}/file") {
@@ -148,7 +153,14 @@ fun Application.preformModule(deps: ServerDeps) {
                     call.respond(HttpStatusCode.UnprocessableEntity, "Only EPUB and PDF books up to 1 GB can be added.")
                     return@put
                 }
-                call.respond(deps.library.addUpload(temp, name, contentId, format))
+                val folder = call.request.queryParameters["folder"] ?: Library.UPLOAD_FOLDER
+                val book = try {
+                    deps.library.addUpload(temp, name, contentId, format, folder)
+                } catch (e: OrganizeException) {
+                    call.respond(HttpStatusCode.BadRequest, e.message ?: "That folder can't be used.")
+                    return@put
+                }
+                call.respond(book)
             } finally {
                 Files.deleteIfExists(temp)
             }
@@ -172,6 +184,30 @@ fun Application.preformModule(deps: ServerDeps) {
                 return@post
             }
             call.respond(incoming.map { deps.store.mergeState(it.copy(contentId = deps.store.resolve(it.contentId))) })
+        }
+
+        post("/organize") {
+            val device = call.device(deps) ?: return@post
+            if (device.kind == PeerKind.COMPUTER) {
+                // Computers mirror by pulling; only phones push changes.
+                call.respond(HttpStatusCode.Forbidden)
+                return@post
+            }
+            val request = call.receive<OrganizeRequest>()
+            val now = deps.clock()
+            val lost = mutableListOf<OrganizeChange>()
+            var applied = 0
+            withContext(Dispatchers.IO) {
+                // Oldest first, so a phone's own later changes win over its earlier ones.
+                request.changes.sortedBy { it.at }.forEach { change ->
+                    // A phone's clock running ahead can't make its change outrank everything forever.
+                    val stamp = Stamp(minOf(change.at, now), device.deviceId)
+                    val took = runCatching { deps.library.apply(change, stamp) }.getOrDefault(false)
+                    if (took) applied++ else lost += change
+                }
+            }
+            if (applied > 0) deps.onOrganized(device.name, applied)
+            call.respond(OrganizeResult(applied, lost))
         }
 
         post("/lookup") {

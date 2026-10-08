@@ -98,6 +98,10 @@ data class CatalogBook(
      * bytes, so its id). A phone that knew it by one of these keeps its download and place.
      */
     val previousIds: List<String> = emptyList(),
+    /** When [folder] last changed, and where. */
+    val folderStamp: Stamp = Stamp.NEVER,
+    /** When the details (title, genres...) last changed, and where. */
+    val infoStamp: Stamp = Stamp.NEVER,
 )
 
 /** A book only the phone has, which it asks the PC to look up. */
@@ -132,6 +136,10 @@ data class CatalogPage(
     /** Books gone from the PC library since the cursor. */
     val removed: List<String>,
     val cursor: Long,
+    /** When each book in [removed] went, for libraries that mirror this one. */
+    val removedStamps: Map<String, Stamp> = emptyMap(),
+    /** Folders made or removed since the cursor, empty ones included. */
+    val folders: List<FolderStamp> = emptyList(),
 )
 
 /** A value plus when and where it was last changed: the unit of "newest wins". */

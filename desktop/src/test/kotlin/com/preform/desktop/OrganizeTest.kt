@@ -52,7 +52,7 @@ class OrganizeTest {
         assertTrue(root.resolve("Fiction/Classics/Dune.epub").exists())
         assertFalse(root.resolve("Dune.epub").exists())
         assertEquals("Fiction/Classics", book("Dune").catalog.folder)
-        assertEquals(2, store.catalogSince(cursor).first.size)
+        assertEquals(2, store.catalogSince(cursor).books.size)
         // A rescan agrees: nothing moved, nothing new.
         assertEquals(Library.ScanResult(0, 0, 0), library.scan())
     }
@@ -92,7 +92,7 @@ class OrganizeTest {
         assertEquals("Science Fiction", book("Dune").catalog.folder)
         assertEquals("Science Fiction/Classic", book("Foundation").catalog.folder)
         assertEquals("SFX", book("Other").catalog.folder) // only an exact folder prefix moves
-        assertEquals(2, store.catalogSince(cursor).first.size)
+        assertEquals(2, store.catalogSince(cursor).books.size)
         assertEquals(Library.ScanResult(0, 0, 0), library.scan())
     }
 

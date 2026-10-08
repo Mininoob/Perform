@@ -3,7 +3,11 @@ package com.preform.desktop
 import com.preform.sync.BookState
 import com.preform.sync.CatalogBook
 import com.preform.sync.CatalogPage
+import com.preform.sync.OrganizeChange
+import com.preform.sync.OrganizeRequest
+import com.preform.sync.OrganizeResult
 import com.preform.sync.PairRequest
+import com.preform.sync.PeerKind
 import com.preform.sync.PairResponse
 import com.preform.sync.Position
 import com.preform.sync.Protocol
@@ -167,6 +171,49 @@ class ServerTest {
         assertEquals(2, store.liveBooks().size)
 
         assertEquals(HttpStatusCode.UnprocessableEntity, put("just text".toByteArray()).status)
+    }
+
+    @Test
+    fun `a phone reorganizes the library, and a computer may not`() = serve {
+        val token = pair()
+        val id = store.liveBooks().single().catalog.contentId
+        val body = Protocol.json.encodeToString(
+            OrganizeRequest.serializer(),
+            OrganizeRequest(
+                listOf(
+                    // Real times: the book's own stamp is when it was added, moments ago.
+                    OrganizeChange.Folder("Classics", at = System.currentTimeMillis()),
+                    OrganizeChange.BookFolder(id, "Classics", at = System.currentTimeMillis() + 1),
+                    OrganizeChange.Folder("Empty Shelf", at = System.currentTimeMillis() + 2),
+                ),
+            ),
+        )
+        val response = client.json("POST", "/organize", token, body)
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(3, Protocol.json.decodeFromString(OrganizeResult.serializer(), response.bodyAsText()).applied)
+        assertTrue(root.resolve("Classics/pride.epub").exists())
+        val page = Protocol.json.decodeFromString(CatalogPage.serializer(), client.json("GET", "/library", token).bodyAsText())
+        assertEquals("fold", page.books.single().folderStamp.by)
+        assertTrue(page.folders.any { it.path == "Empty Shelf" && !it.removed })
+
+        val code = pairing.open()
+        val mac = client.json("POST", "/pair", null, Protocol.json.encodeToString(PairRequest.serializer(), PairRequest(code, "mac", "Mac", PeerKind.COMPUTER)))
+        val macToken = Protocol.json.decodeFromString(PairResponse.serializer(), mac.bodyAsText()).token
+        assertEquals(HttpStatusCode.Forbidden, client.json("POST", "/organize", macToken, body).status)
+    }
+
+    @Test
+    fun `an upload can name its folder, but not one outside the library`() = serve {
+        val token = pair()
+        val upload = TestBooks.epub(dir.resolve("upload/new.epub"), "From The Phone")
+        suspend fun put(folder: String) = client.put("/books?name=New.epub&folder=${java.net.URLEncoder.encode(folder, "UTF-8")}") {
+            header(Protocol.VERSION_HEADER, Protocol.VERSION)
+            header(HttpHeaders.Authorization, "Bearer $token")
+            setBody(upload.readBytes())
+        }
+        assertEquals(HttpStatusCode.BadRequest, put("../..").status)
+        assertEquals(HttpStatusCode.OK, put("Fiction/Phone Finds").status)
+        assertTrue(root.resolve("Fiction/Phone Finds/New.epub").exists())
     }
 
     @Test

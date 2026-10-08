@@ -65,7 +65,7 @@ class LibraryService(private val paths: AppPaths, val platform: Platform = Platf
     val configFlow: StateFlow<AppConfig> = _config
     val config: AppConfig get() = _config.value
 
-    private val store = Store(paths.database)
+    private val store = Store(paths.database).also { it.origin = config.serverId }
     private val identity = TlsIdentity(paths.identity, config.keystorePassword)
     private val pairing = PairingWindow()
     val library = Library({ Path.of(config.libraryRoot) }, store, paths.covers)
