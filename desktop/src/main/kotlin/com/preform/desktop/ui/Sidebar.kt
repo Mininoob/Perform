@@ -1,6 +1,12 @@
 package com.preform.desktop.ui
 
+import androidx.compose.foundation.ContextMenuArea
+import androidx.compose.foundation.ContextMenuItem
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -20,6 +26,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,6 +48,7 @@ import com.preform.sync.Genres
 @Composable
 fun Sidebar(
     state: WindowState,
+    actions: Actions,
     books: List<LibraryBook>,
     folders: List<String>,
     status: Status,
@@ -57,12 +65,15 @@ fun Sidebar(
 
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 10.dp)) {
             Heading("Library")
-            Item(Glyphs.Books, "All books", books.size, state.place == Place.All) { state.go(Place.All) }
+            // Dropping books on "All books" moves them to the top of the library.
+            Item(Glyphs.Books, "All books", books.size, state.place == Place.All, drag = state.drag, dropPath = "") { state.go(Place.All) }
             Item(Glyphs.Recent, "Recently added", null, state.place == Place.Recent) { state.go(Place.Recent) }
 
-            if (folders.isNotEmpty()) {
-                Heading("Folders")
-                FolderTree(folders, books, state)
+            Heading("Folders", action = "New folder") { state.dialog = Dialog.NewFolder("") }
+            if (folders.isEmpty()) {
+                Text("No folders yet.", color = colors.muted, fontSize = 12.sp, modifier = Modifier.padding(start = 10.dp, bottom = 4.dp))
+            } else {
+                FolderTree(folders, books, state, actions)
             }
 
             val genres = remember(books) { genreCounts(books) }
@@ -94,7 +105,7 @@ private fun genreCounts(books: List<LibraryBook>): List<Pair<String, Int>> {
 }
 
 @Composable
-private fun FolderTree(folders: List<String>, books: List<LibraryBook>, state: WindowState) {
+private fun FolderTree(folders: List<String>, books: List<LibraryBook>, state: WindowState, actions: Actions) {
     var expanded by remember { mutableStateOf(emptySet<String>()) }
     val counts = remember(books) {
         val map = HashMap<String, Int>()
@@ -123,6 +134,16 @@ private fun FolderTree(folders: List<String>, books: List<LibraryBook>, state: W
                 indent = (depth * 14).dp,
                 expander = if (hasChildren) open else null,
                 onExpand = { expanded = if (open) expanded - path else expanded + path },
+                drag = state.drag,
+                dropPath = path,
+                menu = {
+                    listOf(
+                        ContextMenuItem("New folder inside…") { state.dialog = Dialog.NewFolder(path) },
+                        ContextMenuItem("Rename…") { state.dialog = Dialog.RenameFolder(path) },
+                        ContextMenuItem("Show in ${actions.platform.fileManagerName}") { actions.revealFolder(path) },
+                        ContextMenuItem("Remove folder…") { state.dialog = Dialog.DeleteFolder(path) },
+                    )
+                },
             ) { state.go(Place.Folder(path)) }
             if (open) Branch(path, depth + 1)
         }
@@ -131,15 +152,25 @@ private fun FolderTree(folders: List<String>, books: List<LibraryBook>, state: W
 }
 
 @Composable
-private fun Heading(text: String) {
-    Text(
-        text.uppercase(),
-        color = colors.muted,
-        fontSize = 11.sp,
-        fontWeight = FontWeight.SemiBold,
-        letterSpacing = 1.2.sp,
-        modifier = Modifier.padding(start = 10.dp, top = 18.dp, bottom = 6.dp),
-    )
+private fun Heading(text: String, action: String? = null, onAction: () -> Unit = {}) {
+    Row(Modifier.fillMaxWidth().padding(start = 10.dp, end = 6.dp, top = 18.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text.uppercase(),
+            color = colors.muted,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 1.2.sp,
+            modifier = Modifier.weight(1f),
+        )
+        if (action != null) {
+            Text(
+                "+",
+                color = colors.muted,
+                fontSize = 16.sp,
+                modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable(onClick = onAction).padding(horizontal = 6.dp),
+            )
+        }
+    }
 }
 
 @Composable
@@ -152,13 +183,36 @@ fun Item(
     /** Null: no expander; otherwise whether the branch is open. */
     expander: Boolean? = null,
     onExpand: () -> Unit = {},
+    /** While books are dragged, this row accepts them for [dropPath]. */
+    drag: DragState? = null,
+    dropPath: String? = null,
+    menu: (() -> List<ContextMenuItem>)? = null,
     onClick: () -> Unit,
 ) {
+    val hovered = drag != null && dropPath != null && drag.hover == dropPath
+    if (drag != null && dropPath != null) {
+        DisposableEffect(drag, dropPath) { onDispose { drag.targets.remove(dropPath) } }
+    }
+    val row = @Composable {
     Row(
         Modifier
             .fillMaxWidth()
+            .then(
+                if (drag != null && dropPath != null) {
+                    Modifier.onGloballyPositioned { drag.targets[dropPath] = it.boundsInWindow() }
+                } else {
+                    Modifier
+                },
+            )
             .clip(RoundedCornerShape(8.dp))
-            .background(if (selected) colors.selected else colors.raised)
+            .background(
+                when {
+                    hovered -> colors.accent.copy(alpha = 0.30f)
+                    selected -> colors.selected
+                    else -> colors.raised
+                },
+            )
+            .border(1.dp, if (hovered) colors.accent else Color.Transparent, RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
             .padding(start = 8.dp + indent, end = 10.dp, top = 7.dp, bottom = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -186,6 +240,8 @@ fun Item(
         )
         count?.let { Text("$it", color = colors.muted, fontSize = 12.sp) }
     }
+    }
+    if (menu != null) ContextMenuArea(items = menu) { row() } else row()
 }
 
 @Composable

@@ -33,6 +33,17 @@ class Library(
 
     data class ScanResult(val added: Int, val moved: Int, val removed: Int)
 
+    /**
+     * Extra copies of books already in the library (same bytes, another path), by content
+     * id, from the last scan. They aren't separate books; the Duplicates check lists them.
+     */
+    @Volatile
+    var identicalCopies: Map<String, List<String>> = emptyMap()
+        private set
+
+    /** Hashes of those extra copies by path, so rescans don't re-read them. */
+    private val copyHashes = HashMap<String, Triple<Long, Long, String>>()
+
     @Synchronized
     fun scan(now: Long = System.currentTimeMillis()): ScanResult {
         val rootPath = root()
@@ -41,11 +52,12 @@ class Library(
         val known = store.liveBooks()
         val byPath = known.associateBy { it.relativePath }
         val seen = HashSet<String>()
+        val copies = HashMap<String, MutableList<String>>()
         var added = 0
         var moved = 0
 
         Files.walk(rootPath).use { paths ->
-            paths.filter { it.isRegularFile() && BookMetadata.formatOf(it) != null }.forEach { file ->
+            paths.filter { it.isRegularFile() && BookMetadata.formatOf(it) != null && !isHidden(rootPath, it) }.forEach { file ->
                 val format = BookMetadata.formatOf(file)!!
                 val relative = rootPath.relativize(file).invariantSeparatorsPathString
                 val size = file.fileSize()
@@ -53,10 +65,11 @@ class Library(
 
                 // Unchanged since last time: reuse the hash instead of re-reading the file.
                 val cached = byPath[relative]?.takeIf { it.catalog.sizeBytes == size && it.modified == modified }
-                val contentId = cached?.catalog?.contentId
+                    ?.catalog?.contentId
+                    ?: copyHashes[relative]?.takeIf { it.first == size && it.second == modified }?.third
+                val contentId = cached
                     ?: runCatching { file.inputStream().use(::contentIdOf) }.getOrNull()
                     ?: return@forEach
-                seen += contentId
 
                 val existing = store.book(contentId)
                 when {
@@ -64,18 +77,189 @@ class Library(
                         add(file, contentId, relative, format, size, modified, now)
                         added++
                     }
-                    existing.relativePath != relative -> {
+                    existing.relativePath == relative -> Unit
+                    // Same bytes at a second path while the first is still there: a copy, not a move.
+                    contentId in seen || rootPath.resolve(existing.relativePath).isRegularFile() -> {
+                        copies.getOrPut(contentId) { mutableListOf() } += relative
+                        copyHashes[relative] = Triple(size, modified, contentId)
+                    }
+                    else -> {
                         store.movePath(contentId, relative, modified)
                         moved++
                     }
                 }
+                seen += contentId
             }
         }
 
         val gone = known.filter { it.catalog.contentId !in seen }
         gone.forEach { store.markRemoved(it.catalog.contentId) }
+        identicalCopies = copies
+        copyHashes.keys.retainAll(copies.values.flatten().toSet())
         return ScanResult(added, moved, gone.size)
     }
+
+    private fun isHidden(root: Path, file: Path) =
+        root.relativize(file).invariantSeparatorsPathString.split('/').any { it.startsWith('.') }
+
+    // Organizing. Each keeps the store in step, so phones follow without waiting for a scan.
+
+    /** Moves books into [folder] ("" for the top of the library); returns how many moved. */
+    @Synchronized
+    fun moveBooks(contentIds: Collection<String>, folder: String): Int {
+        val target = folderPath(folder).createDirectories()
+        var moved = 0
+        for (id in contentIds) {
+            val book = store.book(id) ?: continue
+            val file = file(book) ?: continue
+            if (file.parent == target) continue
+            val destination = uniqueName(target, file.fileName.toString())
+            Files.move(file, destination)
+            store.movePath(id, relativeOf(destination), destination.getLastModifiedTime().toMillis())
+            moved++
+        }
+        return moved
+    }
+
+    /** Renames a book's file (the extension is kept); returns its new file name. */
+    @Synchronized
+    fun renameFile(contentId: String, newName: String): String {
+        val book = store.book(contentId) ?: throw OrganizeException("That book is no longer in the library.")
+        val file = file(book) ?: throw OrganizeException("The book's file can't be found.")
+        val wanted = safeFileName(newName, book.catalog.format)
+        if (wanted == file.fileName.toString()) return wanted
+        val destination = if (wanted.equals(file.fileName.toString(), ignoreCase = true)) {
+            file.resolveSibling(wanted) // Only the case changes: same file on Windows and macOS.
+        } else {
+            uniqueName(file.parent, wanted)
+        }
+        Files.move(file, destination)
+        store.movePath(contentId, relativeOf(destination), destination.getLastModifiedTime().toMillis())
+        return destination.fileName.toString()
+    }
+
+    /** Makes a folder inside [parent]; returns its path. */
+    @Synchronized
+    fun createFolder(parent: String, name: String): String {
+        val clean = safeFolderName(name)
+        val dir = folderPath(parent).resolve(clean)
+        if (dir.exists()) throw OrganizeException("There's already a folder called “$clean” here.")
+        dir.createDirectories()
+        return relativeOf(dir)
+    }
+
+    /** Renames a folder in place; every book inside keeps its identity. Returns the new path. */
+    @Synchronized
+    fun renameFolder(path: String, newName: String): String {
+        if (path.isEmpty()) throw OrganizeException("The library itself can't be renamed here.")
+        val dir = folderPath(path)
+        if (!dir.isDirectory()) throw OrganizeException("That folder no longer exists.")
+        val clean = safeFolderName(newName)
+        val destination = dir.resolveSibling(clean)
+        val caseOnly = clean.equals(dir.fileName.toString(), ignoreCase = true)
+        if (destination.exists() && !caseOnly) throw OrganizeException("There's already a folder called “$clean” here.")
+        if (caseOnly) {
+            // Windows and macOS see "fiction" and "Fiction" as the same name: go via a temporary one.
+            val temp = dir.resolveSibling(".${clean}.preform-rename")
+            Files.move(dir, temp)
+            Files.move(temp, destination)
+        } else {
+            Files.move(dir, destination)
+        }
+        val newPath = relativeOf(destination)
+        store.renamePathPrefix(path, newPath)
+        return newPath
+    }
+
+    /**
+     * Removes a folder. Its books (and sub-folders' books) move up into the parent first;
+     * the folder itself is only deleted once nothing at all is left in it.
+     */
+    @Synchronized
+    fun deleteFolder(path: String) {
+        if (path.isEmpty()) throw OrganizeException("The library itself can't be deleted.")
+        val dir = folderPath(path)
+        if (!dir.isDirectory()) return
+        val parent = path.substringBeforeLast('/', "")
+        val inside = store.liveBooks().filter { it.catalog.folder == path || it.catalog.folder.startsWith("$path/") }
+        moveBooks(inside.map { it.catalog.contentId }, parent)
+        // Bottom-up: empty sub-folders first, then the folder. Anything else left keeps it.
+        Files.walk(dir).use { it.sorted(Comparator.reverseOrder()).toList() }.forEach { p ->
+            if (p.isDirectory()) runCatching { Files.delete(p) }
+        }
+        if (dir.exists()) throw OrganizeException("The books moved out, but the folder still has other files in it, so it was kept.")
+    }
+
+    data class ImportResult(val added: Int, val alreadyThere: Int, val notBooks: Int)
+
+    /** Copies books from anywhere into [folder]; books already in the library are skipped. */
+    @Synchronized
+    fun import(files: List<Path>, folder: String, now: Long = System.currentTimeMillis()): ImportResult {
+        val target = folderPath(folder).createDirectories()
+        var added = 0
+        var already = 0
+        var notBooks = 0
+        for (source in files) {
+            val format = BookMetadata.formatOf(source)
+            if (format == null || !source.isRegularFile()) {
+                notBooks++
+                continue
+            }
+            val contentId = source.inputStream().use(::contentIdOf)
+            if (store.book(store.resolve(contentId)) != null) {
+                already++
+                continue
+            }
+            val destination = uniqueName(target, safeFileName(source.fileName.toString(), format))
+            Files.copy(source, destination)
+            add(destination, contentId, relativeOf(destination), format, destination.fileSize(), destination.getLastModifiedTime().toMillis(), now)
+            added++
+        }
+        return ImportResult(added, already, notBooks)
+    }
+
+    /**
+     * Sends books to the Recycle Bin / Trash with [trash], never deleting outright; returns
+     * how many went. A book whose file couldn't be moved there stays in the library.
+     */
+    @Synchronized
+    fun trash(contentIds: Collection<String>, trash: (Path) -> Boolean = ::moveToTrash): Int {
+        var trashed = 0
+        for (id in contentIds) {
+            val book = store.book(id) ?: continue
+            val file = file(book)
+            if (file != null && !trash(file)) continue
+            store.markRemoved(id)
+            trashed++
+        }
+        return trashed
+    }
+
+    /** Sends an extra identical copy (not itself a library book) to the Recycle Bin / Trash. */
+    @Synchronized
+    fun trashCopy(relativePath: String, trash: (Path) -> Boolean = ::moveToTrash): Boolean {
+        val file = pathInside(relativePath) ?: return false
+        if (!file.isRegularFile() || !trash(file)) return false
+        identicalCopies = identicalCopies.mapValues { (_, paths) -> paths - relativePath }.filterValues { it.isNotEmpty() }
+        copyHashes.remove(relativePath)
+        return true
+    }
+
+    /** A folder of the library by relative path, refusing anything that would land outside it. */
+    private fun folderPath(folder: String): Path {
+        val rootPath = root().toAbsolutePath().normalize()
+        val dir = rootPath.resolve(folder).normalize()
+        if (!dir.startsWith(rootPath)) throw OrganizeException("That folder is outside the library.")
+        return dir
+    }
+
+    private fun pathInside(relative: String): Path? {
+        val rootPath = root().toAbsolutePath().normalize()
+        return rootPath.resolve(relative).normalize().takeIf { it.startsWith(rootPath) }
+    }
+
+    private fun relativeOf(path: Path): String =
+        root().toAbsolutePath().normalize().relativize(path.toAbsolutePath().normalize()).invariantSeparatorsPathString
 
     /**
      * Files a book uploaded from a phone into "Added on phone", unless the library already
@@ -247,6 +431,19 @@ class Library(
         const val UPLOAD_FOLDER = "Added on phone"
 
         fun extensionOf(format: Format) = if (format == Format.PDF) "pdf" else "epub"
+
+        /** A folder name that's safe on Windows and macOS. */
+        fun safeFolderName(name: String): String {
+            val cleaned = name.replace(Regex("""[<>:"/\\|?*\x00-\x1F]"""), "_").trim().trimEnd('.').trimStart('.').take(120)
+            if (cleaned.isBlank()) throw OrganizeException("Give the folder a name.")
+            return cleaned
+        }
+
+        /** Moves a file to the Recycle Bin (Windows) or Trash (macOS); false if that isn't possible. */
+        fun moveToTrash(file: Path): Boolean = runCatching {
+            val desktop = java.awt.Desktop.getDesktop()
+            desktop.isSupported(java.awt.Desktop.Action.MOVE_TO_TRASH) && desktop.moveToTrash(file.toFile())
+        }.getOrDefault(false)
 
         /** A name that's safe on Windows: no separators, reserved characters or trailing dots. */
         fun safeFileName(original: String, format: Format): String {

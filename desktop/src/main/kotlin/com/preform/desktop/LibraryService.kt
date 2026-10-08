@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.nio.file.Path
 
 data class Status(
@@ -99,6 +100,33 @@ class LibraryService(private val paths: AppPaths, val platform: Platform = Platf
     fun refreshLists() {
         _books.value = store.liveBooks()
         _folders.value = library.folders()
+    }
+
+    // Organizing: run off the UI thread; the lists refresh as soon as each finishes.
+
+    private suspend fun <T> organize(work: () -> T): T = withContext(Dispatchers.IO) {
+        try {
+            work()
+        } finally {
+            refreshLists()
+        }
+    }
+
+    suspend fun moveBooks(contentIds: Collection<String>, folder: String) = organize { library.moveBooks(contentIds, folder) }
+    suspend fun renameFile(contentId: String, name: String) = organize { library.renameFile(contentId, name) }
+    suspend fun createFolder(parent: String, name: String) = organize { library.createFolder(parent, name) }
+    suspend fun renameFolder(path: String, name: String) = organize { library.renameFolder(path, name) }
+    suspend fun deleteFolder(path: String) = organize { library.deleteFolder(path) }
+    suspend fun import(files: List<Path>, folder: String) = organize { library.import(files, folder) }.also {
+        if (it.added > 0) rescanSoon() // looks the new books up
+    }
+    suspend fun trash(contentIds: Collection<String>) = organize { library.trash(contentIds) }
+    suspend fun trashCopy(relativePath: String) = organize { library.trashCopy(relativePath) }
+
+    /** Forgets earlier lookups for these books, so the next pass asks Open Library again. */
+    suspend fun lookUpAgain(contentIds: Collection<String>) {
+        organize { store.resetLookup(contentIds) }
+        rescanSoon()
     }
 
     // Settings

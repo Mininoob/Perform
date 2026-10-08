@@ -1,6 +1,17 @@
 package com.preform.desktop.ui
 
+import androidx.compose.foundation.ContextMenuArea
+import androidx.compose.foundation.ContextMenuItem
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.isPrimaryPressed
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -58,23 +69,24 @@ fun BookGrid(
     covers: CoverCache,
     libraryEmpty: Boolean,
     libraryFound: Boolean,
+    actions: Actions,
     onRescan: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier) {
-        Toolbar(state, books.size, onRescan)
+        Toolbar(state, books.size, actions, onRescan)
         when {
             !libraryFound -> Empty("Your library folder can't be found.", "Choose it again in Settings.") { state.go(Place.Settings) }
             libraryEmpty -> Empty("No books yet.", "Add EPUB or PDF files to your library folder, or drop them here.", null)
             books.isEmpty() && state.query.isNotBlank() -> Empty("Nothing matches “${state.query}”.", null, null)
             books.isEmpty() -> Empty("Nothing here yet.", null, null)
-            else -> Grid(state, books, covers)
+            else -> Grid(state, books, covers, actions)
         }
     }
 }
 
 @Composable
-private fun Toolbar(state: WindowState, count: Int, onRescan: () -> Unit) {
+private fun Toolbar(state: WindowState, count: Int, actions: Actions, onRescan: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(start = 28.dp, end = 16.dp, top = 18.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -86,6 +98,7 @@ private fun Toolbar(state: WindowState, count: Int, onRescan: () -> Unit) {
         SearchField(state.query, onChange = { state.query = it })
         Spacer(Modifier.width(8.dp))
         SortMenu(state)
+        TextButton(onClick = actions::chooseFilesToAdd) { Text("Add books", color = colors.accent, fontSize = 13.sp) }
         IconButton(onClick = onRescan) { Icon(Glyphs.Refresh, "Check the folder for changes", tint = colors.muted) }
     }
 }
@@ -153,8 +166,9 @@ private fun SortMenu(state: WindowState) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun Grid(state: WindowState, books: List<LibraryBook>, covers: CoverCache) {
+private fun Grid(state: WindowState, books: List<LibraryBook>, covers: CoverCache, actions: Actions) {
     val grid = rememberLazyGridState()
+    val current by rememberUpdatedState(books)
     LazyVerticalGrid(
         columns = GridCells.Adaptive(150.dp),
         state = grid,
@@ -165,24 +179,100 @@ private fun Grid(state: WindowState, books: List<LibraryBook>, covers: CoverCach
     ) {
         items(books, key = { it.catalog.contentId }) { book ->
             val id = book.catalog.contentId
+            var place by remember { mutableStateOf<LayoutCoordinates?>(null) }
+            ContextMenuArea(items = { bookMenu(book, state, actions) }) {
             BookCard(
                 book = book,
                 covers = covers,
                 selected = id in state.selection,
                 modifier = Modifier
-                    // Plain click selects one; Ctrl/Cmd adds or removes; Shift selects a range.
-                    .onClick { state.selection = setOf(id); state.anchor = id }
-                    .onClick(keyboardModifiers = { isCtrlPressed || isMetaPressed }) {
-                        state.selection = if (id in state.selection) state.selection - id else state.selection + id
-                        state.anchor = id
+                    .onGloballyPositioned { place = it }
+                    // Drag onto a folder in the sidebar to move; drags the whole selection.
+                    .pointerInput(id) {
+                        detectDragGestures(
+                            onDragStart = { at ->
+                                if (id !in state.selection) {
+                                    state.selection = setOf(id)
+                                    state.anchor = id
+                                }
+                                state.drag.ids = state.selection.toList()
+                                place?.let { state.drag.pointer = it.localToWindow(at) }
+                            },
+                            onDrag = { change, _ ->
+                                change.consume()
+                                place?.let { state.drag.pointer = it.localToWindow(change.position) }
+                            },
+                            onDragEnd = {
+                                val target = state.drag.hover
+                                val ids = state.drag.ids.toSet()
+                                state.drag.ids = emptyList()
+                                if (target != null) actions.moveBooks(current.filter { it.catalog.contentId in ids }, target)
+                            },
+                            onDragCancel = { state.drag.ids = emptyList() },
+                        )
                     }
-                    .onClick(keyboardModifiers = { isShiftPressed }) {
-                        val from = books.indexOfFirst { it.catalog.contentId == state.anchor }.takeIf { it >= 0 } ?: 0
-                        val to = books.indexOf(book)
-                        state.selection = books.subList(minOf(from, to), maxOf(from, to) + 1).mapTo(HashSet()) { it.catalog.contentId }
+                    // Selection happens on mouse-down, so it feels instant (a click handler
+                    // would wait to rule out a double-click first).
+                    .pointerInput(id) {
+                        var lastPress = 0L
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false)
+                            val event = currentEvent
+                            if (!event.buttons.isPrimaryPressed) return@awaitEachGesture
+                            val mods = event.keyboardModifiers
+                            val now = System.currentTimeMillis()
+                            val double = now - lastPress < viewConfiguration.doubleTapTimeoutMillis
+                            lastPress = now
+                            val plain = !mods.isShiftPressed && !mods.isCtrlPressed && !mods.isMetaPressed
+                            val partOfMany = id in state.selection && state.selection.size > 1
+                            when {
+                                mods.isShiftPressed -> {
+                                    val list = current
+                                    val from = list.indexOfFirst { it.catalog.contentId == state.anchor }.takeIf { it >= 0 } ?: 0
+                                    val to = list.indexOfFirst { it.catalog.contentId == id }
+                                    state.selection = list.subList(minOf(from, to), maxOf(from, to) + 1).mapTo(HashSet()) { it.catalog.contentId }
+                                }
+                                mods.isCtrlPressed || mods.isMetaPressed -> {
+                                    state.selection = if (id in state.selection) state.selection - id else state.selection + id
+                                    state.anchor = id
+                                }
+                                // Pressing an already-selected book keeps the selection, so it can be dragged.
+                                id !in state.selection -> {
+                                    state.selection = setOf(id)
+                                    state.anchor = id
+                                }
+                            }
+                            if (double) actions.reveal(book)
+                            // Released without dragging: just this book, as in Explorer and Finder.
+                            if (plain && partOfMany && waitForUpOrCancellation() != null) {
+                                state.selection = setOf(id)
+                                state.anchor = id
+                            }
+                        }
                     },
             )
+            }
         }
+    }
+}
+
+/** Right-click on a book: acts on the selection, or on just this book if it isn't selected. */
+private fun bookMenu(book: LibraryBook, state: WindowState, actions: Actions): List<ContextMenuItem> {
+    val id = book.catalog.contentId
+    if (id !in state.selection) {
+        state.selection = setOf(id)
+        state.anchor = id
+    }
+    val targets = state.visible.filter { it.catalog.contentId in state.selection }.ifEmpty { listOf(book) }
+    val one = targets.singleOrNull()
+    return buildList {
+        add(ContextMenuItem("Move to…") { state.dialog = Dialog.MoveTo(targets) })
+        if (one != null) {
+            add(ContextMenuItem("Rename file…") { state.dialog = Dialog.RenameFile(one) })
+            add(ContextMenuItem("Show in ${actions.platform.fileManagerName}") { actions.reveal(one) })
+        }
+        add(ContextMenuItem("Look up again") { actions.lookUpAgain(targets) })
+        add(ContextMenuItem("Move to ${actions.platform.trashName}…") { state.dialog = Dialog.Trash(targets) })
     }
 }
 

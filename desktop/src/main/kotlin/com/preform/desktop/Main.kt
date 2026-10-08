@@ -68,6 +68,7 @@ fun main(args: Array<String>) {
             title = "Preform Library",
             icon = windowIcon,
             state = rememberWindowState(size = DpSize(1240.dp, 820.dp)),
+            onKeyEvent = { windowState.onKey(it, platform.isMac) },
         ) {
             window.minimumSize = Dimension(960, 620)
             PreformTheme(config.themeBase, config.themeAccent) {

@@ -33,6 +33,8 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.okhttp)
+    @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
+    testImplementation(compose.uiTest)
 }
 
 compose.desktop {

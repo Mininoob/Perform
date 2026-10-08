@@ -7,7 +7,26 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.VerticalDivider
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.draganddrop.dragAndDropTarget
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.draganddrop.DragAndDropEvent
+import androidx.compose.ui.draganddrop.DragAndDropTarget
+import androidx.compose.ui.draganddrop.awtTransferable
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
+import java.awt.datatransfer.DataFlavor
+import java.io.File
+import java.nio.file.Path
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -52,6 +71,36 @@ class WindowState {
 
     /** The pairing panel is showing (also opened from the tray's "Pair a phone"). */
     var pairing by mutableStateOf(false)
+
+    var notice by mutableStateOf<Notice?>(null)
+    var dialog by mutableStateOf<Dialog?>(null)
+    val drag = DragState()
+
+    /** The books on screen right now, for Select all and shift-click ranges. */
+    var visible by mutableStateOf(emptyList<LibraryBook>())
+
+    /** Set by the window, for keyboard shortcuts handled at the window level. */
+    var actions: Actions? = null
+
+    /** Window-level keys: select all, clear, rename, move to the bin. True if handled. */
+    fun onKey(event: KeyEvent, mac: Boolean): Boolean =
+        event.type == KeyEventType.KeyDown && onKey(event.key, if (mac) event.isMetaPressed else event.isCtrlPressed, mac)
+
+    /** [command] is Ctrl on Windows, Cmd on the Mac. */
+    fun onKey(key: Key, command: Boolean, mac: Boolean): Boolean {
+        if (dialog != null) return false
+        val selected = visible.filter { it.catalog.contentId in selection }
+        return when {
+            command && key == Key.A -> { selection = visible.mapTo(HashSet()) { it.catalog.contentId }; true }
+            key == Key.Escape && selection.isNotEmpty() -> { selection = emptySet(); true }
+            key == Key.F2 && selected.size == 1 -> { dialog = Dialog.RenameFile(selected.single()); true }
+            (key == Key.Delete || (mac && command && key == Key.Backspace)) && selected.isNotEmpty() -> {
+                dialog = Dialog.Trash(selected)
+                true
+            }
+            else -> false
+        }
+    }
 
     fun go(to: Place) {
         place = to
@@ -98,6 +147,7 @@ private fun surnameFirst(author: String): String {
     return if (',' in author) first.lowercase() else first.split(' ').let { (it.takeLast(1) + it.dropLast(1)).joinToString(" ") }.lowercase()
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LibraryWindow(service: LibraryService, covers: CoverCache, state: WindowState) {
     val books by service.books.collectAsState()
@@ -106,9 +156,20 @@ fun LibraryWindow(service: LibraryService, covers: CoverCache, state: WindowStat
     val activity by service.activity.collectAsState()
     val config by service.configFlow.collectAsState()
 
+    val scope = rememberCoroutineScope()
+    val actions = remember(service, state) { Actions(service, state, scope) }
+    state.actions = actions
+    val fileDrop = remember(actions) { FileDropTarget(actions) }
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .dragAndDropTarget(shouldStartDragAndDrop = FileDropTarget::accepts, target = fileDrop),
+    ) {
     Row(Modifier.fillMaxSize().background(colors.background)) {
         Sidebar(
             state = state,
+            actions = actions,
             books = books,
             folders = folders,
             status = status,
@@ -122,6 +183,7 @@ fun LibraryWindow(service: LibraryService, covers: CoverCache, state: WindowStat
                 Place.Settings -> SettingsScreen(service, config, status)
                 else -> {
                     val shown = remember(books, place, state.query, state.sort) { visibleBooks(books, place, state.query, state.sort) }
+                    state.visible = shown
                     Row(Modifier.fillMaxSize()) {
                         BookGrid(
                             state = state,
@@ -129,6 +191,7 @@ fun LibraryWindow(service: LibraryService, covers: CoverCache, state: WindowStat
                             covers = covers,
                             libraryEmpty = books.isEmpty(),
                             libraryFound = status.libraryFound,
+                            actions = actions,
                             onRescan = service::rescanSoon,
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
@@ -145,5 +208,29 @@ fun LibraryWindow(service: LibraryService, covers: CoverCache, state: WindowStat
                 }
             }
         }
+    }
+        DragGhost(state.drag, books, covers)
+        NoticeBar(state, scope, Modifier.align(Alignment.BottomCenter).padding(bottom = 22.dp))
+        Dialogs(state, actions, folders)
+    }
+}
+
+/** Books (or folders of books) dropped onto the window from Explorer or Finder are added. */
+@OptIn(ExperimentalComposeUiApi::class)
+private class FileDropTarget(private val actions: Actions) : DragAndDropTarget {
+    override fun onDrop(event: DragAndDropEvent): Boolean {
+        val files = files(event) ?: return false
+        actions.import(files)
+        return true
+    }
+
+    companion object {
+        fun accepts(event: DragAndDropEvent): Boolean = files(event) != null
+
+        private fun files(event: DragAndDropEvent): List<Path>? = runCatching {
+            val t = event.awtTransferable
+            if (!t.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) return null
+            (t.getTransferData(DataFlavor.javaFileListFlavor) as List<*>).filterIsInstance<File>().map { it.toPath() }
+        }.getOrNull()
     }
 }

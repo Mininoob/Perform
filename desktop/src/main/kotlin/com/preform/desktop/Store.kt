@@ -172,6 +172,31 @@ class Store(file: Path) : AutoCloseable {
         }
     }
 
+    /** Marks books to be looked up again on the next pass. */
+    @Synchronized
+    fun resetLookup(contentIds: Collection<String>) {
+        db.prepareStatement("UPDATE books SET lookup = NULL WHERE content_id = ?").use { p ->
+            contentIds.forEach { p.setString(1, it); p.executeUpdate() }
+        }
+    }
+
+    /** A folder was renamed: every book under [oldPrefix] now sits under [newPrefix]. */
+    @Synchronized
+    fun renamePathPrefix(oldPrefix: String, newPrefix: String) {
+        db.prepareStatement(
+            """UPDATE books SET rel_path = ? || substr(rel_path, ?), rev = ?
+               WHERE substr(rel_path, 1, ?) = ?""",
+        ).use { p ->
+            val from = "$oldPrefix/"
+            p.setString(1, "$newPrefix/")
+            p.setInt(2, from.length + 1)
+            p.setLong(3, nextRev())
+            p.setInt(4, from.length)
+            p.setString(5, from)
+            p.executeUpdate()
+        }
+    }
+
     private fun rev(contentId: String): Long =
         db.prepareStatement("SELECT rev FROM books WHERE content_id = ?").use { p ->
             p.setString(1, contentId)
