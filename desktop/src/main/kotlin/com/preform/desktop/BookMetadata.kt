@@ -23,7 +23,14 @@ data class Metadata(
     val subjects: List<String> = emptyList(),
     /** No title inside the file: [title] is only its file name. */
     val titleFromFile: Boolean = false,
+    val description: String? = null,
+    val year: Int? = null,
+    val series: String? = null,
+    val seriesIndex: Double? = null,
 )
+
+/** "1965-08-01" or "1965" gives 1965. */
+internal fun yearOf(date: String?): Int? = date?.let { Regex("""\b(\d{4})\b""").find(it)?.groupValues?.get(1)?.toIntOrNull() }
 
 /**
  * Reads title, author, reading direction and cover from a book file. Readium only runs
@@ -83,8 +90,40 @@ object BookMetadata {
             subjects = opf.getElementsByTagNameNS("*", "subject").let { list ->
                 (0 until list.length).mapNotNull { list.item(it).textContent?.trim()?.ifBlank { null } }
             },
+            description = text("description")?.let(::plainText),
+            year = yearOf(text("date")),
+            series = series(opf)?.first,
+            seriesIndex = series(opf)?.second,
         )
     }
+
+    /**
+     * The series a book belongs to: EPUB 3's belongs-to-collection (with its position),
+     * or Calibre's calibre:series metas, which most EPUB 2 books use.
+     */
+    private fun series(opf: Element): Pair<String, Double?>? {
+        val metas = opf.getElementsByTagNameNS("*", "meta").let { list -> (0 until list.length).map { list.item(it) as Element } }
+        metas.firstOrNull { it.getAttribute("property") == "belongs-to-collection" && it.textContent.isNotBlank() }?.let { collection ->
+            val ref = "#" + collection.getAttribute("id")
+            val position = metas.firstOrNull { it.getAttribute("refines") == ref && it.getAttribute("property") == "group-position" }
+                ?.textContent?.trim()?.toDoubleOrNull()
+            return collection.textContent.trim() to position
+        }
+        val name = metas.firstOrNull { it.getAttribute("name") == "calibre:series" }?.getAttribute("content")?.trim()?.ifBlank { null }
+            ?: return null
+        val index = metas.firstOrNull { it.getAttribute("name") == "calibre:series_index" }?.getAttribute("content")?.trim()?.toDoubleOrNull()
+        return name to index
+    }
+
+    /** Descriptions often carry HTML; the library shows plain text. */
+    private fun plainText(html: String): String? =
+        html.replace(Regex("<br\\s*/?>|</p>", RegexOption.IGNORE_CASE), "\n")
+            .replace(Regex("<[^>]+>"), "")
+            .replace("&amp;", "&").replace("&quot;", "\"").replace("&#39;", "'").replace("&lt;", "<").replace("&gt;", ">").replace("&nbsp;", " ")
+            .lines().joinToString("\n") { it.trim() }
+            .replace(Regex("\n{3,}"), "\n\n")
+            .trim()
+            .ifBlank { null }
 
     private fun readPdf(file: Path): Metadata = Loader.loadPDF(file.toFile()).use { pdf ->
         val cover = if (pdf.numberOfPages > 0) PDFRenderer(pdf).renderImageWithDPI(0, 110f) else null
@@ -98,6 +137,11 @@ object BookMetadata {
                 .flatMap { it.split(',', ';') }
                 .map(String::trim)
                 .filter(String::isNotEmpty),
+            // A long Subject is a description (it's where the organizer writes one).
+            description = pdf.documentInformation?.subject?.trim()?.takeIf { it.length > 80 },
+            year = yearOf(pdf.documentInformation?.getCustomMetadataValue("PublicationYear")),
+            series = pdf.documentInformation?.getCustomMetadataValue("Series")?.trim()?.ifBlank { null },
+            seriesIndex = pdf.documentInformation?.getCustomMetadataValue("SeriesIndex")?.trim()?.toDoubleOrNull(),
         )
     }
 

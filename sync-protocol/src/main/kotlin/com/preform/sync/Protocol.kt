@@ -84,6 +84,9 @@ data class CatalogBook(
     val description: String? = null,
     /** First published. */
     val year: Int? = null,
+    val series: String? = null,
+    /** Place in the series; fractional for in-between novellas (2.5). */
+    val seriesIndex: Double? = null,
     /**
      * Ids this book had before the PC wrote information into the file (which changes its
      * bytes, so its id). A phone that knew it by one of these keeps its download and place.

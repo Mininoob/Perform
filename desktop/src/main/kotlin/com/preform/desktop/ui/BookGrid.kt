@@ -242,7 +242,7 @@ private fun Grid(state: WindowState, books: List<LibraryBook>, covers: CoverCach
                                     state.anchor = id
                                 }
                             }
-                            if (double) actions.reveal(book)
+                            if (double) state.dialog = Dialog.Edit(book)
                             // Released without dragging: just this book, as in Explorer and Finder.
                             if (plain && partOfMany && waitForUpOrCancellation() != null) {
                                 state.selection = setOf(id)
@@ -268,6 +268,7 @@ private fun bookMenu(book: LibraryBook, state: WindowState, actions: Actions): L
     return buildList {
         add(ContextMenuItem("Move to…") { state.dialog = Dialog.MoveTo(targets) })
         if (one != null) {
+            add(ContextMenuItem("Edit details…") { state.dialog = Dialog.Edit(one) })
             add(ContextMenuItem("Rename file…") { state.dialog = Dialog.RenameFile(one) })
             add(ContextMenuItem("Show in ${actions.platform.fileManagerName}") { actions.reveal(one) })
         }

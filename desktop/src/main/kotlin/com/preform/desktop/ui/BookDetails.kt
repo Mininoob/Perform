@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
@@ -39,12 +40,13 @@ fun BookDetails(
     selected: List<LibraryBook>,
     shown: List<LibraryBook>,
     place: Place,
+    onEdit: (LibraryBook) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.verticalScroll(rememberScrollState()).padding(24.dp)) {
         when (selected.size) {
             0 -> PlaceSummary(place, shown)
-            1 -> OneBook(service, covers, selected.single())
+            1 -> OneBook(service, covers, selected.single(), onEdit = { onEdit(selected.single()) })
             else -> ManyBooks(selected, covers)
         }
     }
@@ -52,13 +54,17 @@ fun BookDetails(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ColumnScope.OneBook(service: LibraryService, covers: CoverCache, book: LibraryBook) {
+private fun ColumnScope.OneBook(service: LibraryService, covers: CoverCache, book: LibraryBook, onEdit: () -> Unit) {
     val c = book.catalog
     BookCover(book, covers, Modifier.fillMaxWidth(0.78f).align(Alignment.CenterHorizontally), full = true)
     Spacer(Modifier.height(22.dp))
     Text(c.title, fontFamily = FontFamily.Serif, fontSize = 22.sp, lineHeight = 28.sp, color = colors.text)
     Spacer(Modifier.height(4.dp))
     Text(c.author ?: "Unknown author", color = colors.muted, fontSize = 14.sp)
+    c.series?.let {
+        Spacer(Modifier.height(2.dp))
+        Text(it + (c.seriesIndex?.let { n -> " · #${indexText(n)}" } ?: ""), color = colors.accent, fontSize = 13.sp)
+    }
     c.year?.let {
         Spacer(Modifier.height(2.dp))
         Text("First published $it", color = colors.muted, fontSize = 13.sp)
@@ -86,6 +92,7 @@ private fun ColumnScope.OneBook(service: LibraryService, covers: CoverCache, boo
 
     Spacer(Modifier.height(16.dp))
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(onClick = onEdit) { Text("Edit") }
         OutlinedButton(onClick = { service.library.file(book)?.let(service.platform::reveal) }) {
             Icon(Glyphs.Reveal, null, Modifier.size(16.dp))
             Spacer(Modifier.width(6.dp))

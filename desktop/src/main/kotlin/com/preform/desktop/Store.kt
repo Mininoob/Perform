@@ -81,6 +81,8 @@ class Store(file: Path) : AutoCloseable {
         addColumnIfMissing("books", "title_from_file", "INTEGER NOT NULL DEFAULT 0")
         // Null until Open Library has been asked; "done" afterwards, found or not.
         addColumnIfMissing("books", "lookup", "TEXT")
+        addColumnIfMissing("books", "series", "TEXT")
+        addColumnIfMissing("books", "series_index", "REAL")
         db.createStatement().use {
             // Ids books had before information was written into their files.
             it.executeUpdate("CREATE TABLE IF NOT EXISTS aliases (old_id TEXT PRIMARY KEY, new_id TEXT NOT NULL)")
@@ -127,13 +129,14 @@ class Store(file: Path) : AutoCloseable {
         val c = book.catalog
         db.prepareStatement(
             """INSERT INTO books(content_id, rel_path, title, author, format, size, modified, rtl, cover_etag, added_at, removed, rev,
-                 genres, genre_source, description, year, title_from_file, lookup)
-               VALUES(?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?,?,?)
+                 genres, genre_source, description, year, title_from_file, lookup, series, series_index)
+               VALUES(?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?,?,?,?,?)
                ON CONFLICT(content_id) DO UPDATE SET rel_path = excluded.rel_path, title = excluded.title,
                  author = excluded.author, format = excluded.format, size = excluded.size, modified = excluded.modified,
                  rtl = excluded.rtl, cover_etag = excluded.cover_etag, removed = 0, rev = excluded.rev,
                  genres = excluded.genres, genre_source = excluded.genre_source, description = excluded.description,
-                 year = excluded.year, title_from_file = excluded.title_from_file, lookup = excluded.lookup""",
+                 year = excluded.year, title_from_file = excluded.title_from_file, lookup = excluded.lookup,
+                 series = excluded.series, series_index = excluded.series_index""",
         ).use { p ->
             p.setString(1, c.contentId)
             p.setString(2, book.relativePath)
@@ -152,6 +155,8 @@ class Store(file: Path) : AutoCloseable {
             c.year?.let { p.setInt(15, it) } ?: p.setNull(15, java.sql.Types.INTEGER)
             p.setInt(16, if (book.titleFromFile) 1 else 0)
             p.setString(17, book.lookup)
+            p.setString(18, c.series)
+            c.seriesIndex?.let { p.setDouble(19, it) } ?: p.setNull(19, java.sql.Types.REAL)
             p.executeUpdate()
         }
     }
@@ -215,7 +220,7 @@ class Store(file: Path) : AutoCloseable {
         val c = book.catalog
         db.prepareStatement(
             """UPDATE books SET title = ?, author = ?, genres = ?, genre_source = ?, description = ?, year = ?,
-                 title_from_file = ?, cover_etag = ?, lookup = ?, rev = ? WHERE content_id = ?""",
+                 title_from_file = ?, cover_etag = ?, lookup = ?, series = ?, series_index = ?, rev = ? WHERE content_id = ?""",
         ).use { p ->
             p.setString(1, c.title)
             p.setString(2, c.author)
@@ -226,8 +231,10 @@ class Store(file: Path) : AutoCloseable {
             p.setInt(7, if (book.titleFromFile) 1 else 0)
             p.setString(8, c.coverEtag)
             p.setString(9, book.lookup)
-            p.setLong(10, nextRev())
-            p.setString(11, c.contentId)
+            p.setString(10, c.series)
+            c.seriesIndex?.let { p.setDouble(11, it) } ?: p.setNull(11, java.sql.Types.REAL)
+            p.setLong(12, nextRev())
+            p.setString(13, c.contentId)
             p.executeUpdate()
         }
     }
@@ -437,6 +444,8 @@ class Store(file: Path) : AutoCloseable {
             genres = getString("genres").orEmpty().split(GENRE_SEPARATOR).filter(String::isNotEmpty),
             description = getString("description"),
             year = getInt("year").takeIf { !wasNull() },
+            series = getString("series"),
+            seriesIndex = getDouble("series_index").takeIf { !wasNull() },
         ),
         relativePath = getString("rel_path"),
         modified = getLong("modified"),

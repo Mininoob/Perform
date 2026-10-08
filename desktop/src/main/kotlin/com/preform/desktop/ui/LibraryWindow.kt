@@ -202,6 +202,7 @@ fun LibraryWindow(service: LibraryService, covers: CoverCache, state: WindowStat
                             selected = books.filter { it.catalog.contentId in state.selection },
                             shown = shown,
                             place = place,
+                            onEdit = { state.dialog = Dialog.Edit(it) },
                             modifier = Modifier.width(320.dp).fillMaxHeight(),
                         )
                     }
@@ -211,7 +212,7 @@ fun LibraryWindow(service: LibraryService, covers: CoverCache, state: WindowStat
     }
         DragGhost(state.drag, books, covers)
         NoticeBar(state, scope, Modifier.align(Alignment.BottomCenter).padding(bottom = 22.dp))
-        Dialogs(state, actions, folders)
+        Dialogs(state, actions, folders, covers, config.writeIntoFiles)
     }
 }
 

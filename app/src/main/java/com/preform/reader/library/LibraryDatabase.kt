@@ -78,6 +78,9 @@ data class BookEntity(
     @ColumnInfo(defaultValue = "0") val titleFromFile: Boolean = false,
     /** A phone-only book the PC has looked up (found or not). */
     @ColumnInfo(defaultValue = "0") val lookedUp: Boolean = false,
+    val series: String? = null,
+    /** Place in the series; fractional for in-between books (2.5). */
+    val seriesIndex: Double? = null,
 ) {
     val genreList: List<String> get() = genres.split(GENRE_SEPARATOR).filter(String::isNotEmpty)
 
@@ -152,7 +155,7 @@ interface BookDao {
 
 @Database(
     entities = [BookEntity::class],
-    version = 5,
+    version = 6,
     exportSchema = true,
     autoMigrations = [
         // v2: per-book Book Mode.
@@ -163,6 +166,8 @@ interface BookDao {
         AutoMigration(from = 3, to = 4),
         // v5: descriptions, years and lookups.
         AutoMigration(from = 4, to = 5),
+        // v6: series.
+        AutoMigration(from = 5, to = 6),
     ],
 )
 abstract class LibraryDatabase : RoomDatabase() {

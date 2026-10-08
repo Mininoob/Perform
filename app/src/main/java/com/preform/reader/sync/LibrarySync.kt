@@ -171,6 +171,8 @@ class LibrarySync(
                     genres = book.genres.joinToString(GENRE_SEPARATOR),
                     description = book.description,
                     year = book.year,
+                    series = book.series,
+                    seriesIndex = book.seriesIndex,
                 ),
             )
         } else {
@@ -183,6 +185,8 @@ class LibrarySync(
                     sizeBytes = if (existing.localPath == null) book.sizeBytes else existing.sizeBytes,
                     description = book.description,
                     year = book.year,
+                    series = book.series,
+                    seriesIndex = book.seriesIndex,
                     title = book.title,
                     author = book.author,
                     rightToLeft = book.rightToLeft,

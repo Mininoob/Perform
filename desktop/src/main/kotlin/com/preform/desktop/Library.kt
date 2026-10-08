@@ -325,6 +325,10 @@ class Library(
                     coverEtag = etag,
                     addedAt = now,
                     genres = genres,
+                    description = meta.description,
+                    year = meta.year,
+                    series = meta.series,
+                    seriesIndex = meta.seriesIndex,
                 ),
                 relativePath = relative,
                 modified = modified,
@@ -409,7 +413,7 @@ class Library(
         }
     }
 
-    /** Saves a cover found online for a book that had none; returns its etag. */
+    /** Saves a cover (found online, or chosen by hand); returns its etag. */
     fun saveCover(contentId: String, jpeg: ByteArray): String? {
         val image = runCatching { javax.imageio.ImageIO.read(jpeg.inputStream()) }.getOrNull() ?: return null
         val thumb = BookMetadata.jpeg(image, CoverSize.THUMB.maxPx)

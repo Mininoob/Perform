@@ -591,6 +591,10 @@ private fun BookInfoDialog(book: BookEntity, onDismiss: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 book.author?.let { Text("By $it" + (book.year?.let { year -> " · $year" } ?: "")) }
                     ?: book.year?.let { Text("First published $it") }
+                book.series?.let { series ->
+                    val number = book.seriesIndex?.let { if (it % 1.0 == 0.0) it.toLong().toString() else it.toString() }
+                    Text(series + (number?.let { " · #$it" } ?: ""), color = MaterialTheme.colorScheme.primary)
+                }
                 book.genreList.takeIf { it.isNotEmpty() }?.let { Text(it.joinToString(" · ")) }
                 book.description?.let {
                     Text(

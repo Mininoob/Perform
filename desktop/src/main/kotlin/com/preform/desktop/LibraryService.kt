@@ -15,6 +15,19 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.nio.file.Path
 
+/** What the edit dialog saves. Blank text clears a field (the title is kept). */
+data class BookEdits(
+    val title: String,
+    val author: String,
+    val series: String,
+    val seriesIndex: Double?,
+    val year: Int?,
+    val genres: List<String>,
+    val description: String,
+    /** A new cover image (any common format), or null to keep the current one. */
+    val cover: ByteArray? = null,
+)
+
 data class Status(
     val libraryRoot: String,
     val libraryFound: Boolean,
@@ -34,7 +47,8 @@ class LibraryService(private val paths: AppPaths, val platform: Platform = Platf
     private val identity = TlsIdentity(paths.identity, config.keystorePassword)
     private val pairing = PairingWindow()
     val library = Library({ Path.of(config.libraryRoot) }, store, paths.covers)
-    private val bookInfo = BookInfoService(store, library, OpenLibrary(), paths.backups, { config })
+    private val openLibrary = OpenLibrary()
+    private val bookInfo = BookInfoService(store, library, openLibrary, paths.backups, { config })
     private val server = LibraryServer(
         ServerDeps(
             store, library, pairing, config.serverId, { config.serverName }, paths.temp,
@@ -122,6 +136,58 @@ class LibraryService(private val paths: AppPaths, val platform: Platform = Platf
     }
     suspend fun trash(contentIds: Collection<String>) = organize { library.trash(contentIds) }
     suspend fun trashCopy(relativePath: String) = organize { library.trashCopy(relativePath) }
+
+    /**
+     * Saves details edited by hand: into the catalog at once (phones see them on their next
+     * sync), and into the file too when writing into files is on. Returns the book's id,
+     * which changes when the file is rewritten.
+     */
+    suspend fun saveEdits(book: LibraryBook, edits: BookEdits): String = organize {
+        val c = book.catalog
+        val coverJpeg = edits.cover?.let(::toJpeg)
+        val etag = coverJpeg?.let { library.saveCover(c.contentId, it) } ?: c.coverEtag
+        store.saveInfo(
+            book.copy(
+                catalog = c.copy(
+                    title = edits.title.trim().ifBlank { c.title },
+                    author = edits.author.trim().ifBlank { null },
+                    genres = edits.genres,
+                    description = edits.description.trim().ifBlank { null },
+                    year = edits.year,
+                    series = edits.series.trim().ifBlank { null },
+                    seriesIndex = edits.seriesIndex,
+                    coverEtag = etag,
+                ),
+                genreSource = "edited",
+                titleFromFile = false,
+                lookup = BookInfoService.DONE,
+            ),
+        )
+        if (config.writeIntoFiles) {
+            val saved = store.book(c.contentId)!!.catalog
+            val fill = BookFill(
+                title = saved.title,
+                author = saved.author,
+                genres = saved.genres,
+                description = saved.description,
+                year = saved.year,
+                cover = coverJpeg,
+                series = saved.series,
+                seriesIndex = saved.seriesIndex,
+                overwrite = true,
+            )
+            runCatching { library.inject(c.contentId, fill, paths.backups) }
+        }
+        store.resolve(c.contentId)
+    }
+
+    /** A cover for a book from Open Library, by its title and author; null if none is found. */
+    suspend fun findCover(title: String, author: String?): ByteArray? = withContext(Dispatchers.IO) {
+        openLibrary.find(title, author)?.info?.coverId?.let(openLibrary::cover)
+    }
+
+    private fun toJpeg(image: ByteArray): ByteArray? =
+        runCatching { javax.imageio.ImageIO.read(image.inputStream()) }.getOrNull()?.let { BookMetadata.jpeg(it, 1600) }
 
     /** Forgets earlier lookups for these books, so the next pass asks Open Library again. */
     suspend fun lookUpAgain(contentIds: Collection<String>) {

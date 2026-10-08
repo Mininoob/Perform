@@ -58,6 +58,7 @@ data class Notice(val text: String, val undo: (suspend () -> Unit)? = null, val 
 
 /** A dialog the window is showing. */
 sealed interface Dialog {
+    data class Edit(val book: LibraryBook) : Dialog
     data class MoveTo(val books: List<LibraryBook>) : Dialog
     data class RenameFile(val book: LibraryBook) : Dialog
     data class NewFolder(val parent: String) : Dialog
@@ -152,6 +153,15 @@ class Actions(
         )
     }
 
+    fun saveEdits(book: LibraryBook, edits: com.preform.desktop.BookEdits) = run {
+        val id = service.saveEdits(book, edits)
+        // The id changes when the file is rewritten; keep the book selected.
+        if (book.catalog.contentId in state.selection) state.selection = state.selection - book.catalog.contentId + id
+        state.notice = Notice("Saved “${edits.title.trim()}”")
+    }
+
+    suspend fun findCover(title: String, author: String?): ByteArray? = service.findCover(title, author)
+
     fun lookUpAgain(books: List<LibraryBook>) = run {
         service.lookUpAgain(books.map { it.catalog.contentId })
         state.notice = Notice("Looking up ${count(books.size)} again")
@@ -230,10 +240,11 @@ fun NoticeBar(state: WindowState, scope: CoroutineScope, modifier: Modifier = Mo
 
 /** Shows whichever dialog the window wants. */
 @Composable
-fun Dialogs(state: WindowState, actions: Actions, folders: List<String>) {
+fun Dialogs(state: WindowState, actions: Actions, folders: List<String>, covers: CoverCache, writesIntoFiles: Boolean) {
     val dialog = state.dialog ?: return
     val close = { state.dialog = null }
     when (dialog) {
+        is Dialog.Edit -> EditBookDialog(dialog.book, covers, actions, writesIntoFiles, onDismiss = close)
         is Dialog.MoveTo -> MoveToDialog(folders, onDismiss = close) { folder ->
             close()
             actions.moveBooks(dialog.books, folder)
