@@ -10,6 +10,10 @@
 #      from appleid.apple.com; nothing is written to the project):
 #        xcrun notarytool store-credentials preform-notary --apple-id <you@example.com> --team-id <TEAMID>
 #
+# Run it in Terminal on the Mac itself: macOS only lets your logged-in session use the
+# signing key, so it can't sign over SSH. The first time, macOS asks to let codesign
+# use the key: enter your login password and choose Always Allow.
+#
 # Usage:  desktop/macos/build.sh            signed + notarized .dmg
 #         desktop/macos/build.sh --unsigned  just a .dmg, for a quick local try
 set -euo pipefail
@@ -23,7 +27,8 @@ fail() { printf '\n\033[31m%s\033[0m\n' "$*" >&2; exit 1; }
 
 # Java 17+ with jpackage.
 if [[ -z "${JAVA_HOME:-}" ]]; then
-    JAVA_HOME="$(/usr/libexec/java_home -v 17+ 2>/dev/null || true)"
+    # The long-term-support releases first: 21, then 17, then anything newer.
+    JAVA_HOME="$(/usr/libexec/java_home -v 21 2>/dev/null || /usr/libexec/java_home -v 17 2>/dev/null || /usr/libexec/java_home -v 17+ 2>/dev/null || true)"
 fi
 [[ -n "$JAVA_HOME" && -x "$JAVA_HOME/bin/jpackage" ]] ||
     fail "Needs JDK 17 or newer with jpackage. Install it with: brew install --cask temurin@17"
@@ -50,6 +55,8 @@ dmg="$(ls -t desktop/build/compose/binaries/main/dmg/*.dmg | head -1)"
 [[ -f "$dmg" ]] || fail "No .dmg was made."
 
 if ! $unsigned; then
+    say "Signing the disk image"
+    codesign --force --timestamp --sign "$identity" "$dmg"
     say "Notarizing (Apple usually takes a few minutes)"
     xcrun notarytool submit "$dmg" --keychain-profile preform-notary --wait
     xcrun stapler staple "$dmg"
