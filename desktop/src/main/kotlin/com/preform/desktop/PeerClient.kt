@@ -34,6 +34,11 @@ class PeerClient(private val peer: Peer, private val onAddressWorked: (String) -
     private val quick = pinned(peer.certSha256, readSeconds = 30)
     private val slow = pinned(peer.certSha256, readSeconds = 180)
 
+    /** The other library introducing itself, over the pinned connection. */
+    fun hello(): PeerHello = call(quick, "/hello").use {
+        Protocol.json.decodeFromString(PeerHello.serializer(), it.body!!.string())
+    }
+
     fun catalog(since: Long): CatalogPage = call(quick, "/library?since=$since").use {
         Protocol.json.decodeFromString(CatalogPage.serializer(), it.body!!.string())
     }

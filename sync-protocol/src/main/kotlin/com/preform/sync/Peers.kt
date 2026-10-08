@@ -18,6 +18,8 @@ data class PeerHello(
     val platform: String,
     val bookCount: Int = 0,
     val protocol: Int = Protocol.VERSION,
+    /** The libraries this one mirrors (by server id), so the other side can say "mirrors you too". */
+    val mirroring: List<String> = emptyList(),
 )
 
 /** One of a phone's own books (its folder or imports), published to its computers. */

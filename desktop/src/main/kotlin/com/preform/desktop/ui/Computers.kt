@@ -17,6 +17,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -52,6 +54,7 @@ fun ComputersSection(service: LibraryService, state: WindowState, browsers: List
     val views by service.peers.views.collectAsState()
     val nearby by service.nearby.collectAsState()
     var connecting by remember { mutableStateOf<ConnectTarget?>(null) }
+    val scope = rememberCoroutineScope()
     val computers = views.filter { it.peer.kind == com.preform.sync.PeerKind.COMPUTER }
 
     if (computers.isEmpty() && browsers.isEmpty()) {
@@ -61,7 +64,22 @@ fun ComputersSection(service: LibraryService, state: WindowState, browsers: List
             fontSize = 13.sp,
         )
     }
-    computers.forEach { view -> PeerRow(view, onBrowse = { state.go(Place.Peer(view.peer.peerId)) }, onDisconnect = { service.peers.disconnect(view.peer.peerId) }) }
+    var previewing by remember { mutableStateOf<PeerView?>(null) }
+    computers.forEach { view ->
+        PeerRow(
+            view,
+            onBrowse = { state.go(Place.Peer(view.peer.peerId)) },
+            onDisconnect = { service.peers.disconnect(view.peer.peerId) },
+            onMirror = { on -> if (on) previewing = view else service.peers.setMirror(view.peer.peerId, false) },
+        )
+    }
+    previewing?.let { view ->
+        MirrorDialog(service, view, onDismiss = { previewing = null }) {
+            previewing = null
+            service.peers.setMirror(view.peer.peerId, true)
+            scope.launch(Dispatchers.IO) { service.peers.refresh(view.peer.peerId) }
+        }
+    }
     browsers.forEach { device ->
         DeviceLine(device.name, "Can see this library" + (device.lastSeen?.let { " · last looked ${when_(it)}" } ?: ""))
     }
@@ -104,8 +122,9 @@ fun ComputersSection(service: LibraryService, state: WindowState, browsers: List
 }
 
 @Composable
-private fun PeerRow(view: PeerView, onBrowse: () -> Unit, onDisconnect: () -> Unit) {
+private fun PeerRow(view: PeerView, onBrowse: () -> Unit, onDisconnect: () -> Unit, onMirror: (Boolean) -> Unit) {
     var confirming by remember { mutableStateOf(false) }
+    Column {
     Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(Glyphs.Books, null, tint = colors.muted, modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(12.dp))
@@ -133,6 +152,64 @@ private fun PeerRow(view: PeerView, onBrowse: () -> Unit, onDisconnect: () -> Un
             TextButton(colors = quietButton(), onClick = { confirming = true }) { Text("Disconnect", color = colors.danger) }
         }
     }
+    // Mirroring: this library takes the other's changes. Both sides on keeps them the same.
+    Row(Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text("Mirror this library", color = colors.text, fontSize = 13.sp)
+            Text(
+                when {
+                    view.peer.mirror && view.mirrorsUs -> "Kept the same both ways: books, folders, details and removals."
+                    view.peer.mirror -> "Its changes come here. Turn mirroring on there too to send yours back."
+                    view.mirrorsUs -> "It mirrors this library. Turn this on to take its changes too."
+                    else -> "Off: browse it and copy books one at a time."
+                },
+                color = colors.muted,
+                fontSize = 12.sp,
+            )
+        }
+        Switch(
+            checked = view.peer.mirror,
+            onCheckedChange = onMirror,
+            colors = SwitchDefaults.colors(checkedTrackColor = colors.accent, checkedThumbColor = colors.onAccent),
+        )
+    }
+    }
+}
+
+/** Before mirroring starts: what it will do here first. Nothing is removed by turning it on. */
+@Composable
+private fun MirrorDialog(service: LibraryService, view: PeerView, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    val preview = remember(view) { service.peers.mirrorPreview(view.peer.peerId) }
+    val name = view.peer.name
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = colors.raised,
+        title = { Text("Mirror $name?", fontFamily = LiterataDisplay, color = colors.text) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    listOfNotNull(
+                        if (preview.copy > 0) "${preview.copy} ${if (preview.copy == 1) "book" else "books"} (${size(preview.bytes)}) will be copied here" else null,
+                        if (preview.move > 0) "${preview.move} will move to match $name" else null,
+                    ).joinToString(", and ").ifEmpty { "This library already has everything $name has." } + ".",
+                    color = colors.text,
+                    fontSize = 14.sp,
+                )
+                Text(
+                    "From then on, books added, moved, edited or removed on $name follow here, newest change first. " +
+                        "Nothing already here is removed by turning this on, and removals go to the ${service.platform.trashName}.",
+                    color = colors.muted,
+                    fontSize = 13.sp,
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = onConfirm, colors = ButtonDefaults.buttonColors(containerColor = colors.accent, contentColor = colors.onAccent)) {
+                Text("Start mirroring")
+            }
+        },
+        dismissButton = { TextButton(colors = quietButton(), onClick = onDismiss) { Text("Cancel", color = colors.text) } },
+    )
 }
 
 @Composable

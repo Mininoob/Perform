@@ -102,6 +102,8 @@ data class CatalogBook(
     val folderStamp: Stamp = Stamp.NEVER,
     /** When the details (title, genres...) last changed, and where. */
     val infoStamp: Stamp = Stamp.NEVER,
+    /** The file's name in its folder, so a mirror files it the same way. */
+    val fileName: String? = null,
 )
 
 /** A book only the phone has, which it asks the PC to look up. */

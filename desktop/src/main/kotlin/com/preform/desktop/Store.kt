@@ -577,6 +577,7 @@ class Store(file: Path) : AutoCloseable {
             seriesIndex = getDouble("series_index").takeIf { !wasNull() },
             folderStamp = Stamp(getLong("folder_at"), getString("folder_by")),
             infoStamp = Stamp(getLong("info_at"), getString("info_by")),
+            fileName = getString("rel_path").substringAfterLast('/'),
         ),
         relativePath = getString("rel_path"),
         modified = getLong("modified"),

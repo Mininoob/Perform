@@ -77,7 +77,10 @@ class LibraryService(private val paths: AppPaths, val platform: Platform = Platf
             lookup = bookInfo::lookUpForPhone,
             lookupCover = bookInfo::cover,
             hello = {
-                PeerHello(config.serverId, config.serverName, PeerKind.COMPUTER, if (platform.isMac) "macos" else "windows", _books.value.size)
+                PeerHello(
+                    config.serverId, config.serverName, PeerKind.COMPUTER, if (platform.isMac) "macos" else "windows", _books.value.size,
+                    mirroring = peers.mirroring(),
+                )
             },
         ),
         identity,
@@ -87,7 +90,11 @@ class LibraryService(private val paths: AppPaths, val platform: Platform = Platf
     private val peerStore = PeerStore(paths.data.resolve("peers.db"))
 
     /** The other libraries: paired computers and phones that publish their books. */
-    val peers = PeerService(peerStore, library, paths.covers, paths.temp, { config.serverId }, { config.serverName })
+    val peers = PeerService(
+        peerStore, library, paths.covers, paths.temp, { config.serverId }, { config.serverName },
+        store = store,
+        onActivity = { _activity.value = it },
+    )
 
     /** Other libraries heard on the network. */
     val nearby: StateFlow<List<NearbyLibrary>> get() = discovery.nearby
