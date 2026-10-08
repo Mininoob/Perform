@@ -55,6 +55,14 @@ class WindowScreenshots {
         shot("folder-paper", ThemeBase.PAPER, ThemeAccent.GREEN) { place = Place.Folder("Fiction") }
         shot("phones-slate", ThemeBase.SLATE, ThemeAccent.VIOLET) { place = Place.Phones }
         shot("settings-mono", ThemeBase.MONO, ThemeAccent.RED) { place = Place.Settings }
+        shot("organize-ink", ThemeBase.INK, ThemeAccent.BLUE) {
+            allBooks = books
+            visible = books
+            dialog = com.preform.desktop.ui.Dialog.Organize
+        }
+        books.firstOrNull { it.catalog.title == "Dune" }?.let { book ->
+            shot("edit-paper", ThemeBase.PAPER, ThemeAccent.TEAL) { dialog = com.preform.desktop.ui.Dialog.Edit(book) }
+        }
         service.stop()
     }
 }

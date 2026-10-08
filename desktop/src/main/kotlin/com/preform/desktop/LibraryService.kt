@@ -189,6 +189,13 @@ class LibraryService(private val paths: AppPaths, val platform: Platform = Platf
     private fun toJpeg(image: ByteArray): ByteArray? =
         runCatching { javax.imageio.ImageIO.read(image.inputStream()) }.getOrNull()?.let { BookMetadata.jpeg(it, 1600) }
 
+    /** Auto-organize's plan for [books]; nothing moves until [applyPlan]. */
+    fun plan(books: List<LibraryBook>, scheme: OrganizeScheme?, rename: Boolean, base: String): List<PlannedMove> =
+        planOrganize(books, scheme, rename, base, occupied = _books.value.mapTo(HashSet()) { it.relativePath })
+
+    suspend fun applyPlan(moves: List<PlannedMove>) = organize { library.applyMoves(moves) }
+    suspend fun undoPlan(applied: List<Library.AppliedMove>) = organize { library.undoMoves(applied) }
+
     /** Forgets earlier lookups for these books, so the next pass asks Open Library again. */
     suspend fun lookUpAgain(contentIds: Collection<String>) {
         organize { store.resetLookup(contentIds) }

@@ -121,6 +121,66 @@ class Library(
         return moved
     }
 
+    /** What [applyMoves] actually did, for undoing it. */
+    data class AppliedMove(val contentId: String, val from: String, val to: String)
+
+    /**
+     * Carries out an auto-organize plan: each book to its new path (made unique if something
+     * appeared there since planning). Folders left empty by the moves are removed. Books
+     * that changed or vanished since planning are skipped.
+     */
+    @Synchronized
+    fun applyMoves(moves: List<PlannedMove>): List<AppliedMove> {
+        val applied = mutableListOf<AppliedMove>()
+        val emptied = HashSet<Path>()
+        for (move in moves) {
+            val book = store.book(move.contentId) ?: continue
+            if (book.relativePath != move.from) continue
+            val file = file(book) ?: continue
+            val wanted = pathInside(move.to) ?: continue
+            wanted.parent.createDirectories()
+            val destination = if (wanted.exists()) uniqueName(wanted.parent, wanted.fileName.toString()) else wanted
+            Files.move(file, destination)
+            store.movePath(move.contentId, relativeOf(destination), destination.getLastModifiedTime().toMillis())
+            applied += AppliedMove(move.contentId, move.from, relativeOf(destination))
+            emptied.add(file.parent)
+        }
+        removeEmptyFolders(emptied)
+        return applied
+    }
+
+    /** Puts books back where [applied] found them. */
+    @Synchronized
+    fun undoMoves(applied: List<AppliedMove>) {
+        val emptied = HashSet<Path>()
+        for (move in applied.asReversed()) {
+            val book = store.book(move.contentId) ?: continue
+            if (book.relativePath != move.to) continue
+            val file = file(book) ?: continue
+            val back = pathInside(move.from) ?: continue
+            back.parent.createDirectories()
+            val destination = if (back.exists()) uniqueName(back.parent, back.fileName.toString()) else back
+            Files.move(file, destination)
+            store.movePath(move.contentId, relativeOf(destination), destination.getLastModifiedTime().toMillis())
+            emptied.add(file.parent)
+        }
+        removeEmptyFolders(emptied)
+    }
+
+    /** Removes these folders, and parents up to the library, while they're completely empty. */
+    private fun removeEmptyFolders(folders: Collection<Path>) {
+        val rootPath = root().toAbsolutePath().normalize()
+        folders.sortedByDescending { it.nameCount }.forEach { start ->
+            var dir: Path? = start.toAbsolutePath().normalize()
+            while (dir != null && dir != rootPath && dir.startsWith(rootPath) && dir.isDirectory() &&
+                Files.list(dir).use { it.findAny().isEmpty }
+            ) {
+                Files.delete(dir)
+                dir = dir.parent
+            }
+        }
+    }
+
     /** Renames a book's file (the extension is kept); returns its new file name. */
     @Synchronized
     fun renameFile(contentId: String, newName: String): String {
@@ -442,6 +502,9 @@ class Library(
             if (cleaned.isBlank()) throw OrganizeException("Give the folder a name.")
             return cleaned
         }
+
+        /** [safeFolderName], or null for a missing or unusable name. */
+        fun safeFolderNameOrNull(name: String?): String? = name?.let { runCatching { safeFolderName(it) }.getOrNull() }
 
         /** Moves a file to the Recycle Bin (Windows) or Trash (macOS); false if that isn't possible. */
         fun moveToTrash(file: Path): Boolean = runCatching {

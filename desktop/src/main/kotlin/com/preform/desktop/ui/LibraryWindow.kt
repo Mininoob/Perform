@@ -2,6 +2,7 @@ package com.preform.desktop.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -78,6 +79,9 @@ class WindowState {
 
     /** The books on screen right now, for Select all and shift-click ranges. */
     var visible by mutableStateOf(emptyList<LibraryBook>())
+
+    /** The whole library, for auto-organize's "Whole library". */
+    var allBooks by mutableStateOf(emptyList<LibraryBook>())
 
     /** Set by the window, for keyboard shortcuts handled at the window level. */
     var actions: Actions? = null
@@ -184,6 +188,9 @@ fun LibraryWindow(service: LibraryService, covers: CoverCache, state: WindowStat
                 else -> {
                     val shown = remember(books, place, state.query, state.sort) { visibleBooks(books, place, state.query, state.sort) }
                     state.visible = shown
+                    state.allBooks = books
+                    BoxWithConstraints(Modifier.fillMaxSize()) {
+                    val roomForDetails = maxWidth >= 760.dp
                     Row(Modifier.fillMaxSize()) {
                         BookGrid(
                             state = state,
@@ -195,6 +202,7 @@ fun LibraryWindow(service: LibraryService, covers: CoverCache, state: WindowStat
                             onRescan = service::rescanSoon,
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
+                        if (roomForDetails) {
                         VerticalDivider(color = colors.line)
                         BookDetails(
                             service = service,
@@ -205,6 +213,8 @@ fun LibraryWindow(service: LibraryService, covers: CoverCache, state: WindowStat
                             onEdit = { state.dialog = Dialog.Edit(it) },
                             modifier = Modifier.width(320.dp).fillMaxHeight(),
                         )
+                        }
+                    }
                     }
                 }
             }

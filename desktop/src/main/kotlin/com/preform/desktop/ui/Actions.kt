@@ -58,6 +58,7 @@ data class Notice(val text: String, val undo: (suspend () -> Unit)? = null, val 
 
 /** A dialog the window is showing. */
 sealed interface Dialog {
+    data object Organize : Dialog
     data class Edit(val book: LibraryBook) : Dialog
     data class MoveTo(val books: List<LibraryBook>) : Dialog
     data class RenameFile(val book: LibraryBook) : Dialog
@@ -160,6 +161,17 @@ class Actions(
         state.notice = Notice("Saved “${edits.title.trim()}”")
     }
 
+    fun applyPlan(moves: List<com.preform.desktop.PlannedMove>) = run {
+        val applied = service.applyPlan(moves)
+        state.notice = Notice(
+            if (applied.size == moves.size) "Organized ${count(applied.size)}" else "Organized ${applied.size} of ${moves.size}; some changed since",
+            undo = { service.undoPlan(applied) },
+        )
+    }
+
+    fun plan(books: List<LibraryBook>, scheme: com.preform.desktop.OrganizeScheme?, rename: Boolean, base: String) =
+        service.plan(books, scheme, rename, base)
+
     suspend fun findCover(title: String, author: String?): ByteArray? = service.findCover(title, author)
 
     fun lookUpAgain(books: List<LibraryBook>) = run {
@@ -245,6 +257,7 @@ fun Dialogs(state: WindowState, actions: Actions, folders: List<String>, covers:
     val close = { state.dialog = null }
     when (dialog) {
         is Dialog.Edit -> EditBookDialog(dialog.book, covers, actions, writesIntoFiles, onDismiss = close)
+        Dialog.Organize -> OrganizeDialog(state, actions, onDismiss = close)
         is Dialog.MoveTo -> MoveToDialog(folders, onDismiss = close) { folder ->
             close()
             actions.moveBooks(dialog.books, folder)

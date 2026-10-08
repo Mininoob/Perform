@@ -140,6 +140,14 @@ fun EditBookDialog(
                             Field("Number", seriesIndex, { seriesIndex = it }, Modifier.width(96.dp), error = seriesIndex.isNotBlank() && indexValue == null)
                             Field("Year", year, { year = it.filter(Char::isDigit).take(4) }, Modifier.width(96.dp))
                         }
+                        OutlinedTextField(
+                            value = description,
+                            onValueChange = { description = it },
+                            label = { Text("Description") },
+                            minLines = 4,
+                            maxLines = 8,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                         Text("Genres", color = colors.muted, fontSize = 12.sp)
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Genres.ALL.forEach { genre ->
@@ -157,14 +165,6 @@ fun EditBookDialog(
                                 )
                             }
                         }
-                        OutlinedTextField(
-                            value = description,
-                            onValueChange = { description = it },
-                            label = { Text("Description") },
-                            minLines = 4,
-                            maxLines = 8,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
                     }
                 }
                 Spacer(Modifier.height(18.dp))

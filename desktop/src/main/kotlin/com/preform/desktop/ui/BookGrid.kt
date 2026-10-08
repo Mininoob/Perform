@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -87,19 +88,35 @@ fun BookGrid(
 
 @Composable
 private fun Toolbar(state: WindowState, count: Int, actions: Actions, onRescan: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().padding(start = 28.dp, end = 16.dp, top = 18.dp, bottom = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(placeTitle(state.place), fontFamily = FontFamily.Serif, fontSize = 26.sp, color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(if (count == 1) "1 book" else "$count books", color = colors.muted, fontSize = 13.sp)
+    Column(Modifier.fillMaxWidth().padding(start = 28.dp, end = 16.dp, top = 18.dp, bottom = 10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                placeTitle(state.place),
+                fontFamily = FontFamily.Serif,
+                fontSize = 26.sp,
+                color = colors.text,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(if (count == 1) "1 book" else "$count books", color = colors.muted, fontSize = 13.sp, modifier = Modifier.weight(1f))
+            IconButton(onClick = onRescan) { Icon(Glyphs.Refresh, "Check the folder for changes", tint = colors.muted, modifier = Modifier.size(20.dp)) }
         }
-        SearchField(state.query, onChange = { state.query = it })
-        Spacer(Modifier.width(8.dp))
-        SortMenu(state)
-        TextButton(onClick = actions::chooseFilesToAdd) { Text("Add books", color = colors.accent, fontSize = 13.sp) }
-        IconButton(onClick = onRescan) { Icon(Glyphs.Refresh, "Check the folder for changes", tint = colors.muted) }
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                SearchField(state.query, onChange = { state.query = it }, modifier = Modifier.weight(1f).widthIn(max = 340.dp))
+                Spacer(Modifier.width(4.dp))
+                SortMenu(state)
+            }
+            TextButton(onClick = { state.dialog = Dialog.Organize }) {
+                Icon(Glyphs.Sparkle, null, tint = colors.accent, modifier = Modifier.size(15.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Organize", color = colors.accent, fontSize = 13.sp)
+            }
+            TextButton(onClick = actions::chooseFilesToAdd) { Text("Add books", color = colors.accent, fontSize = 13.sp) }
+        }
     }
 }
 
@@ -114,10 +131,9 @@ fun placeTitle(place: Place): String = when (place) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun SearchField(query: String, onChange: (String) -> Unit) {
+private fun SearchField(query: String, onChange: (String) -> Unit, modifier: Modifier = Modifier) {
     Row(
-        Modifier
-            .width(240.dp)
+        modifier
             .background(colors.raised, RoundedCornerShape(20.dp))
             .border(1.dp, colors.line, RoundedCornerShape(20.dp))
             .padding(horizontal = 12.dp, vertical = 8.dp),
