@@ -35,6 +35,8 @@ dependencies {
     implementation(libs.sqlite.jdbc)
     implementation(libs.jmdns)
     implementation(libs.zxing.core)
+    // Talking to other computers' libraries: the same pinned-certificate client the phone uses.
+    implementation(libs.okhttp)
 
     testImplementation(libs.junit)
     testImplementation(libs.ktor.server.test.host)

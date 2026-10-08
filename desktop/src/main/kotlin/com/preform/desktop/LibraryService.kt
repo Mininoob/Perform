@@ -1,6 +1,8 @@
 package com.preform.desktop
 
 import com.preform.sync.PairingInvite
+import com.preform.sync.PeerHello
+import com.preform.sync.PeerKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -57,11 +59,21 @@ class LibraryService(private val paths: AppPaths, val platform: Platform = Platf
             store, library, pairing, config.serverId, { config.serverName }, paths.temp,
             lookup = bookInfo::lookUpForPhone,
             lookupCover = bookInfo::cover,
+            hello = {
+                PeerHello(config.serverId, config.serverName, PeerKind.COMPUTER, if (platform.isMac) "macos" else "windows", _books.value.size)
+            },
         ),
         identity,
         config.port,
     )
     private val discovery = Discovery(config.serverId, config.serverName, config.port)
+    private val peerStore = PeerStore(paths.data.resolve("peers.db"))
+
+    /** The other libraries: paired computers and phones that publish their books. */
+    val peers = PeerService(peerStore, library, paths.covers, paths.temp, { config.serverId }, { config.serverName })
+
+    /** Other libraries heard on the network. */
+    val nearby: StateFlow<List<NearbyLibrary>> get() = discovery.nearby
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var scanning: Job? = null
 
@@ -97,6 +109,13 @@ class LibraryService(private val paths: AppPaths, val platform: Platform = Platf
         discovery.start()
         // The window follows every change: scans, lookups, phones, edits.
         scope.launch { store.changes.debounce(150).collect { refreshLists() } }
+        scope.launch { peerStore.changes.debounce(150).collect { peers.refreshViews() } }
+        scope.launch {
+            while (isActive) {
+                runCatching { peers.refresh() }
+                delay(PEER_REFRESH_MS)
+            }
+        }
         scanning = scope.launch {
             while (isActive) {
                 rescan()
@@ -285,6 +304,7 @@ class LibraryService(private val paths: AppPaths, val platform: Platform = Platf
         discovery.stop()
         server.stop()
         store.close()
+        peerStore.close()
     }
 
     private fun status(addresses: List<String> = Addresses.current()) = Status(
@@ -296,5 +316,6 @@ class LibraryService(private val paths: AppPaths, val platform: Platform = Platf
 
     private companion object {
         const val RESCAN_MS = 30_000L
+        const val PEER_REFRESH_MS = 120_000L
     }
 }

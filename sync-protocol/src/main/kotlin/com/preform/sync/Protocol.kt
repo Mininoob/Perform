@@ -58,7 +58,13 @@ data class PairingInvite(
 }
 
 @Serializable
-data class PairRequest(val code: String, val deviceId: String, val deviceName: String)
+data class PairRequest(
+    val code: String,
+    val deviceId: String,
+    val deviceName: String,
+    /** A phone, or another computer's Preform Library (which may only read). */
+    val kind: PeerKind = PeerKind.PHONE,
+)
 
 @Serializable
 data class PairResponse(val token: String, val serverId: String, val serverName: String)

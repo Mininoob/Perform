@@ -4,6 +4,8 @@ import com.preform.sync.BookState
 import com.preform.sync.CatalogPage
 import com.preform.sync.Format
 import com.preform.sync.LookupQuery
+import com.preform.sync.PeerHello
+import com.preform.sync.PeerKind
 import com.preform.sync.LookupResult
 import io.ktor.http.ContentType
 import io.ktor.server.response.respondBytes
@@ -59,6 +61,8 @@ class ServerDeps(
     /** Looks up books only a phone has; null result when lookups are off or offline. */
     val lookup: (List<LookupQuery>) -> List<LookupResult>? = { null },
     val lookupCover: (Long) -> ByteArray? = { null },
+    /** This library introducing itself to computers on the network. */
+    val hello: () -> PeerHello = { PeerHello(serverId, serverName(), platform = "unknown") },
 )
 
 fun Application.preformModule(deps: ServerDeps) {
@@ -81,6 +85,11 @@ fun Application.preformModule(deps: ServerDeps) {
     }
 
     routing {
+        // Who's here: lets another computer confirm what it found before asking for a code.
+        get("/hello") {
+            call.respond(deps.hello())
+        }
+
         post("/pair") {
             val request = call.receive<PairRequest>()
             if (!deps.pairing.consume(request.code)) {
@@ -88,7 +97,7 @@ fun Application.preformModule(deps: ServerDeps) {
                 return@post
             }
             val token = Tokens.newToken()
-            deps.store.addDevice(request.deviceId, request.deviceName.take(80), Tokens.hash(token), deps.clock())
+            deps.store.addDevice(request.deviceId, request.deviceName.take(80), Tokens.hash(token), deps.clock(), request.kind)
             call.respond(PairResponse(token, deps.serverId, deps.serverName()))
         }
 
@@ -124,7 +133,12 @@ fun Application.preformModule(deps: ServerDeps) {
         }
 
         put("/books") {
-            call.device(deps) ?: return@put
+            val device = call.device(deps) ?: return@put
+            if (device.kind == PeerKind.COMPUTER) {
+                // Another computer may look and copy, never add to or change this library.
+                call.respond(HttpStatusCode.Forbidden)
+                return@put
+            }
             val name = call.request.queryParameters["name"] ?: "book"
             val temp = Files.createTempFile(deps.tempDir, "upload", ".part")
             try {
@@ -147,7 +161,11 @@ fun Application.preformModule(deps: ServerDeps) {
         }
 
         post("/state") {
-            call.device(deps) ?: return@post
+            val device = call.device(deps) ?: return@post
+            if (device.kind == PeerKind.COMPUTER) {
+                call.respond(HttpStatusCode.Forbidden)
+                return@post
+            }
             val incoming = call.receive<List<BookState>>()
             if (incoming.any { !isContentId(it.contentId) }) {
                 call.respond(HttpStatusCode.BadRequest)

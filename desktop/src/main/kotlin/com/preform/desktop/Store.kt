@@ -3,6 +3,7 @@ package com.preform.desktop
 import com.preform.sync.BookState
 import com.preform.sync.CatalogBook
 import com.preform.sync.Format
+import com.preform.sync.PeerKind
 import com.preform.sync.Protocol
 import com.preform.sync.mergedWith
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +28,8 @@ data class LibraryBook(
     val lookup: String? = null,
     /** The file couldn't be opened as a book when it was added. */
     val unreadable: Boolean = false,
+    /** Set when this is another library's book (a paired computer's or a phone's), not ours. */
+    val peerId: String? = null,
 )
 
 /** "Fiction/Fantasy/The Hobbit.epub" becomes "Fiction/Fantasy"; "" for a book at the top. */
@@ -39,6 +42,8 @@ data class Device(
     val name: String,
     val pairedAt: Long,
     val lastSeen: Long?,
+    /** A phone, or another computer's Preform Library (read-only). */
+    val kind: PeerKind = PeerKind.PHONE,
 )
 
 /**
@@ -86,6 +91,7 @@ class Store(file: Path) : AutoCloseable {
         addColumnIfMissing("books", "series", "TEXT")
         addColumnIfMissing("books", "series_index", "REAL")
         addColumnIfMissing("books", "unreadable", "INTEGER NOT NULL DEFAULT 0")
+        addColumnIfMissing("devices", "kind", "TEXT NOT NULL DEFAULT 'PHONE'")
         db.createStatement().use {
             // Ids books had before information was written into their files.
             it.executeUpdate("CREATE TABLE IF NOT EXISTS aliases (old_id TEXT PRIMARY KEY, new_id TEXT NOT NULL)")
@@ -385,16 +391,17 @@ class Store(file: Path) : AutoCloseable {
 
     // Devices
 
-    fun addDevice(deviceId: String, name: String, tokenHash: String, now: Long) {
+    fun addDevice(deviceId: String, name: String, tokenHash: String, now: Long, kind: PeerKind = PeerKind.PHONE) {
         db.prepareStatement(
-            """INSERT INTO devices(device_id, name, token_hash, paired_at, last_seen) VALUES(?,?,?,?,NULL)
+            """INSERT INTO devices(device_id, name, token_hash, paired_at, last_seen, kind) VALUES(?,?,?,?,NULL,?)
                ON CONFLICT(device_id) DO UPDATE SET name = excluded.name, token_hash = excluded.token_hash,
-                 paired_at = excluded.paired_at""",
+                 paired_at = excluded.paired_at, kind = excluded.kind""",
         ).use { p ->
             p.setString(1, deviceId)
             p.setString(2, name)
             p.setString(3, tokenHash)
             p.setLong(4, now)
+            p.setString(5, kind.name)
             p.executeUpdate()
         }
         changed()
@@ -464,5 +471,6 @@ class Store(file: Path) : AutoCloseable {
         name = getString("name"),
         pairedAt = getLong("paired_at"),
         lastSeen = getLong("last_seen").takeIf { !wasNull() },
+        kind = runCatching { PeerKind.valueOf(getString("kind")) }.getOrDefault(PeerKind.PHONE),
     )
 }
