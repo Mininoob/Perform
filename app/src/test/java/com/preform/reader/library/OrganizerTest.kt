@@ -52,6 +52,12 @@ class OrganizerTest {
         override suspend fun setLocalPath(id: Long, path: String?) = Unit
         override suspend fun setPinned(id: Long, pinned: Boolean) = Unit
         override suspend fun localBooksAwaitingLookup(limit: Int) = emptyList<BookEntity>()
+        override suspend fun localBooksToHash(limit: Int) = emptyList<BookEntity>()
+        override suspend fun setHash(id: Long, contentId: String, size: Long, modified: Long) = Unit
+        override suspend fun localBooksToUpload(limit: Int) = emptyList<BookEntity>()
+        override suspend fun localBook(contentId: String): BookEntity? = null
+        override suspend fun setOnPc(id: Long) = Unit
+        override suspend fun serverBooksToDownload() = emptyList<BookEntity>()
 
         private fun bySourceNow(source: BookSource) = rows.values.filter { it.source == source }
 
