@@ -14,8 +14,6 @@ object CoverCloth {
     private val BOTTLE = Cloth(0xFF2E5E4E, 0xFFEDE8DC)
     private val OCHRE = Cloth(0xFFD9C27A, 0xFF1B1B1B)
     private val GRAPHITE = Cloth(0xFF2A2B2E, 0xFFE9E5DC)
-    private val PLUM = Cloth(0xFF4E2A4F, 0xFFEDE3E8)
-    private val SLATE = Cloth(0xFF3E4C59, 0xFFE8E9E6)
 
     private val byGenre = mapOf(
         "Classics" to CLARET,
@@ -24,11 +22,11 @@ object CoverCloth {
         "Romance" to CLARET,
         "Historical Fiction" to CLARET,
         "Drama" to CLARET,
-        "Poetry" to PLUM,
-        "Fantasy" to PLUM,
+        "Poetry" to CLARET,
+        "Fantasy" to BOTTLE,
         "Horror" to GRAPHITE,
-        "Mystery & Crime" to SLATE,
-        "Thriller" to SLATE,
+        "Mystery & Crime" to GRAPHITE,
+        "Thriller" to GRAPHITE,
         "Science Fiction" to NAVY,
         "Philosophy" to NAVY,
         "Religion & Spirituality" to NAVY,
@@ -41,13 +39,13 @@ object CoverCloth {
         "Cooking" to OCHRE,
         "Science & Nature" to BOTTLE,
         "Health & Fitness" to BOTTLE,
-        "Technology & Computing" to SLATE,
-        "Business & Economics" to SLATE,
-        "Education & Reference" to SLATE,
+        "Technology & Computing" to GRAPHITE,
+        "Business & Economics" to GRAPHITE,
+        "Education & Reference" to GRAPHITE,
         "Self-Help" to BOTTLE,
-        "Young Adult" to PLUM,
+        "Young Adult" to OCHRE,
         "Children's" to OCHRE,
-        "Comics & Graphic Novels" to PLUM,
+        "Comics & Graphic Novels" to OCHRE,
     )
 
     /**
@@ -56,5 +54,5 @@ object CoverCloth {
      */
     fun of(genres: List<String>, title: String): Cloth =
         genres.firstNotNullOfOrNull { byGenre[it] }
-            ?: listOf(CLARET, NAVY, BOTTLE, GRAPHITE, PLUM, SLATE)[(title.hashCode() and Int.MAX_VALUE) % 6]
+            ?: listOf(CLARET, NAVY, BOTTLE, GRAPHITE)[(title.hashCode() and Int.MAX_VALUE) % 4]
 }

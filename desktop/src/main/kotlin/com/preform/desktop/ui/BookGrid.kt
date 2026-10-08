@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -103,7 +104,6 @@ private fun Toolbar(state: WindowState, count: Int, actions: Actions, onRescan: 
             )
             Spacer(Modifier.width(12.dp))
             Text(if (count == 1) "1 book" else "$count books", color = colors.muted, fontSize = 13.sp, modifier = Modifier.weight(1f))
-            IconButton(onClick = onRescan) { Icon(Glyphs.Refresh, "Check the folder for changes", tint = colors.muted, modifier = Modifier.size(20.dp)) }
         }
         Spacer(Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -112,12 +112,9 @@ private fun Toolbar(state: WindowState, count: Int, actions: Actions, onRescan: 
                 Spacer(Modifier.width(4.dp))
                 SortMenu(state)
             }
-            TextButton(onClick = { state.dialog = Dialog.Organize }) {
-                Icon(Glyphs.Sparkle, null, tint = colors.accent, modifier = Modifier.size(15.dp))
-                Spacer(Modifier.width(6.dp))
-                Text("Organize", color = colors.accent, fontSize = 13.sp)
-            }
+            TextButton(onClick = { state.dialog = Dialog.Organize }) { Text("Organize…", color = colors.text, fontSize = 13.sp) }
             TextButton(onClick = actions::chooseFilesToAdd) { Text("Add books", color = colors.accent, fontSize = 13.sp) }
+            IconButton(onClick = onRescan) { Icon(Glyphs.Refresh, "Check the folder for changes", tint = colors.muted, modifier = Modifier.size(18.dp)) }
         }
     }
 }
@@ -204,6 +201,7 @@ private fun Grid(state: WindowState, books: List<LibraryBook>, covers: CoverCach
                 book = book,
                 covers = covers,
                 selected = id in state.selection,
+                progress = state.progress[id]?.progression,
                 modifier = Modifier
                     .onGloballyPositioned { place = it }
                     // Drag onto a folder in the sidebar to move; drags the whole selection.
@@ -297,15 +295,15 @@ private fun bookMenu(book: LibraryBook, state: WindowState, actions: Actions): L
 }
 
 @Composable
-private fun BookCard(book: LibraryBook, covers: CoverCache, selected: Boolean, modifier: Modifier) {
-    val shape = RoundedCornerShape(10.dp)
-    Column(
-        modifier
-            .background(if (selected) colors.selected else Color.Transparent, shape)
-            .border(1.5.dp, if (selected) colors.accent.copy(alpha = 0.7f) else Color.Transparent, shape)
-            .padding(10.dp),
-    ) {
-        BookCover(book, covers, Modifier.fillMaxWidth())
+private fun BookCard(book: LibraryBook, covers: CoverCache, selected: Boolean, progress: Double?, modifier: Modifier) {
+    Column(modifier.padding(10.dp)) {
+        // Selection outlines the cover itself; no tile, no card.
+        Box {
+            BookCover(book, covers, Modifier.fillMaxWidth())
+            if (selected) {
+                Box(Modifier.matchParentSize().border(2.dp, colors.accent, RoundedCornerShape(3.dp)))
+            }
+        }
         Spacer(Modifier.height(10.dp))
         Text(
             book.catalog.title,
@@ -316,7 +314,7 @@ private fun BookCard(book: LibraryBook, covers: CoverCache, selected: Boolean, m
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
-        // The same furniture under every cover: author and year.
+        // The same furniture under every cover: author and year, then the reading rule.
         Text(
             listOfNotNull(book.catalog.author ?: "Unknown author", book.catalog.year?.toString()).joinToString(" · "),
             fontSize = 12.sp,
@@ -324,6 +322,18 @@ private fun BookCard(book: LibraryBook, covers: CoverCache, selected: Boolean, m
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+        if (progress != null && progress > 0.005) {
+            Spacer(Modifier.height(6.dp))
+            ProgressRule(progress, Modifier.fillMaxWidth())
+        }
+    }
+}
+
+/** Reading progress as one 2dp rule in the accent: the line is the state. */
+@Composable
+fun ProgressRule(progress: Double, modifier: Modifier = Modifier) {
+    Box(modifier.height(2.dp).background(colors.line)) {
+        Box(Modifier.fillMaxHeight().fillMaxWidth(progress.toFloat().coerceIn(0f, 1f)).background(colors.accent))
     }
 }
 

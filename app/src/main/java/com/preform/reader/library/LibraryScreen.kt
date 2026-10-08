@@ -34,7 +34,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -82,7 +82,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.preform.reader.ui.CloudIcon
 import com.preform.reader.ui.Literata
 import com.preform.reader.ui.LiterataDisplay
 import com.preform.reader.ui.TypeCover
@@ -123,7 +122,7 @@ fun LibraryScreen(
     val actions: @Composable () -> Unit = {
         IconButton(onClick = { searching = true }) { Icon(Icons.Default.Search, contentDescription = "Search") }
         IconButton(onClick = onAddBook) { Icon(Icons.Default.Add, contentDescription = "Add book") }
-        IconButton(onClick = onOpenSettings) { Icon(Icons.Default.Settings, contentDescription = "Settings") }
+        IconButton(onClick = onOpenSettings) { Icon(Icons.Outlined.Settings, contentDescription = "Settings") }
     }
 
     Scaffold(
@@ -396,7 +395,7 @@ private fun GridHead(title: String?, count: Int, sort: LibrarySort, onSortChange
             Spacer(Modifier.width(8.dp))
         }
         Text(
-            if (count == 1) "1 book" else "$count books",
+            if (title != null) "$count" else if (count == 1) "1 book" else "$count books",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
@@ -492,11 +491,12 @@ private fun Caption(book: BookEntity) {
     }
 }
 
-/** "Austen · 1815": the author's surname and the year. */
+/** "Austen · 1815": the author's surname and the year; "On your PC" while it isn't on the phone yet. */
 private fun furniture(book: BookEntity): String? =
     listOfNotNull(
         book.author?.split(',', '&', ';')?.first()?.trim()?.substringAfterLast(' ')?.ifBlank { null },
         book.year?.toString(),
+        "On your PC".takeIf { !book.downloaded },
     ).joinToString(" · ").ifBlank { null }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -549,19 +549,6 @@ private fun Cover(book: BookEntity, opening: Boolean, modifier: Modifier, downlo
             Image(image, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         } else if (book.coverThumbPath == null) {
             TypeCover(book.title, book.author, book.genreList)
-        }
-        if (!book.downloaded && download == null) {
-            // On the PC, not on the phone yet: downloads when opened.
-            Box(
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(6.dp)
-                    .size(22.dp)
-                    .background(Color(0x99000000), CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(CloudIcon.Outline, contentDescription = "On your PC", tint = Color.White, modifier = Modifier.size(14.dp))
-            }
         }
         if (download != null) {
             Box(Modifier.fillMaxSize().background(Color(0x99000000)), contentAlignment = Alignment.Center) {

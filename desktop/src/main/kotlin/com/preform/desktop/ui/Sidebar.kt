@@ -59,8 +59,7 @@ fun Sidebar(
 ) {
     Column(modifier.background(colors.raised)) {
         Row(Modifier.padding(start = 20.dp, top = 20.dp, bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            val accent = colors.accent
-            Image(remember(accent) { BookMark(accent) }, null, Modifier.size(26.dp))
+            Image(remember { SeriesMark() }, null, Modifier.size(26.dp))
             Spacer(Modifier.width(10.dp))
             Text("Preform Library", fontFamily = LiterataDisplay, fontSize = 19.sp, color = colors.text)
         }

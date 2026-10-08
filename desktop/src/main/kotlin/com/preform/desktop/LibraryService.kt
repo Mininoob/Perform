@@ -15,6 +15,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.nio.file.Path
 
+/** How far a phone has read a book. */
+data class Reading(val progression: Double, val device: String?)
+
 /** What the edit dialog saves. Blank text clears a field (the title is kept). */
 data class BookEdits(
     val title: String,
@@ -73,6 +76,10 @@ class LibraryService(private val paths: AppPaths, val platform: Platform = Platf
     private val _folders = MutableStateFlow(library.folders())
     val folders: StateFlow<List<String>> = _folders
 
+    /** Where phones have got to in each book (from their synced reading state). */
+    private val _progress = MutableStateFlow(emptyMap<String, Reading>())
+    val progress: StateFlow<Map<String, Reading>> = _progress
+
     /** Tidy-up checks over the whole library, kept current with it. */
     private val _checks = MutableStateFlow(emptyMap<CheckKind, List<LibraryBook>>())
     val checks: StateFlow<Map<CheckKind, List<LibraryBook>>> = _checks
@@ -120,6 +127,10 @@ class LibraryService(private val paths: AppPaths, val platform: Platform = Platf
         _books.value = books
         _folders.value = library.folders()
         _checks.value = runChecks(books, library.identicalCopies)
+        val names = store.devices().associate { it.deviceId to it.name }
+        _progress.value = store.statesSince(0).first.mapNotNull { state ->
+            state.position?.let { p -> state.contentId to Reading(p.value.progression, names[p.by]) }
+        }.toMap()
     }
 
     // Organizing: run off the UI thread; the lists refresh as soon as each finishes.

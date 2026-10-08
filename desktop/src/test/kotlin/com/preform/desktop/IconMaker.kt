@@ -65,9 +65,9 @@ class IconMaker {
                     Modifier
                         .fillMaxSize()
                         .then(if (small) Modifier else Modifier.background(ink, RoundedCornerShape((size * 0.18f).dp)))
-                        .padding(if (small) 0.dp else (size * 0.14f).dp),
+                        .padding(if (small) 0.dp else (size * 0.10f).dp),
                 ) {
-                    Image(BookMark(accent), null, Modifier.fillMaxSize())
+                    Image(com.preform.desktop.ui.SeriesMark(), null, Modifier.fillMaxSize())
                 }
             }
         }

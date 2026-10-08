@@ -82,6 +82,9 @@ class WindowState {
     /** The books on screen right now, for Select all and shift-click ranges. */
     var visible by mutableStateOf(emptyList<LibraryBook>())
 
+    /** Reading progress by book, from phones. */
+    var progress by mutableStateOf(emptyMap<String, com.preform.desktop.Reading>())
+
     /** The whole library, for auto-organize's "Whole library". */
     var allBooks by mutableStateOf(emptyList<LibraryBook>())
 
@@ -170,6 +173,8 @@ fun LibraryWindow(service: LibraryService, covers: CoverCache, state: WindowStat
     val activity by service.activity.collectAsState()
     val config by service.configFlow.collectAsState()
     val checks by service.checks.collectAsState()
+    val progress by service.progress.collectAsState()
+    state.progress = progress
 
     val scope = rememberCoroutineScope()
     val actions = remember(service, state) { Actions(service, state, scope) }
@@ -226,6 +231,7 @@ fun LibraryWindow(service: LibraryService, covers: CoverCache, state: WindowStat
                             place = place,
                             onEdit = { state.dialog = Dialog.Edit(it) },
                             onTrashCopy = actions::trashCopy,
+                            progress = progress,
                             modifier = Modifier.width(320.dp).fillMaxHeight(),
                         )
                         }

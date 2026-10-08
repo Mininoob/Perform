@@ -38,9 +38,9 @@ fun main(args: Array<String>) {
         val windowState = remember { WindowState() }
         val covers = remember { CoverCache(service.library) }
         val accent = config.themeAccent.colorOn(config.themeBase)
-        val windowIcon = remember(accent) { BookMark(accent) }
+        val windowIcon = remember { com.preform.desktop.ui.SeriesMark() }
         // The macOS menu bar wants a one-color template icon; Windows' tray shows the colored mark.
-        val trayIcon = remember(accent) { if (platform.isMac) BookMark(Color.Black, monochrome = true) else BookMark(accent) }
+        val trayIcon = remember { if (platform.isMac) BookMark(Color.Black, monochrome = true) else com.preform.desktop.ui.SeriesMark() }
 
         Tray(
             icon = trayIcon,

@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.preform.desktop.LibraryBook
 import com.preform.desktop.LibraryService
+import com.preform.desktop.Reading
 import java.text.DecimalFormat
 
 /** The right-hand panel: one book in full, a summary of a multi-selection, or the place itself. */
@@ -43,12 +44,18 @@ fun BookDetails(
     place: Place,
     onEdit: (LibraryBook) -> Unit,
     onTrashCopy: (String) -> Unit,
+    progress: Map<String, Reading> = emptyMap(),
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.verticalScroll(rememberScrollState()).padding(24.dp)) {
         when (selected.size) {
             0 -> PlaceSummary(place, shown)
-            1 -> OneBook(service, covers, selected.single(), onEdit = { onEdit(selected.single()) }, onTrashCopy = onTrashCopy)
+            1 -> OneBook(
+                service, covers, selected.single(),
+                onEdit = { onEdit(selected.single()) },
+                onTrashCopy = onTrashCopy,
+                reading = progress[selected.single().catalog.contentId],
+            )
             else -> ManyBooks(selected, covers)
         }
     }
@@ -62,6 +69,7 @@ private fun ColumnScope.OneBook(
     book: LibraryBook,
     onEdit: () -> Unit,
     onTrashCopy: (String) -> Unit,
+    reading: Reading? = null,
 ) {
     val c = book.catalog
     BookCover(book, covers, Modifier.fillMaxWidth(0.78f).align(Alignment.CenterHorizontally), full = true)
@@ -78,11 +86,19 @@ private fun ColumnScope.OneBook(
         Text("First published $it", color = colors.muted, fontSize = 13.sp)
     }
 
-    if (c.genres.isNotEmpty()) {
+    reading?.let { r ->
         Spacer(Modifier.height(14.dp))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            c.genres.forEach { Chip(it) }
-        }
+        ProgressRule(r.progression, Modifier.fillMaxWidth())
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "${(r.progression * 100).toInt()}% read" + (r.device?.let { " on $it" } ?: ""),
+            color = colors.muted,
+            fontSize = 12.sp,
+        )
+    }
+    if (c.genres.isNotEmpty()) {
+        Spacer(Modifier.height(12.dp))
+        Text(c.genres.joinToString(" · "), color = colors.muted, fontSize = 13.sp)
     }
 
     c.description?.let {
