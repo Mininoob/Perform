@@ -9,6 +9,7 @@ import android.net.Uri
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
 import androidx.palette.graphics.Palette
+import com.preform.sync.Genres
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.ReadingProgression
 import org.readium.r2.shared.publication.services.cover
@@ -24,6 +25,7 @@ data class BookDetails(
     val coverThumbPath: String?,
     val coverFullPath: String?,
     val coverColor: Int?,
+    val genres: List<String> = emptyList(),
 )
 
 /**
@@ -54,6 +56,7 @@ class CoverExtractor(context: Context) {
             coverThumbPath = thumb,
             coverFullPath = full,
             coverColor = color,
+            genres = Genres.classify(metadata.subjects.map { it.name }),
         )
     }
 

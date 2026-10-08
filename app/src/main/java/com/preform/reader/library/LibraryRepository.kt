@@ -24,6 +24,9 @@ sealed interface ScanState {
     data class Scanning(val done: Int, val total: Int) : ScanState
 }
 
+/** v2: shelves (folders) and genres. */
+private const val FOLDER_SCAN_VERSION = 2
+
 class LibraryRepository(
     context: Context,
     private val dao: BookDao,
@@ -57,7 +60,14 @@ class LibraryRepository(
                 // Most likely the folder's permission was revoked or the folder was deleted.
                 .getOrElse { return@withContext Result.failure(it) }
 
-            val diff = diffLibrary(dao.bySource(BookSource.FOLDER), scanned)
+            val known = dao.bySource(BookSource.FOLDER)
+            val refreshAll = preferences.folderScanVersion() < FOLDER_SCAN_VERSION
+            val diff = diffLibrary(known, scanned).let { diff ->
+                if (!refreshAll) return@let diff
+                // Read every known book again once, for what older scans didn't record.
+                val byUri = known.associateBy { it.uri }
+                diff.copy(changed = scanned.mapNotNull { file -> byUri[file.uri]?.let { it to file } })
+            }
             if (diff.removed.isNotEmpty()) {
                 diff.removed.forEach(covers::delete)
                 dao.delete(diff.removed.map { it.id })
@@ -83,6 +93,8 @@ class LibraryRepository(
                             coverColor = details.coverColor,
                             rightToLeft = details.rightToLeft,
                             addedAt = System.currentTimeMillis(),
+                            shelf = file.folder,
+                            genres = details.genres.joinToString(GENRE_SEPARATOR),
                         ),
                     )
                 }
@@ -100,12 +112,15 @@ class LibraryRepository(
                             coverFullPath = details.coverFullPath,
                             coverColor = details.coverColor,
                             rightToLeft = details.rightToLeft,
+                            shelf = file.folder,
+                            genres = details.genres.joinToString(GENRE_SEPARATOR),
                         ),
                     )
                 }
             } finally {
                 _scanState.value = ScanState.Idle
             }
+            if (refreshAll) preferences.setFolderScanVersion(FOLDER_SCAN_VERSION)
             Result.success(Unit)
         }
     }
@@ -184,6 +199,7 @@ class LibraryRepository(
                 coverColor = details.coverColor,
                 rightToLeft = details.rightToLeft,
                 addedAt = System.currentTimeMillis(),
+                genres = details.genres.joinToString(GENRE_SEPARATOR),
             ),
         )
         Result.success(id)

@@ -2,6 +2,7 @@ package com.preform.desktop
 
 import com.preform.sync.CatalogBook
 import com.preform.sync.Format
+import com.preform.sync.Genres
 import com.preform.sync.contentIdOf
 import java.nio.file.Files
 import java.nio.file.Path
@@ -108,6 +109,7 @@ class Library(
 
     private fun add(file: Path, contentId: String, relative: String, format: Format, size: Long, modified: Long, now: Long) {
         val meta = BookMetadata.read(file, format)
+        val genres = Genres.classify(meta.subjects)
         val etag = meta.cover?.let { image ->
             val thumb = BookMetadata.jpeg(image, CoverSize.THUMB.maxPx)
             coverDir.resolve("${contentId}_thumb.jpg").writeBytes(thumb)
@@ -125,9 +127,12 @@ class Library(
                     rightToLeft = meta.rightToLeft,
                     coverEtag = etag,
                     addedAt = now,
+                    genres = genres,
                 ),
                 relativePath = relative,
                 modified = modified,
+                // No genres in the book itself: left for the online lookup.
+                genreSource = if (genres.isNotEmpty()) "book" else null,
             ),
         )
     }

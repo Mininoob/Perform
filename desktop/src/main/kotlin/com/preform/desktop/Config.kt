@@ -44,6 +44,8 @@ data class AppConfig(
     /** Protects the TLS key file on disk; generated once, never shown. */
     val keystorePassword: String,
     val startWithWindows: Boolean = false,
+    /** Ask Open Library for the genres of books that don't declare any. */
+    val lookUpGenres: Boolean = true,
 ) {
     fun save(paths: AppPaths) = paths.config.writeText(Protocol.json.encodeToString(serializer(), this))
 

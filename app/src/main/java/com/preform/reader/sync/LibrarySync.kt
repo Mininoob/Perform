@@ -10,6 +10,7 @@ import com.preform.reader.library.BookDao
 import com.preform.reader.library.BookEntity
 import com.preform.reader.library.BookFormat
 import com.preform.reader.library.BookSource
+import com.preform.reader.library.GENRE_SEPARATOR
 import com.preform.sync.CatalogBook
 import com.preform.sync.Format
 import com.preform.sync.PairRequest
@@ -160,6 +161,8 @@ class LibrarySync(
                     addedAt = book.addedAt,
                     contentId = book.contentId,
                     coverEtag = book.coverEtag,
+                    shelf = book.folder,
+                    genres = book.genres.joinToString(GENRE_SEPARATOR),
                 ),
             )
         } else {
@@ -172,6 +175,8 @@ class LibrarySync(
                     coverFullPath = if (coversChanged) covers?.full else existing.coverFullPath,
                     coverColor = if (coversChanged) covers?.color else existing.coverColor,
                     coverEtag = book.coverEtag,
+                    shelf = book.folder,
+                    genres = book.genres.joinToString(GENRE_SEPARATOR),
                 ),
             )
         }

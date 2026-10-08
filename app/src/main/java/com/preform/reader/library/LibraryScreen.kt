@@ -68,6 +68,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.preform.reader.ui.rememberCover
 import kotlin.math.roundToInt
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.FilterChip
 import androidx.compose.foundation.shape.CircleShape
 import com.preform.reader.ui.CloudIcon
 
@@ -79,6 +86,7 @@ fun LibraryScreen(
     onOpen: (BookEntity) -> Unit,
     onRemove: (BookEntity) -> Unit,
     onDownloadAction: (BookEntity, DownloadAction) -> Unit,
+    shelfActions: ShelfActions,
     onQueryChange: (String) -> Unit,
     onSortChange: (LibrarySort) -> Unit,
     onRefresh: () -> Unit,
@@ -87,6 +95,8 @@ fun LibraryScreen(
     onOpenSettings: () -> Unit,
 ) {
     var searching by remember { mutableStateOf(false) }
+    // Back climbs out of a shelf before it leaves the library.
+    BackHandler(enabled = state.location != null && state.query.isBlank(), onBack = shelfActions.onUp)
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
@@ -142,7 +152,7 @@ fun LibraryScreen(
                 !state.loaded -> Unit
                 state.books.isEmpty() && state.query.isBlank() && state.scan == ScanState.Idle ->
                     EmptyLibrary(state.folderLabel, onChooseFolder, onAddBook)
-                else -> BookGrid(state, onOpen, onRemove, onDownloadAction, onSortChange)
+                else -> BookGrid(state, onOpen, onRemove, onDownloadAction, shelfActions, onSortChange)
             }
         }
     }
@@ -154,8 +164,11 @@ private fun BookGrid(
     onOpen: (BookEntity) -> Unit,
     onRemove: (BookEntity) -> Unit,
     onDownloadAction: (BookEntity, DownloadAction) -> Unit,
+    shelfActions: ShelfActions,
     onSortChange: (LibrarySort) -> Unit,
 ) {
+    val page = state.page
+    val atTop = state.location == null
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 112.dp),
         modifier = Modifier.fillMaxSize(),
@@ -168,17 +181,56 @@ private fun BookGrid(
         }
 
         val hero = state.continueReading
-        if (hero != null && state.query.isBlank()) {
+        if (hero != null && state.query.isBlank() && atTop) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 ContinueReading(hero, opening = state.opening == hero.id, onOpen = { onOpen(hero) })
             }
         }
 
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            SortRow(count = state.books.size, sort = state.sort, onSortChange = onSortChange)
+        if (state.query.isBlank()) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                val location = state.location
+                if (location == null) {
+                    ViewSwitcher(state.view, shelfActions.onViewChange)
+                } else {
+                    ShelfHeader(
+                        title = if (state.view == LibraryView.SHELVES) shelfTitle(location) else location,
+                        onUp = shelfActions.onUp,
+                    )
+                }
+            }
         }
 
-        items(state.books, key = { it.id }) { book ->
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            val count = page?.let { p -> (p.shelves.flatMap { it.books } + p.loose).distinctBy { it.id }.size } ?: state.books.size
+            SortRow(count = count, sort = state.sort, onSortChange = onSortChange)
+        }
+
+        val tiles = page?.loose ?: state.books
+        if (page != null) {
+            page.shelves.forEach { shelf ->
+                item(span = { GridItemSpan(maxLineSpan) }, key = "shelf:${shelf.key}") {
+                    ShelfRow(
+                        shelf = shelf,
+                        state = state,
+                        onOpen = onOpen,
+                        onEnter = { shelfActions.onEnter(shelf.key) },
+                    )
+                }
+            }
+            if (page.shelves.isNotEmpty() && page.loose.isNotEmpty()) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Text(
+                        if (atTop) "Not on a shelf" else "In this folder",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontFamily = FontFamily.Serif,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+            }
+        }
+
+        items(tiles, key = { it.id }) { book ->
             BookTile(
                 book = book,
                 opening = state.opening == book.id,
@@ -286,6 +338,112 @@ private fun SortRow(count: Int, sort: LibrarySort, onSortChange: (LibrarySort) -
         }
     }
 }
+
+/** Browsing callbacks for shelves and genres. */
+class ShelfActions(
+    val onViewChange: (LibraryView) -> Unit,
+    /** Opens a shelf by its folder path or genre. */
+    val onEnter: (String) -> Unit,
+    val onUp: () -> Unit,
+)
+
+@Composable
+private fun ViewSwitcher(view: LibraryView, onChange: (LibraryView) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LibraryView.entries.forEach { option ->
+            FilterChip(
+                selected = view == option,
+                onClick = { onChange(option) },
+                label = { Text(option.label) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ShelfHeader(title: String, onUp: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = onUp) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+        }
+        Text(
+            title,
+            style = MaterialTheme.typography.titleLarge,
+            fontFamily = FontFamily.Serif,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/** A shelf as a bookcase row: its name (tap to open it) over a row of covers standing on a ledge. */
+@Composable
+private fun ShelfRow(shelf: Shelf, state: LibraryUiState, onOpen: (BookEntity) -> Unit, onEnter: () -> Unit) {
+    Column {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onEnter)
+                .padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                shelf.name,
+                style = MaterialTheme.typography.titleMedium,
+                fontFamily = FontFamily.Serif,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                "${shelf.books.size}",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = "Open ${shelf.name}",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            items(shelf.books.take(SHELF_PREVIEW), key = { it.id }) { book ->
+                Column(Modifier.width(92.dp).clickable { onOpen(book) }) {
+                    Cover(book, state.opening == book.id, Modifier.fillMaxWidth(), state.downloads[book.id])
+                }
+            }
+            if (shelf.books.size > SHELF_PREVIEW) {
+                item {
+                    Box(
+                        Modifier
+                            .width(92.dp)
+                            .aspectRatio(2f / 3f)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainer)
+                            .clickable(onClick = onEnter),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text("See all\n${shelf.books.size}", textAlign = TextAlign.Center, style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
+        }
+        // The ledge the books stand on.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 2.dp)
+                .height(5.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+        )
+    }
+}
+
+private const val SHELF_PREVIEW = 20
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

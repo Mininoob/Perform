@@ -41,6 +41,11 @@ data class LibraryUiState(
     val opening: Long? = null,
     /** PC books downloading, by id, with progress 0..1. */
     val downloads: Map<Long, Float> = emptyMap(),
+    val view: LibraryView = LibraryView.SHELVES,
+    /** Inside a shelf: its folder path or genre. Null at the top. */
+    val location: String? = null,
+    /** Shelves to show; null when showing the plain grid (All books, or searching). */
+    val page: ShelfPage? = null,
     /** False until the first database read, so an empty library isn't flashed on launch. */
     val loaded: Boolean = false,
 )
@@ -60,7 +65,18 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
     private val _events = Channel<LibraryEvent>(Channel.BUFFERED)
     val events: Flow<LibraryEvent> = _events.receiveAsFlow()
 
-    private val listing = combine(library.books, query, sort) { books, q, s -> Triple(books, q, s) }
+    private val view = MutableStateFlow(LibraryView.SHELVES)
+    private val location = MutableStateFlow<String?>(null)
+
+    private data class Listing(
+        val books: List<BookEntity>,
+        val query: String,
+        val sort: LibrarySort,
+        val view: LibraryView,
+        val location: String?,
+    )
+
+    private val listing = combine(library.books, query, sort, view, location) { books, q, s, v, l -> Listing(books, q, s, v, l) }
 
     val state: StateFlow<LibraryUiState> = combine(
         listing,
@@ -68,12 +84,21 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
         library.scanState,
         opening,
         container.sync.downloads,
-    ) { (books, q, s), folder, scan, openingId, downloads ->
+    ) { (books, q, s, v, l), folder, scan, openingId, downloads ->
         val filtered = if (q.isBlank()) books else books.filter {
             it.title.contains(q, ignoreCase = true) || it.author?.contains(q, ignoreCase = true) == true
         }
+        val sorted = filtered.sortedWith(s.comparator())
         LibraryUiState(
-            books = filtered.sortedWith(s.comparator()),
+            books = sorted,
+            view = v,
+            location = l,
+            page = when {
+                q.isNotBlank() -> null
+                v == LibraryView.SHELVES -> folderPage(sorted, l ?: "")
+                v == LibraryView.GENRES -> genrePage(sorted, l)
+                else -> null
+            },
             continueReading = books.filter { it.lastOpenedAt != null }.maxByOrNull { it.lastOpenedAt!! },
             query = q,
             sort = s,
@@ -87,6 +112,28 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
 
     init {
         refresh()
+        viewModelScope.launch {
+            container.preferences.libraryView.first()
+                ?.let { saved -> LibraryView.entries.firstOrNull { it.name == saved } }
+                ?.let { view.value = it }
+        }
+    }
+
+    fun setView(value: LibraryView) {
+        view.value = value
+        location.value = null
+        viewModelScope.launch { container.preferences.setLibraryView(value.name) }
+    }
+
+    /** Opens a shelf: a folder path or a genre. */
+    fun enterShelf(key: String) {
+        location.value = key
+    }
+
+    /** Back out of a shelf: to the parent folder, or to the top. */
+    fun leaveShelf() {
+        val here = location.value ?: return
+        location.value = if (view.value == LibraryView.SHELVES) here.substringBeforeLast('/', "").ifEmpty { null } else null
     }
 
     fun refresh() {

@@ -27,6 +27,7 @@ import com.preform.reader.reader.ReaderActivity
 import com.preform.reader.settings.AppSettingsActions
 import com.preform.reader.settings.AppSettingsScreen
 import com.preform.reader.sync.PrivateLibraryScreen
+import com.preform.reader.library.ShelfActions
 import com.preform.reader.settings.AppSettingsState
 import com.preform.reader.settings.AppTheme
 import com.preform.reader.settings.CoverControls
@@ -97,6 +98,13 @@ class MainActivity : ComponentActivity() {
                             onOpen = library::open,
                             onRemove = library::remove,
                             onDownloadAction = library::downloadAction,
+                            shelfActions = remember(library) {
+                                ShelfActions(
+                                    onViewChange = library::setView,
+                                    onEnter = library::enterShelf,
+                                    onUp = library::leaveShelf,
+                                )
+                            },
                             onQueryChange = library::setQuery,
                             onSortChange = library::setSort,
                             onRefresh = library::refresh,

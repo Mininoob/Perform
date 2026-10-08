@@ -193,6 +193,25 @@ private fun LibraryWindow(service: LibraryService, pairing: Boolean, onPairingCh
             }
         }
 
+        Section("Genres") {
+            var lookUp by remember { mutableStateOf(service.config.lookUpGenres) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Look up genres online")
+                    Text(
+                        "For books that don't list a genre, ask Open Library. Only the title and author are sent.",
+                        color = Ink.muted,
+                        fontSize = 12.sp,
+                    )
+                }
+                Switch(
+                    checked = lookUp,
+                    onCheckedChange = { lookUp = it; service.setLookUpGenres(it) },
+                    colors = SwitchDefaults.colors(checkedTrackColor = Ink.accent),
+                )
+            }
+        }
+
         if (Autostart.exe != null) {
             var autostart by remember { mutableStateOf(service.config.startWithWindows) }
             Row(verticalAlignment = Alignment.CenterVertically) {

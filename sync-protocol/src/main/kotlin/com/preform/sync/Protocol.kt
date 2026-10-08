@@ -77,6 +77,10 @@ data class CatalogBook(
     /** Changes whenever the cover does, so the phone knows to fetch it again. */
     val coverEtag: String? = null,
     val addedAt: Long,
+    /** The folder the book sits in on the PC, relative to the library, "/"-separated; "" at the top. */
+    val folder: String = "",
+    /** From [Genres]; empty until the PC has worked them out. */
+    val genres: List<String> = emptyList(),
 )
 
 /** Catalog changes since a cursor. */

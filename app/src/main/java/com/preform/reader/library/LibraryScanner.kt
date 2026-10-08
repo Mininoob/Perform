@@ -12,6 +12,8 @@ data class ScannedFile(
     val sizeBytes: Long,
     val lastModified: Long,
     val format: BookFormat,
+    /** Folder inside the library folder, "/"-separated; "" at the top. */
+    val folder: String = "",
 )
 
 /** What a scan means for the library, relative to the folder books it already knows. */
@@ -36,7 +38,7 @@ fun diffLibrary(existingFolderBooks: List<BookEntity>, scanned: List<ScannedFile
     val added = scanned.filter { it.uri !in existingByUri }
     val changed = scanned.mapNotNull { file ->
         existingByUri[file.uri]
-            ?.takeIf { it.sizeBytes != file.sizeBytes || it.lastModified != file.lastModified }
+            ?.takeIf { it.sizeBytes != file.sizeBytes || it.lastModified != file.lastModified || it.shelf != file.folder }
             ?.let { it to file }
     }
     val removed = existingFolderBooks.filter { it.uri !in scannedUris }
@@ -60,10 +62,11 @@ class LibraryScanner(private val resolver: ContentResolver) {
 
     fun scan(treeUri: Uri): List<ScannedFile> {
         val found = mutableListOf<ScannedFile>()
-        val pending = ArrayDeque(listOf(DocumentsContract.getTreeDocumentId(treeUri)))
+        // Document id and its folder path relative to the tree.
+        val pending = ArrayDeque(listOf(DocumentsContract.getTreeDocumentId(treeUri) to ""))
 
         while (pending.isNotEmpty()) {
-            val parentId = pending.removeFirst()
+            val (parentId, path) = pending.removeFirst()
             val children = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentId)
             resolver.query(children, COLUMNS, null, null, null)?.use { cursor ->
                 while (cursor.moveToNext()) {
@@ -71,7 +74,7 @@ class LibraryScanner(private val resolver: ContentResolver) {
                     val name = cursor.getString(1) ?: continue
                     val mime = cursor.getString(2)
                     if (mime == Document.MIME_TYPE_DIR) {
-                        pending += id
+                        pending += id to if (path.isEmpty()) name else "$path/$name"
                         continue
                     }
                     val format = formatOf(name, mime) ?: continue
@@ -81,6 +84,7 @@ class LibraryScanner(private val resolver: ContentResolver) {
                         sizeBytes = if (cursor.isNull(3)) 0 else cursor.getLong(3),
                         lastModified = if (cursor.isNull(4)) 0 else cursor.getLong(4),
                         format = format,
+                        folder = path,
                     )
                 }
             }

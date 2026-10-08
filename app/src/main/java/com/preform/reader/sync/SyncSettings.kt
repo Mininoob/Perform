@@ -73,8 +73,20 @@ class SyncSettings(private val context: Context) {
         return store.data.first()[DEVICE_ID]!!
     }
 
-    suspend fun catalogCursor(): Long = store.data.first()[CATALOG_CURSOR] ?: 0L
-    suspend fun setCatalogCursor(value: Long) = store.edit { it[CATALOG_CURSOR] = value }
+    /**
+     * Where to resume the catalog. A phone that synced before the catalog carried
+     * shelves and genres starts over once, so books it already has get them too.
+     */
+    suspend fun catalogCursor(): Long {
+        val prefs = store.data.first()
+        if ((prefs[CATALOG_VERSION] ?: 1) < CURRENT_CATALOG_VERSION) return 0L
+        return prefs[CATALOG_CURSOR] ?: 0L
+    }
+
+    suspend fun setCatalogCursor(value: Long) = store.edit {
+        it[CATALOG_CURSOR] = value
+        it[CATALOG_VERSION] = CURRENT_CATALOG_VERSION
+    }
 
     suspend fun stateCursor(): Long = store.data.first()[STATE_CURSOR] ?: 0L
     suspend fun setStateCursor(value: Long) = store.edit { it[STATE_CURSOR] = value }
@@ -92,6 +104,10 @@ class SyncSettings(private val context: Context) {
         private val CONNECTION = stringPreferencesKey("connection")
         private val DEVICE_ID = stringPreferencesKey("device_id")
         private val CATALOG_CURSOR = longPreferencesKey("catalog_cursor")
+        private val CATALOG_VERSION = androidx.datastore.preferences.core.intPreferencesKey("catalog_version")
+
+        /** v2: books carry their folder and genres. */
+        private const val CURRENT_CATALOG_VERSION = 2
         private val STATE_CURSOR = longPreferencesKey("state_cursor")
         private val LAST_SYNC = longPreferencesKey("last_sync")
         private val STORAGE_LIMIT = longPreferencesKey("storage_limit")

@@ -16,7 +16,14 @@ data class LibraryBook(
     /** Path relative to the library root, with forward slashes. */
     val relativePath: String,
     val modified: Long,
+    /** Where the genres came from: "book", "online", "none" (looked, found nothing), or null (not looked yet). */
+    val genreSource: String? = null,
 )
+
+/** "Fiction/Fantasy/The Hobbit.epub" becomes "Fiction/Fantasy"; "" for a book at the top. */
+fun folderOf(relativePath: String): String = relativePath.substringBeforeLast('/', "")
+
+private const val GENRE_SEPARATOR = "|"
 
 data class Device(
     val deviceId: String,
@@ -52,6 +59,18 @@ class Store(file: Path) : AutoCloseable {
             )
             s.executeUpdate("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
         }
+        // Added after the first release of the table.
+        addColumnIfMissing("books", "genres", "TEXT NOT NULL DEFAULT ''")
+        addColumnIfMissing("books", "genre_source", "TEXT")
+    }
+
+    private fun addColumnIfMissing(table: String, column: String, definition: String) {
+        val exists = db.prepareStatement("SELECT 1 FROM pragma_table_info(?) WHERE name = ?").use { p ->
+            p.setString(1, table)
+            p.setString(2, column)
+            p.executeQuery().use { it.next() }
+        }
+        if (!exists) db.createStatement().use { it.executeUpdate("ALTER TABLE $table ADD COLUMN $column $definition") }
     }
 
     // Revisions
@@ -83,11 +102,13 @@ class Store(file: Path) : AutoCloseable {
     fun upsertBook(book: LibraryBook) {
         val c = book.catalog
         db.prepareStatement(
-            """INSERT INTO books(content_id, rel_path, title, author, format, size, modified, rtl, cover_etag, added_at, removed, rev)
-               VALUES(?,?,?,?,?,?,?,?,?,?,0,?)
+            """INSERT INTO books(content_id, rel_path, title, author, format, size, modified, rtl, cover_etag, added_at, removed, rev,
+                 genres, genre_source)
+               VALUES(?,?,?,?,?,?,?,?,?,?,0,?,?,?)
                ON CONFLICT(content_id) DO UPDATE SET rel_path = excluded.rel_path, title = excluded.title,
                  author = excluded.author, format = excluded.format, size = excluded.size, modified = excluded.modified,
-                 rtl = excluded.rtl, cover_etag = excluded.cover_etag, removed = 0, rev = excluded.rev""",
+                 rtl = excluded.rtl, cover_etag = excluded.cover_etag, removed = 0, rev = excluded.rev,
+                 genres = excluded.genres, genre_source = excluded.genre_source""",
         ).use { p ->
             p.setString(1, c.contentId)
             p.setString(2, book.relativePath)
@@ -100,20 +121,51 @@ class Store(file: Path) : AutoCloseable {
             p.setString(9, c.coverEtag)
             p.setLong(10, c.addedAt)
             p.setLong(11, nextRev())
+            p.setString(12, c.genres.joinToString(GENRE_SEPARATOR))
+            p.setString(13, book.genreSource)
             p.executeUpdate()
         }
     }
 
-    /** A moved or renamed file: same book, new place. Not a change phones need to hear about. */
+    /**
+     * A moved or renamed file: same book, new place. Phones only hear about it when the
+     * folder changed, since that moves the book to another shelf.
+     */
     @Synchronized
     fun movePath(contentId: String, relativePath: String, modified: Long) {
-        db.prepareStatement("UPDATE books SET rel_path = ?, modified = ? WHERE content_id = ?").use { p ->
+        val shelfChanged = book(contentId)?.catalog?.folder != folderOf(relativePath)
+        db.prepareStatement("UPDATE books SET rel_path = ?, modified = ?, rev = ? WHERE content_id = ?").use { p ->
             p.setString(1, relativePath)
             p.setLong(2, modified)
-            p.setString(3, contentId)
+            p.setLong(3, if (shelfChanged) nextRev() else rev(contentId))
+            p.setString(4, contentId)
             p.executeUpdate()
         }
     }
+
+    private fun rev(contentId: String): Long =
+        db.prepareStatement("SELECT rev FROM books WHERE content_id = ?").use { p ->
+            p.setString(1, contentId)
+            p.executeQuery().use { if (it.next()) it.getLong(1) else 0L }
+        }
+
+    /** Records genres worked out after the book was added (looked up online). */
+    @Synchronized
+    fun setGenres(contentId: String, genres: List<String>, source: String) {
+        db.prepareStatement("UPDATE books SET genres = ?, genre_source = ?, rev = ? WHERE content_id = ?").use { p ->
+            p.setString(1, genres.joinToString(GENRE_SEPARATOR))
+            p.setString(2, source)
+            p.setLong(3, nextRev())
+            p.setString(4, contentId)
+            p.executeUpdate()
+        }
+    }
+
+    /** Live books whose genres haven't been worked out yet. */
+    fun booksAwaitingGenres(): List<LibraryBook> =
+        db.prepareStatement("SELECT * FROM books WHERE removed = 0 AND genre_source IS NULL").use { p ->
+            p.executeQuery().use { rs -> buildList { while (rs.next()) add(rs.toBook()) } }
+        }
 
     @Synchronized
     fun markRemoved(contentId: String) {
@@ -245,9 +297,12 @@ class Store(file: Path) : AutoCloseable {
             rightToLeft = getInt("rtl") == 1,
             coverEtag = getString("cover_etag"),
             addedAt = getLong("added_at"),
+            folder = folderOf(getString("rel_path")),
+            genres = getString("genres").orEmpty().split(GENRE_SEPARATOR).filter(String::isNotEmpty),
         ),
         relativePath = getString("rel_path"),
         modified = getLong("modified"),
+        genreSource = getString("genre_source"),
     )
 
     private fun ResultSet.toDevice() = Device(

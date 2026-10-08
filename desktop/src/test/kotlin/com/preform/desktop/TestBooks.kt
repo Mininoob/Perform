@@ -23,6 +23,7 @@ object TestBooks {
         rtl: Boolean = false,
         withCover: Boolean = true,
         body: String = "Hello",
+        subjects: List<String> = emptyList(),
     ): Path {
         file.parent.createDirectories()
         ZipOutputStream(file.outputStream()).use { zip ->
@@ -50,7 +51,7 @@ object TestBooks {
                 "OEBPS/content.opf",
                 """<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id">
                   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="id">x</dc:identifier>
-                  <dc:title>$title</dc:title><dc:creator>$author</dc:creator><dc:language>en</dc:language></metadata>
+                  <dc:title>$title</dc:title><dc:creator>$author</dc:creator><dc:language>en</dc:language>${subjects.joinToString("") { "<dc:subject>$it</dc:subject>" }}</metadata>
                   <manifest><item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>$coverItem</manifest>
                   <spine${if (rtl) " page-progression-direction=\"rtl\"" else ""}><itemref idref="c1"/></spine></package>""".toByteArray(),
             )

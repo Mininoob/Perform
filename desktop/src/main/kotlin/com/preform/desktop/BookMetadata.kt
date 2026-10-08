@@ -19,6 +19,8 @@ data class Metadata(
     val author: String?,
     val rightToLeft: Boolean,
     val cover: BufferedImage?,
+    /** Subjects or keywords the book declares, for [com.preform.sync.Genres]. */
+    val subjects: List<String> = emptyList(),
 )
 
 /**
@@ -71,6 +73,9 @@ object BookMetadata {
             author = text("creator"),
             rightToLeft = spine?.getAttribute("page-progression-direction") == "rtl",
             cover = cover,
+            subjects = opf.getElementsByTagNameNS("*", "subject").let { list ->
+                (0 until list.length).mapNotNull { list.item(it).textContent?.trim()?.ifBlank { null } }
+            },
         )
     }
 
@@ -81,6 +86,10 @@ object BookMetadata {
             author = pdf.documentInformation?.author?.trim()?.ifBlank { null },
             rightToLeft = false,
             cover = cover,
+            subjects = listOfNotNull(pdf.documentInformation?.subject, pdf.documentInformation?.keywords)
+                .flatMap { it.split(',', ';') }
+                .map(String::trim)
+                .filter(String::isNotEmpty),
         )
     }
 

@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.Flow
 
 enum class BookFormat { EPUB, PDF }
 
+const val GENRE_SEPARATOR = "|"
+
 /**
  * FOLDER books are read in place from the library folder; IMPORTED ones are app-owned copies;
  * SERVER books live in the PC library and are downloaded when first opened.
@@ -65,7 +67,13 @@ data class BookEntity(
     val bookModeAt: Long? = null,
     /** Changed here since the last successful push to the PC. */
     @ColumnInfo(defaultValue = "0") val stateDirty: Boolean = false,
+    /** The folder the book sits in ("Fiction/Fantasy"), "" at the top; its shelf in the library. */
+    @ColumnInfo(defaultValue = "") val shelf: String = "",
+    /** Genres from [com.preform.sync.Genres], joined by [GENRE_SEPARATOR]. */
+    @ColumnInfo(defaultValue = "") val genres: String = "",
 ) {
+    val genreList: List<String> get() = genres.split(GENRE_SEPARATOR).filter(String::isNotEmpty)
+
     /** Where Readium can open this book now; null for a SERVER book not downloaded yet. */
     val readableUri: String?
         get() = if (source == BookSource.SERVER) localPath?.let { "file://$it" } else uri
@@ -133,13 +141,15 @@ interface BookDao {
 
 @Database(
     entities = [BookEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = true,
     autoMigrations = [
         // v2: per-book Book Mode.
         AutoMigration(from = 1, to = 2),
         // v3: books from the PC library, content ids and sync stamps.
         AutoMigration(from = 2, to = 3),
+        // v4: shelves (folders) and genres.
+        AutoMigration(from = 3, to = 4),
     ],
 )
 abstract class LibraryDatabase : RoomDatabase() {

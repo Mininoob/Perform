@@ -155,11 +155,26 @@ class PreferencesStore(context: Context) {
             ?: SwipeDirection.LEFT
     }
 
+    /** How the library is browsed: shelves (folders), genres, or every book. */
+    val libraryView: Flow<String?> = read { it[LIBRARY_VIEW] }
+
+    suspend fun setLibraryView(view: String) = store.edit { it[LIBRARY_VIEW] = view }
+
+    /**
+     * Bumped when the folder scan learns to read something new (shelves and genres in v2),
+     * so books it already knows are read once more.
+     */
+    suspend fun folderScanVersion(): Int = store.data.first()[FOLDER_SCAN_VERSION] ?: 1
+
+    suspend fun setFolderScanVersion(version: Int) = store.edit { it[FOLDER_SCAN_VERSION] = version }
+
     suspend fun setBackSwipeForNext(direction: SwipeDirection) =
         store.edit { it[BACK_SWIPE_FOR_NEXT] = direction.name }
 
     private companion object {
         val GLOBAL_READING = stringPreferencesKey("global_reading")
+        val LIBRARY_VIEW = stringPreferencesKey("library_view")
+        val FOLDER_SCAN_VERSION = androidx.datastore.preferences.core.intPreferencesKey("folder_scan_version")
         val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         val LIBRARY_FOLDER = stringPreferencesKey("library_folder")
         /** Superseded by THEME_BASE and THEME_ACCENT; read for the carry-over. */
