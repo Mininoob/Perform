@@ -66,9 +66,9 @@ private fun ColumnScope.OneBook(
     val c = book.catalog
     BookCover(book, covers, Modifier.fillMaxWidth(0.78f).align(Alignment.CenterHorizontally), full = true)
     Spacer(Modifier.height(22.dp))
-    Text(c.title, fontFamily = FontFamily.Serif, fontSize = 22.sp, lineHeight = 28.sp, color = colors.text)
+    Text(c.title, fontFamily = LiterataDisplay, fontSize = 22.sp, lineHeight = 28.sp, color = colors.text)
     Spacer(Modifier.height(4.dp))
-    Text(c.author ?: "Unknown author", color = colors.muted, fontSize = 14.sp)
+    Text(c.author ?: "Unknown author", color = colors.muted, fontSize = 15.sp, fontFamily = Literata, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
     c.series?.let {
         Spacer(Modifier.height(2.dp))
         Text(it + (c.seriesIndex?.let { n -> " · #${indexText(n)}" } ?: ""), color = colors.accent, fontSize = 13.sp)
@@ -121,7 +121,7 @@ private fun ColumnScope.OneBook(
 
 @Composable
 private fun ManyBooks(selected: List<LibraryBook>, covers: CoverCache) {
-    Text("${selected.size} books selected", fontFamily = FontFamily.Serif, fontSize = 22.sp, color = colors.text)
+    Text("${selected.size} books selected", fontFamily = LiterataDisplay, fontSize = 22.sp, color = colors.text)
     Spacer(Modifier.height(16.dp))
     // A small fanned stack of the first few covers.
     Row(horizontalArrangement = Arrangement.spacedBy((-36).dp)) {
@@ -133,7 +133,7 @@ private fun ManyBooks(selected: List<LibraryBook>, covers: CoverCache) {
 
 @Composable
 private fun PlaceSummary(place: Place, shown: List<LibraryBook>) {
-    Text(placeTitle(place), fontFamily = FontFamily.Serif, fontSize = 22.sp, color = colors.text)
+    Text(placeTitle(place), fontFamily = LiterataDisplay, fontSize = 22.sp, color = colors.text)
     Spacer(Modifier.height(8.dp))
     Text(
         "${shown.size} ${if (shown.size == 1) "book" else "books"} · ${size(shown.sumOf { it.catalog.sizeBytes })}",

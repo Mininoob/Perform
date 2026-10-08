@@ -99,23 +99,11 @@ fun BookCover(
                 )
             }
         } else {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(Brush.linearGradient(listOf(Color(0xFF2B1B12), Color(0xFF7A4A2B), Color(0xFF3D2519)))),
-            )
-            Text(
-                text = title.uppercase(),
-                color = Color(0xFFF3E4D2),
-                fontSize = 26.sp,
-                lineHeight = 30.sp,
-                fontWeight = FontWeight.Light,
-                fontFamily = FontFamily.Serif,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(horizontal = 24.dp),
-            )
+            Box(Modifier.fillMaxSize().padding(28.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.aspectRatio(2f / 3f).shadow(18.dp)) {
+                    com.preform.reader.ui.TypeCover(title, null, emptyList())
+                }
+            }
         }
         // Hairline spine along the top edge.
         Box(

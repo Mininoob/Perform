@@ -150,5 +150,5 @@ private fun Color.compositeOver(background: Color): Color {
 
 @Composable
 fun PreformTheme(theme: AppTheme, content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = theme.palette.toColorScheme(), content = content)
+    MaterialTheme(colorScheme = theme.palette.toColorScheme(), typography = preformTypography(), content = content)
 }

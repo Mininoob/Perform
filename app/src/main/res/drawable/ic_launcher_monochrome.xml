@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One-colour mark for themed icons (Android 13+); the band is cut out so it still reads. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FFFFFFFF" android:fillAlpha="0.55" android:pathData="M44.40,34.80 H67.44 A3.84,3.84 0 0 1 71.28,38.64 V69.36 A3.84,3.84 0 0 1 67.44,73.20 H44.40 A3.84,3.84 0 0 1 40.56,69.36 V38.64 A3.84,3.84 0 0 1 44.40,34.80 Z" />
+    <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="M40.56,32.88 H63.60 A3.84,3.84 0 0 1 67.44,36.72 V69.36 A3.84,3.84 0 0 1 63.60,73.20 H40.56 A3.84,3.84 0 0 1 36.72,69.36 V36.72 A3.84,3.84 0 0 1 40.56,32.88 Z M46.32,41.52 H61.68 V44.40 H46.32 Z" />
+</vector>

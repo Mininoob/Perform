@@ -262,7 +262,7 @@ private fun ThemeRow(selected: ReadingTheme?, onSelect: (ReadingTheme) -> Unit) 
                         .clickable { onSelect(theme) },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("Aa", color = Color(colors.text), fontFamily = FontFamily.Serif, fontSize = 15.sp)
+                    Text("Aa", color = Color(colors.text), fontFamily = com.preform.reader.ui.Literata, fontSize = 15.sp)
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(theme.label, style = MaterialTheme.typography.labelSmall)

@@ -94,7 +94,7 @@ private fun Toolbar(state: WindowState, count: Int, actions: Actions, onRescan: 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 placeTitle(state.place),
-                fontFamily = FontFamily.Serif,
+                fontFamily = LiterataDisplay,
                 fontSize = 26.sp,
                 color = colors.text,
                 maxLines = 1,
@@ -309,15 +309,16 @@ private fun BookCard(book: LibraryBook, covers: CoverCache, selected: Boolean, m
         Spacer(Modifier.height(10.dp))
         Text(
             book.catalog.title,
-            fontFamily = FontFamily.Serif,
+            fontFamily = Literata,
             fontSize = 14.sp,
             lineHeight = 18.sp,
             color = colors.text,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
+        // The same furniture under every cover: author and year.
         Text(
-            book.catalog.author ?: "Unknown author",
+            listOfNotNull(book.catalog.author ?: "Unknown author", book.catalog.year?.toString()).joinToString(" · "),
             fontSize = 12.sp,
             color = colors.muted,
             maxLines = 1,
@@ -355,7 +356,7 @@ private fun Empty(title: String, detail: String?, action: (() -> Unit)?) {
     Column(Modifier.fillMaxSize().padding(48.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Icon(Glyphs.Books, null, tint = colors.muted, modifier = Modifier.size(40.dp))
         Spacer(Modifier.height(16.dp))
-        Text(title, fontFamily = FontFamily.Serif, fontSize = 20.sp, color = colors.text)
+        Text(title, fontFamily = LiterataDisplay, fontSize = 20.sp, color = colors.text)
         detail?.let {
             Spacer(Modifier.height(6.dp))
             Text(it, color = colors.muted, fontSize = 13.sp)

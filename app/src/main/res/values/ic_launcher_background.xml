@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Ink, the dark base the library app's icon tile uses. -->
+    <color name="ic_launcher_background">#131416</color>
+</resources>

@@ -62,7 +62,7 @@ fun Sidebar(
             val accent = colors.accent
             Image(remember(accent) { BookMark(accent) }, null, Modifier.size(26.dp))
             Spacer(Modifier.width(10.dp))
-            Text("Preform Library", fontFamily = FontFamily.Serif, fontSize = 19.sp, color = colors.text)
+            Text("Preform Library", fontFamily = LiterataDisplay, fontSize = 19.sp, color = colors.text)
         }
 
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 10.dp)) {

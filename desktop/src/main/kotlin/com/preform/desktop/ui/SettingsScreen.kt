@@ -53,7 +53,7 @@ import javax.swing.JFileChooser
 fun SettingsScreen(service: LibraryService, config: AppConfig, status: Status) {
     val platform = service.platform
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 40.dp, vertical = 28.dp)) {
-        Text("Settings", fontFamily = FontFamily.Serif, fontSize = 26.sp, color = colors.text)
+        Text("Settings", fontFamily = LiterataDisplay, fontSize = 26.sp, color = colors.text)
         Spacer(Modifier.height(8.dp))
 
         Column(Modifier.widthIn(max = 640.dp)) {

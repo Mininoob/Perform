@@ -3,6 +3,13 @@ package com.preform.desktop.ui
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import com.preform.sync.CoverCloth
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -66,35 +73,64 @@ fun BookCover(book: LibraryBook, covers: CoverCache, modifier: Modifier = Modifi
     LaunchedEffect(book.catalog.contentId, book.catalog.coverEtag, full) {
         if (image == null) image = covers.load(book, size)
     }
-    val shape = RoundedCornerShape(if (full) 8.dp else 5.dp)
+    val shape = RoundedCornerShape(if (full) 4.dp else 3.dp)
     Box(
         modifier
             .aspectRatio(2f / 3f)
-            .shadow(if (full) 10.dp else 3.dp, shape)
-            .clip(shape)
-            .background(titleCardColor(book.catalog.title)),
+            .shadow(if (full) 12.dp else 3.dp, shape)
+            .clip(shape),
         contentAlignment = Alignment.Center,
     ) {
         val loaded = image
         if (loaded != null) {
             Image(loaded, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         } else {
-            Text(
-                book.catalog.title,
-                color = Color(0xFFF3EEE6),
-                fontFamily = FontFamily.Serif,
-                fontSize = if (full) 22.sp else 13.sp,
-                lineHeight = if (full) 28.sp else 16.sp,
-                maxLines = 5,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(if (full) 20.dp else 10.dp),
-            )
+            TypeCover(book.catalog.title, book.catalog.author, book.catalog.genres)
         }
     }
 }
 
-/** A muted cloth-binding color picked from the title, so cover-less books still look distinct. */
-private fun titleCardColor(title: String): Color {
-    val tones = listOf(0xFF3D4A5C, 0xFF4F3D4A, 0xFF3F5246, 0xFF5A4636, 0xFF35485A, 0xFF4B3F5E, 0xFF5B3A3A, 0xFF384F52)
-    return Color(tones[(title.hashCode() and Int.MAX_VALUE) % tones.size])
+/**
+ * The series' cover for a book that has none, identical to the phone's: two colours from
+ * its genre's cloth, the author along a rule at the head, the title in italic. The
+ * lettering scales with the cover, so a grid thumbnail and the details jacket match.
+ */
+@Composable
+fun TypeCover(title: String, author: String?, genres: List<String>, modifier: Modifier = Modifier) {
+    val cloth = CoverCloth.of(genres, title)
+    val ground = Color(cloth.ground)
+    val ink = Color(cloth.ink)
+    BoxWithConstraints(modifier.fillMaxSize().background(ground)) {
+        val width = maxWidth.value
+        val scale = width / 92f
+        val longest = title.split(' ').maxOfOrNull { it.length }?.coerceAtLeast(1) ?: 1
+        val titleSize = minOf(15f * scale, (width - 20f * scale) / (longest * 0.62f))
+        Column(Modifier.fillMaxSize().padding((10 * scale).dp)) {
+            author?.let {
+                Text(
+                    it.uppercase(),
+                    color = ink.copy(alpha = 0.85f),
+                    fontSize = (6.5f * scale).sp,
+                    letterSpacing = (1.3f * scale).sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height((5 * scale).dp))
+            }
+            Box(Modifier.fillMaxWidth().height((0.75f * scale).coerceAtLeast(0.75f).dp).background(ink.copy(alpha = 0.6f)))
+            Spacer(Modifier.weight(1f))
+            Text(
+                title,
+                color = ink,
+                fontFamily = LiterataDisplay,
+                fontStyle = FontStyle.Italic,
+                fontSize = titleSize.sp,
+                lineHeight = (titleSize * 1.08f).sp,
+                maxLines = 6,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height((8 * scale).dp))
+            Text("PREFORM", color = ink.copy(alpha = 0.55f), fontSize = (5.5f * scale).sp, letterSpacing = (2f * scale).sp)
+        }
+    }
 }

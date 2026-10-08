@@ -103,7 +103,7 @@ fun PrivateLibraryScreen(sync: LibrarySync, onBack: () -> Unit) {
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
-                title = { Text("Private library", fontFamily = FontFamily.Serif) },
+                title = { Text("Private library") },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 },

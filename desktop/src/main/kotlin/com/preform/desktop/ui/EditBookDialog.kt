@@ -96,7 +96,7 @@ fun EditBookDialog(
             modifier = Modifier.width(760.dp).heightIn(max = 720.dp),
         ) {
             Column(Modifier.padding(28.dp)) {
-                Text("Edit details", fontFamily = FontFamily.Serif, fontSize = 22.sp, color = colors.text)
+                Text("Edit details", fontFamily = LiterataDisplay, fontSize = 22.sp, color = colors.text)
                 Spacer(Modifier.height(18.dp))
                 Row(Modifier.weight(1f, fill = false), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                     // Cover

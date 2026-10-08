@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.preform.reader.AppContainer
+import com.preform.reader.ui.TypeCoverBitmap
 import com.preform.reader.reader.ReaderSession
 import com.preform.reader.settings.ReadingPreferences
 import kotlinx.coroutines.Dispatchers
@@ -247,8 +248,10 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
                 val locator = book.locatorJson?.let { json ->
                     runCatching { Locator.fromJSON(JSONObject(json)) }.getOrNull()
                 }
-                val cover = book.coverFullPath?.let { path ->
-                    withContext(Dispatchers.IO) { BitmapFactory.decodeFile(path) }
+                // A book without a cover wears the series' typeset jacket in Book Mode too.
+                val cover = withContext(Dispatchers.IO) {
+                    book.coverFullPath?.let(BitmapFactory::decodeFile)
+                        ?: TypeCoverBitmap.render(container.appContext, book.title, book.author, book.genreList)
                 }
                 val appTheme = container.preferences.effectiveTheme.first()
                 container.openBooks.put(ReaderSession(book, publication, locator, preferences, cover, appTheme))

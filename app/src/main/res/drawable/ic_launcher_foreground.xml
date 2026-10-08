@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The book mark: a closed book seen from the front, as on Preform Library's icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#E6E8EE" android:pathData="M44.40,34.80 H67.44 A3.84,3.84 0 0 1 71.28,38.64 V69.36 A3.84,3.84 0 0 1 67.44,73.20 H44.40 A3.84,3.84 0 0 1 40.56,69.36 V38.64 A3.84,3.84 0 0 1 44.40,34.80 Z" />
+    <path android:fillColor="#8AB4F8" android:pathData="M40.56,32.88 H63.60 A3.84,3.84 0 0 1 67.44,36.72 V69.36 A3.84,3.84 0 0 1 63.60,73.20 H40.56 A3.84,3.84 0 0 1 36.72,69.36 V36.72 A3.84,3.84 0 0 1 40.56,32.88 Z" />
+    <path android:fillColor="#6787BA" android:pathData="M36.72,32.88 H41.52 V73.20 H36.72 Z" />
+    <path android:fillColor="#59000000" android:pathData="M46.32,41.52 H61.68 V44.40 H46.32 Z" />
+</vector>

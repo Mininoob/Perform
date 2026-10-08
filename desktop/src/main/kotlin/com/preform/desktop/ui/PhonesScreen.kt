@@ -69,7 +69,7 @@ fun PhonesScreen(service: LibraryService, state: WindowState) {
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 40.dp, vertical = 28.dp)) {
-        Text("Phones", fontFamily = FontFamily.Serif, fontSize = 26.sp, color = colors.text)
+        Text("Phones", fontFamily = LiterataDisplay, fontSize = 26.sp, color = colors.text)
         Text("Phones paired with this computer read its library, at home or over Tailscale.", color = colors.muted, fontSize = 13.sp)
         Spacer(Modifier.height(24.dp))
 
@@ -146,7 +146,7 @@ private fun PairPanel(service: LibraryService, onDone: () -> Unit) {
             Image(qr, "Pairing code", Modifier.size(200.dp))
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Scan with Preform", fontFamily = FontFamily.Serif, fontSize = 20.sp, color = colors.text)
+            Text("Scan with Preform", fontFamily = LiterataDisplay, fontSize = 20.sp, color = colors.text)
             Text("On your phone: Settings → Private library → Scan the PC's code.", color = colors.muted, fontSize = 13.sp)
             Spacer(Modifier.height(6.dp))
             Text("Or type this code", color = colors.muted, fontSize = 12.sp)

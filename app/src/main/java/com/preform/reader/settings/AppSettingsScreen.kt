@@ -99,7 +99,7 @@ fun AppSettingsScreen(state: AppSettingsState, actions: AppSettingsActions) {
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
-                title = { Text("Settings", fontFamily = FontFamily.Serif) },
+                title = { Text("Settings") },
                 navigationIcon = {
                     IconButton(onClick = actions.onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -358,7 +358,7 @@ private fun BaseCard(theme: AppTheme, selected: Boolean, onClick: () -> Unit, mo
                 .padding(10.dp),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text("Aa", color = p.text, fontFamily = FontFamily.Serif, fontSize = 18.sp)
+                Text("Aa", color = p.text, fontFamily = com.preform.reader.ui.Literata, fontSize = 18.sp)
                 Box(Modifier.fillMaxWidth(0.8f).height(3.dp).clip(RoundedCornerShape(2.dp)).background(p.muted))
                 Box(Modifier.fillMaxWidth(0.55f).height(3.dp).clip(RoundedCornerShape(2.dp)).background(p.muted))
             }
@@ -431,7 +431,7 @@ fun ReadingDefaultsScreen(
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
-                title = { Text("Default reading settings", fontFamily = FontFamily.Serif) },
+                title = { Text("Default reading settings") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")

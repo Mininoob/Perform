@@ -71,7 +71,7 @@ fun OrganizeDialog(state: WindowState, actions: Actions, onDismiss: () -> Unit) 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Glyphs.Sparkle, null, tint = colors.accent, modifier = Modifier.size(22.dp))
                     Spacer(Modifier.width(10.dp))
-                    Text("Organize", fontFamily = FontFamily.Serif, fontSize = 22.sp, color = colors.text)
+                    Text("Organize", fontFamily = LiterataDisplay, fontSize = 22.sp, color = colors.text)
                 }
                 Text("Nothing moves until you choose to. You can undo it afterwards.", color = colors.muted, fontSize = 13.sp)
                 Spacer(Modifier.height(20.dp))

@@ -25,7 +25,6 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,7 +36,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -82,7 +85,7 @@ fun ReaderTopBar(
         Text(
             title,
             color = colors.content,
-            fontFamily = FontFamily.Serif,
+            fontFamily = com.preform.reader.ui.Literata,
             fontSize = 16.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -96,7 +99,7 @@ fun ReaderTopBar(
             )
         }
         TextButton(onClick = onOpenSettings) {
-            Text("Aa", color = colors.content, fontFamily = FontFamily.Serif, fontSize = 18.sp)
+            Text("Aa", color = colors.content, fontFamily = com.preform.reader.ui.Literata, fontSize = 18.sp)
         }
     }
 }
@@ -161,7 +164,7 @@ fun FlexControls(
                 }
             }
             TextButton(onClick = onOpenSettings) {
-                Text("Aa", color = colors.content, fontFamily = FontFamily.Serif, fontSize = 18.sp)
+                Text("Aa", color = colors.content, fontFamily = com.preform.reader.ui.Literata, fontSize = 18.sp)
             }
         }
     }
@@ -173,16 +176,27 @@ private fun ProgressLine(chapter: String?, progression: Double, colors: ChromeCo
         Text(
             chapter.orEmpty(),
             color = colors.content.copy(alpha = 0.75f),
-            fontSize = 12.sp,
+            fontFamily = com.preform.reader.ui.Literata,
+            fontStyle = FontStyle.Italic,
+            fontSize = 13.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        Text("${(progression * 100).roundToInt()}%", color = colors.content.copy(alpha = 0.75f), fontSize = 12.sp)
+        Text(
+            "${(progression * 100).roundToInt()}%",
+            color = colors.content.copy(alpha = 0.75f),
+            style = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, fontFeatureSettings = "tnum"),
+        )
     }
 }
 
-/** Moves freely while dragging and jumps only on release, so the book isn't re-located every frame. */
+/**
+ * The book's progress rule, made draggable: the same 2dp line as in the library, with a
+ * small accent thumb. Moves freely while dragging and jumps only on release, so the book
+ * isn't re-located every frame.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SeekSlider(progression: Double, colors: ChromeColors, onSeek: (Double) -> Unit) {
     var dragging by remember { mutableStateOf(false) }
@@ -192,11 +206,15 @@ private fun SeekSlider(progression: Double, colors: ChromeColors, onSeek: (Doubl
         value = value,
         onValueChange = { dragging = true; value = it },
         onValueChangeFinished = { dragging = false; onSeek(value.toDouble()) },
-        colors = SliderDefaults.colors(
-            thumbColor = colors.accent,
-            activeTrackColor = colors.accent,
-            inactiveTrackColor = colors.content.copy(alpha = 0.2f),
-        ),
+        thumb = {
+            Box(Modifier.size(if (dragging) 18.dp else 12.dp).background(colors.accent, CircleShape))
+        },
+        track = { state ->
+            val fraction = (state.value - state.valueRange.start) / (state.valueRange.endInclusive - state.valueRange.start)
+            Box(Modifier.fillMaxWidth().height(2.dp).background(colors.content.copy(alpha = 0.18f))) {
+                Box(Modifier.fillMaxHeight().fillMaxWidth(fraction.coerceIn(0f, 1f)).background(colors.accent))
+            }
+        },
     )
 }
 

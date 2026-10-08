@@ -30,6 +30,7 @@ class PreformApp : Application() {
  * is small enough that a DI framework would cost more than it saves.
  */
 class AppContainer(context: Context) {
+    val appContext: Context = context.applicationContext
     /** For writes that must outlive a screen, like saving the reading position as the reader closes. */
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val preferences = PreferencesStore(context)
