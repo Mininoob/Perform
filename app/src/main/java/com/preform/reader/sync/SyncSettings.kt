@@ -98,7 +98,17 @@ class SyncSettings(private val context: Context) {
     val storageLimit: Flow<Long> = store.data.map { it[STORAGE_LIMIT] ?: DEFAULT_STORAGE_LIMIT }
     suspend fun setStorageLimit(bytes: Long) = store.edit { it[STORAGE_LIMIT] = bytes }
 
+    /** Download every PC book, not just the ones opened; nothing is cleared to make room. */
+    val keepAll: Flow<Boolean> = store.data.map { it[KEEP_ALL] ?: false }
+    suspend fun setKeepAll(on: Boolean) = store.edit { it[KEEP_ALL] = on }
+
+    /** Send books added on this phone (its folder and imports) into the PC library. */
+    val shareLocal: Flow<Boolean> = store.data.map { it[SHARE_LOCAL] ?: true }
+    suspend fun setShareLocal(on: Boolean) = store.edit { it[SHARE_LOCAL] = on }
+
     companion object {
+        private val KEEP_ALL = androidx.datastore.preferences.core.booleanPreferencesKey("keep_all")
+        private val SHARE_LOCAL = androidx.datastore.preferences.core.booleanPreferencesKey("share_local")
         const val DEFAULT_STORAGE_LIMIT = 2L * 1024 * 1024 * 1024
 
         private val CONNECTION = stringPreferencesKey("connection")

@@ -171,7 +171,13 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
                         }
                     }
                     // The PC library syncs alongside; being away from it is normal, so no message.
-                    launch { container.sync.sync() }
+                    launch {
+                        if (container.sync.sync().isSuccess) {
+                            // Then the phone's own books go to the PC, once each.
+                            container.sync.hashLocalBooks()
+                            runCatching { container.sync.uploadLocalBooks() }
+                        }
+                    }
                 }
             } finally {
                 refreshing.value = false

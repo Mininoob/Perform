@@ -23,6 +23,8 @@ class PreformApp : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        // Moves, uploads and keep-every-book carry on when the app isn't open.
+        com.preform.reader.sync.LibraryWorker.schedule(this)
     }
 }
 

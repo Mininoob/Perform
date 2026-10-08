@@ -84,6 +84,11 @@ data class BookEntity(
     val seriesIndex: Double? = null,
     /** Moved on this phone and not yet confirmed by the PC: a sync mustn't put it back. */
     @ColumnInfo(defaultValue = "0") val shelfDirty: Boolean = false,
+    /** Phone books: the size and date [contentId] was worked out at, so it's only hashed again after a change. */
+    val hashedSize: Long? = null,
+    val hashedModified: Long? = null,
+    /** Phone books: the PC has this book too (uploaded from here, or it had it already). */
+    @ColumnInfo(defaultValue = "0") val onPc: Boolean = false,
 ) {
     val genreList: List<String> get() = genres.split(GENRE_SEPARATOR).filter(String::isNotEmpty)
 
@@ -207,6 +212,33 @@ interface BookDao {
 
     @Query("DELETE FROM pending_changes")
     suspend fun clearAllPending()
+
+    // Full sync
+
+    /** Phone books with no id yet, or changed since they were hashed. */
+    @Query(
+        """SELECT * FROM books WHERE source != 'SERVER' AND hidden = 0
+           AND (contentId IS NULL OR hashedSize IS NULL OR hashedSize != sizeBytes OR hashedModified != lastModified) LIMIT :limit""",
+    )
+    suspend fun localBooksToHash(limit: Int): List<BookEntity>
+
+    @Query("UPDATE books SET contentId = :contentId, hashedSize = :size, hashedModified = :modified WHERE id = :id")
+    suspend fun setHash(id: Long, contentId: String, size: Long, modified: Long)
+
+    /** Phone books the PC doesn't have yet, ready to send. */
+    @Query("SELECT * FROM books WHERE source != 'SERVER' AND hidden = 0 AND contentId IS NOT NULL AND onPc = 0 AND hashedSize = sizeBytes LIMIT :limit")
+    suspend fun localBooksToUpload(limit: Int): List<BookEntity>
+
+    /** This phone's own copy of a book, if it has one. */
+    @Query("SELECT * FROM books WHERE source != 'SERVER' AND contentId = :contentId LIMIT 1")
+    suspend fun localBook(contentId: String): BookEntity?
+
+    @Query("UPDATE books SET onPc = 1 WHERE id = :id")
+    suspend fun setOnPc(id: Long)
+
+    /** PC books not on the phone yet, newest first. */
+    @Query("SELECT * FROM books WHERE source = 'SERVER' AND localPath IS NULL ORDER BY addedAt DESC")
+    suspend fun serverBooksToDownload(): List<BookEntity>
 }
 
 @Database(

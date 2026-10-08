@@ -155,6 +155,13 @@ class LibrarySync(
     }
 
     private suspend fun upsert(client: LibraryClient, book: CatalogBook) {
+        // The phone has this book itself (its folder): show that one, and know the PC has it too.
+        val own = dao.localBook(book.contentId) ?: book.previousIds.firstNotNullOfOrNull { dao.localBook(it) }
+        if (own != null && own.source == BookSource.FOLDER) {
+            if (!own.onPc) dao.setOnPc(own.id)
+            dao.serverBook(book.contentId)?.let { forget(it) }
+            return
+        }
         // The PC wrote information into the file, which gave it a new id: same book.
         val existing = dao.serverBook(book.contentId)
             ?: book.previousIds.firstNotNullOfOrNull { dao.serverBook(it) }
@@ -348,6 +355,8 @@ class LibrarySync(
     suspend fun freeUpSpace(keep: Long? = null, everything: Boolean = false) {
         val limit = settings.storageLimit.first()
         if (limit <= 0 && !everything) return
+        // Keeping every book: nothing is cleared behind the person's back.
+        if (!everything && settings.keepAll.first()) return
         val downloaded = dao.serverBooks().filter { it.localPath != null }
         var used = downloaded.sumOf { it.sizeBytes }
         val candidates = downloaded
@@ -359,6 +368,127 @@ class LibrarySync(
             used -= book.sizeBytes
         }
     }
+
+    // Full sync: every PC book on the phone, every phone book on the PC
+
+    /** How keeping every book is going, for the Private library screen. */
+    data class KeepAll(val onPhone: Int, val total: Int, val outOfRoom: Boolean)
+
+    private val _keepAll = MutableStateFlow<KeepAll?>(null)
+    val keepAllProgress: StateFlow<KeepAll?> = _keepAll
+
+    /**
+     * Downloads PC books not on the phone yet, newest first, while they fit in the storage
+     * limit. Stops at the limit rather than clearing anything.
+     */
+    suspend fun downloadAll() {
+        if (!settings.keepAll.first() || settings.connectionNow() == null) return
+        val limit = settings.storageLimit.first()
+        var used = storageUsed.first()
+        var outOfRoom = false
+        for (book in dao.serverBooksToDownload()) {
+            if (limit > 0 && used + book.sizeBytes > limit) {
+                outOfRoom = true
+                continue
+            }
+            if (download(book).isSuccess) used += book.sizeBytes else break
+            reportKeepAll(outOfRoom)
+        }
+        reportKeepAll(outOfRoom)
+    }
+
+    private suspend fun reportKeepAll(outOfRoom: Boolean) {
+        val all = dao.serverBooks()
+        _keepAll.value = KeepAll(all.count { it.localPath != null }, all.size, outOfRoom)
+    }
+
+    /**
+     * Works out ids for phone books (folder and imports), a few at a time, so the PC can
+     * tell which it already has. Only books changed since last time are read again.
+     */
+    suspend fun hashLocalBooks(limit: Int = HASH_BATCH) = withContext(Dispatchers.IO) {
+        for (book in dao.localBooksToHash(limit)) {
+            val id = runCatching {
+                context.contentResolver.openInputStream(android.net.Uri.parse(book.uri))!!.use(::contentIdOf)
+            }.getOrNull() ?: continue
+            dao.setHash(book.id, id, book.sizeBytes, book.lastModified)
+        }
+    }
+
+    /**
+     * Sends phone books the PC doesn't have into its library, each into the folder it's
+     * on here. An imported book then becomes a PC book that keeps its file, so it shows
+     * once and its moves reach the PC; a folder book stays read from its folder.
+     */
+    suspend fun uploadLocalBooks(limit: Int = UPLOAD_BATCH): Int = withContext(Dispatchers.IO) {
+        if (!settings.shareLocal.first()) return@withContext 0
+        val connection = settings.connectionNow() ?: return@withContext 0
+        val client = client(connection)
+        var sent = 0
+        for (book in dao.localBooksToUpload(limit)) {
+            val id = book.contentId!!
+            val already = dao.serverBook(id)
+            val catalog = if (already != null) null else {
+                val extension = if (book.format == BookFormat.PDF) "pdf" else "epub"
+                val name = listOfNotNull(book.author, book.title).joinToString(" - ") + ".$extension"
+                val (file, temporary) = localFile(book) ?: continue
+                try {
+                    client.upload(file, name, book.shelf.ifEmpty { null })
+                } catch (e: IOException) {
+                    if (e is NotPairedException) throw e
+                    break // Out of reach: the rest wait for next time.
+                } finally {
+                    if (temporary) file.delete()
+                }
+            }
+            if (book.source == BookSource.IMPORTED) adopt(book, already, catalog) else dao.setOnPc(book.id)
+            sent++
+        }
+        sent
+    }
+
+    /** An imported book the PC now has: becomes the PC book, with the import as its download. */
+    private suspend fun adopt(book: BookEntity, already: BookEntity?, catalog: CatalogBook?) {
+        val path = android.net.Uri.parse(book.uri).path ?: return
+        if (already != null) {
+            // The PC had it all along: keep the PC's row, with this copy as its download and this reading.
+            val newer = (book.lastOpenedAt ?: 0) > (already.lastOpenedAt ?: 0)
+            dao.update(
+                already.copy(
+                    localPath = already.localPath ?: path,
+                    pinned = true,
+                    locatorJson = if (newer) book.locatorJson else already.locatorJson,
+                    progression = if (newer) book.progression else already.progression,
+                    lastOpenedAt = maxOf(book.lastOpenedAt ?: 0, already.lastOpenedAt ?: 0).takeIf { it > 0 },
+                ),
+            )
+            if (already.localPath != null) File(path).delete()
+            dao.delete(listOf(book.id))
+            return
+        }
+        val c = catalog ?: return
+        dao.update(
+            book.copy(
+                source = BookSource.SERVER,
+                uri = "$URI_SCHEME${c.contentId}",
+                contentId = c.contentId,
+                localPath = path,
+                // The person's own book: never cleared to make room.
+                pinned = true,
+                shelf = c.folder,
+                onPc = true,
+            ),
+        )
+    }
+
+    /** A readable file for a phone book: the import itself, or a copy of a folder book. */
+    private fun localFile(book: BookEntity): Pair<File, Boolean>? = runCatching {
+        val uri = android.net.Uri.parse(book.uri)
+        if (uri.scheme == "file") return@runCatching File(uri.path!!) to false
+        val copy = File(context.cacheDir, "upload-${book.id}.part")
+        context.contentResolver.openInputStream(uri)!!.use { input -> copy.outputStream().use { input.copyTo(it) } }
+        copy to true
+    }.getOrNull()
 
     // Housekeeping
 
@@ -390,6 +520,10 @@ class LibrarySync(
 
         /** The PC looks up one book a second, so a small batch answers well within the timeout. */
         private const val LOOKUP_BATCH = 8
+
+        /** Hashing reads whole files: a few per pass keeps the phone cool. */
+        private const val HASH_BATCH = 12
+        private const val UPLOAD_BATCH = 20
     }
 }
 

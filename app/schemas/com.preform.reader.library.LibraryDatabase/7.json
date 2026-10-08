@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 7,
-    "identityHash": "8ca8d127acea469bffa8a389ecba9dd3",
+    "identityHash": "ec34b4030396e25e038e0e41c4b3c543",
     "entities": [
       {
         "tableName": "books",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `uri` TEXT NOT NULL, `source` TEXT NOT NULL, `format` TEXT NOT NULL, `title` TEXT NOT NULL, `author` TEXT, `sizeBytes` INTEGER NOT NULL, `lastModified` INTEGER NOT NULL, `coverThumbPath` TEXT, `coverFullPath` TEXT, `coverColor` INTEGER, `rightToLeft` INTEGER NOT NULL, `locatorJson` TEXT, `progression` REAL NOT NULL, `addedAt` INTEGER NOT NULL, `lastOpenedAt` INTEGER, `hidden` INTEGER NOT NULL, `prefsOverrideJson` TEXT, `bookMode` INTEGER, `contentId` TEXT, `localPath` TEXT, `pinned` INTEGER NOT NULL DEFAULT 0, `coverEtag` TEXT, `positionAt` INTEGER, `settingsAt` INTEGER, `bookModeAt` INTEGER, `stateDirty` INTEGER NOT NULL DEFAULT 0, `shelf` TEXT NOT NULL DEFAULT '', `genres` TEXT NOT NULL DEFAULT '', `description` TEXT, `year` INTEGER, `titleFromFile` INTEGER NOT NULL DEFAULT 0, `lookedUp` INTEGER NOT NULL DEFAULT 0, `series` TEXT, `seriesIndex` REAL, `shelfDirty` INTEGER NOT NULL DEFAULT 0)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `uri` TEXT NOT NULL, `source` TEXT NOT NULL, `format` TEXT NOT NULL, `title` TEXT NOT NULL, `author` TEXT, `sizeBytes` INTEGER NOT NULL, `lastModified` INTEGER NOT NULL, `coverThumbPath` TEXT, `coverFullPath` TEXT, `coverColor` INTEGER, `rightToLeft` INTEGER NOT NULL, `locatorJson` TEXT, `progression` REAL NOT NULL, `addedAt` INTEGER NOT NULL, `lastOpenedAt` INTEGER, `hidden` INTEGER NOT NULL, `prefsOverrideJson` TEXT, `bookMode` INTEGER, `contentId` TEXT, `localPath` TEXT, `pinned` INTEGER NOT NULL DEFAULT 0, `coverEtag` TEXT, `positionAt` INTEGER, `settingsAt` INTEGER, `bookModeAt` INTEGER, `stateDirty` INTEGER NOT NULL DEFAULT 0, `shelf` TEXT NOT NULL DEFAULT '', `genres` TEXT NOT NULL DEFAULT '', `description` TEXT, `year` INTEGER, `titleFromFile` INTEGER NOT NULL DEFAULT 0, `lookedUp` INTEGER NOT NULL DEFAULT 0, `series` TEXT, `seriesIndex` REAL, `shelfDirty` INTEGER NOT NULL DEFAULT 0, `hashedSize` INTEGER, `hashedModified` INTEGER, `onPc` INTEGER NOT NULL DEFAULT 0)",
         "fields": [
           {
             "fieldPath": "id",
@@ -212,6 +212,23 @@
             "affinity": "INTEGER",
             "notNull": true,
             "defaultValue": "0"
+          },
+          {
+            "fieldPath": "hashedSize",
+            "columnName": "hashedSize",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "hashedModified",
+            "columnName": "hashedModified",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "onPc",
+            "columnName": "onPc",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
           }
         ],
         "primaryKey": {
@@ -290,7 +307,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8ca8d127acea469bffa8a389ecba9dd3')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'ec34b4030396e25e038e0e41c4b3c543')"
     ]
   }
 }

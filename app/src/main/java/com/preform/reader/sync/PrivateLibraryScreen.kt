@@ -1,5 +1,7 @@
 package com.preform.reader.sync
 
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.Switch
 import android.text.format.DateUtils
 import android.text.format.Formatter
 import androidx.compose.foundation.horizontalScroll
@@ -64,6 +66,9 @@ fun PrivateLibraryScreen(sync: LibrarySync, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
     val connection by sync.settings.connection.collectAsState(null)
+    val keepAll by sync.settings.keepAll.collectAsState(initial = false)
+    val shareLocal by sync.settings.shareLocal.collectAsState(initial = true)
+    val keepAllProgress by sync.keepAllProgress.collectAsState()
     val status by sync.status.collectAsState()
     val lastSync by sync.settings.lastSync.collectAsState(null)
     val used by sync.storageUsed.collectAsState(0L)
@@ -155,6 +160,37 @@ fun PrivateLibraryScreen(sync: LibrarySync, onBack: () -> Unit) {
                             Text("Sync now")
                         }
                         TextButton(onClick = { confirmUnpair = true }) { Text("Unpair") }
+                    }
+                }
+
+                Group("Full sync") {
+                    Toggle(
+                        title = "Keep every book on this phone",
+                        detail = when {
+                            !keepAll -> "Books download when you open them."
+                            keepAllProgress == null -> "Downloads on Wi-Fi, newest first."
+                            keepAllProgress!!.outOfRoom ->
+                                "${keepAllProgress!!.onPhone} of ${keepAllProgress!!.total} books fit. Raise the limit below to keep the rest."
+                            keepAllProgress!!.onPhone < keepAllProgress!!.total ->
+                                "${keepAllProgress!!.onPhone} of ${keepAllProgress!!.total} on this phone. The rest download on Wi-Fi."
+                            else -> "All ${keepAllProgress!!.total} books are on this phone."
+                        },
+                        checked = keepAll,
+                    ) { on ->
+                        scope.launch {
+                            sync.settings.setKeepAll(on)
+                            if (on) LibraryWorker.runSoon(context)
+                        }
+                    }
+                    Toggle(
+                        title = "Add this phone's books to ${current.serverName}",
+                        detail = "Books in your folder here and books you add go into the PC library, on the shelf they're on. Removing one here never removes it from the PC.",
+                        checked = shareLocal,
+                    ) { on ->
+                        scope.launch {
+                            sync.settings.setShareLocal(on)
+                            if (on) LibraryWorker.runSoon(context)
+                        }
                     }
                 }
 
@@ -306,6 +342,21 @@ private fun Group(title: String, content: @Composable () -> Unit) {
         content()
         Spacer(Modifier.height(2.dp))
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    }
+}
+
+@Composable
+private fun Toggle(title: String, detail: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable { onChange(!checked) },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Switch(checked = checked, onCheckedChange = onChange)
     }
 }
 
