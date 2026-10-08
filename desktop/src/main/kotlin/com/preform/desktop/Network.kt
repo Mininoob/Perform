@@ -36,7 +36,7 @@ object Addresses {
 
     /** The tailnet's MagicDNS name for this PC, if Tailscale is installed and signed in. */
     private fun tailscaleName(): String? = runCatching {
-        val process = ProcessBuilder("tailscale", "status", "--self", "--peers=false", "--json")
+        val process = ProcessBuilder(Platform.current.tailscaleCommand, "status", "--self", "--peers=false", "--json")
             .redirectErrorStream(true)
             .start()
         val out = process.inputStream.bufferedReader().readText()

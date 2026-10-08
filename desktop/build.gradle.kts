@@ -54,3 +54,8 @@ compose.desktop {
         }
     }
 }
+
+tasks.test {
+    // For WindowScreenshots: -Dscreenshots.data=<a data folder to render from>.
+    systemProperty("screenshots.data", System.getProperty("screenshots.data") ?: "")
+}

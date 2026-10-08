@@ -5,6 +5,9 @@ import com.preform.sync.CatalogBook
 import com.preform.sync.Format
 import com.preform.sync.Protocol
 import com.preform.sync.mergedWith
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import java.nio.file.Path
 import java.sql.Connection
 import java.sql.DriverManager
@@ -46,6 +49,13 @@ data class Device(
 class Store(file: Path) : AutoCloseable {
 
     private val db: Connection = DriverManager.getConnection("jdbc:sqlite:${file.toAbsolutePath()}")
+
+    private val _changes = MutableStateFlow(0L)
+
+    /** Ticks on every change (books, reading state, devices), so the window can refresh. */
+    val changes: StateFlow<Long> = _changes
+
+    private fun changed() = _changes.update { it + 1 }
 
     init {
         db.createStatement().use { s ->
@@ -92,6 +102,7 @@ class Store(file: Path) : AutoCloseable {
     private fun nextRev(): Long {
         val next = (meta("rev")?.toLong() ?: 0L) + 1
         setMeta("rev", next.toString())
+        changed()
         return next
     }
 
@@ -350,6 +361,7 @@ class Store(file: Path) : AutoCloseable {
             p.setLong(4, now)
             p.executeUpdate()
         }
+        changed()
     }
 
     /** The device holding this token, if it's still paired. */
@@ -365,6 +377,7 @@ class Store(file: Path) : AutoCloseable {
             p.setString(2, deviceId)
             p.executeUpdate()
         }
+        changed()
     }
 
     fun devices(): List<Device> =
@@ -378,6 +391,7 @@ class Store(file: Path) : AutoCloseable {
             p.setString(1, deviceId)
             p.executeUpdate()
         }
+        changed()
     }
 
     override fun close() = db.close()

@@ -96,6 +96,18 @@ class Library(
         return store.book(contentId)!!.catalog
     }
 
+    /** Every folder under the library ("Fiction/Fantasy"), empty ones too; hidden ones skipped. */
+    fun folders(): List<String> {
+        val rootPath = root()
+        if (!rootPath.isDirectory()) return emptyList()
+        return Files.walk(rootPath).use { paths ->
+            paths.filter { it != rootPath && it.isDirectory() }
+                .map { rootPath.relativize(it).invariantSeparatorsPathString }
+                .filter { path -> path.split('/').none { it.startsWith('.') } }
+                .toList()
+        }.sortedBy { it.lowercase() }
+    }
+
     fun file(book: LibraryBook): Path? {
         val rootPath = root().toAbsolutePath().normalize()
         val file = rootPath.resolve(book.relativePath).normalize()

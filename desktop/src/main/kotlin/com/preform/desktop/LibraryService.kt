@@ -3,10 +3,13 @@ package com.preform.desktop
 import com.preform.sync.PairingInvite
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.nio.file.Path
@@ -14,22 +17,22 @@ import java.nio.file.Path
 data class Status(
     val libraryRoot: String,
     val libraryFound: Boolean,
-    val bookCount: Int,
     val devices: List<Device>,
     val addresses: List<String>,
     val error: String? = null,
 )
 
-/** Everything the tray app runs: store, scanner, HTTPS server, discovery. */
-class LibraryService(private val paths: AppPaths) {
+/** Everything the app runs: store, scanner, HTTPS server, discovery, lookups, and what the window shows. */
+class LibraryService(private val paths: AppPaths, val platform: Platform = Platform.current) {
 
-    var config: AppConfig = AppConfig.loadOrCreate(paths)
-        private set
+    private val _config = MutableStateFlow(AppConfig.loadOrCreate(paths, platform))
+    val configFlow: StateFlow<AppConfig> = _config
+    val config: AppConfig get() = _config.value
 
     private val store = Store(paths.database)
     private val identity = TlsIdentity(paths.identity, config.keystorePassword)
     private val pairing = PairingWindow()
-    private val library = Library({ Path.of(config.libraryRoot) }, store, paths.covers)
+    val library = Library({ Path.of(config.libraryRoot) }, store, paths.covers)
     private val bookInfo = BookInfoService(store, library, OpenLibrary(), paths.backups, { config })
     private val server = LibraryServer(
         ServerDeps(
@@ -41,19 +44,33 @@ class LibraryService(private val paths: AppPaths) {
         config.port,
     )
     private val discovery = Discovery(config.serverId, config.serverName, config.port)
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var scanning: Job? = null
 
-    private val _status = MutableStateFlow(status())
+    private val _status = MutableStateFlow(status(addresses = emptyList()))
     val status: StateFlow<Status> = _status
 
+    /** Every book in the library, kept current. */
+    private val _books = MutableStateFlow(store.liveBooks())
+    val books: StateFlow<List<LibraryBook>> = _books
+
+    /** Every folder in the library ("Fiction/Fantasy"), empty ones included. */
+    private val _folders = MutableStateFlow(library.folders())
+    val folders: StateFlow<List<String>> = _folders
+
+    /** What the app is busy with, for the status line; null when idle. */
+    private val _activity = MutableStateFlow<String?>(null)
+    val activity: StateFlow<String?> = _activity
+
+    @OptIn(FlowPreview::class)
     fun start() {
         runCatching { server.start() }.onFailure {
             _status.value = status().copy(error = "Couldn't start on port ${config.port}. Is Preform Library already running?")
             return
         }
         discovery.start()
-        // Rescan regularly; each pass only re-reads new or changed files.
+        // The window follows every change: scans, lookups, phones, edits.
+        scope.launch { store.changes.debounce(150).collect { refreshLists() } }
         scanning = scope.launch {
             while (isActive) {
                 rescan()
@@ -62,22 +79,53 @@ class LibraryService(private val paths: AppPaths) {
         }
     }
 
+    /** Re-reads the folder (only new or changed files cost anything), then looks up what's new. */
     fun rescan() {
+        _activity.value = "Checking library…"
         runCatching { library.scan() }
+        refreshLists()
         _status.value = status()
-        if (config.lookUpOnline) {
+        if (config.lookUpOnline && store.booksAwaitingLookup().isNotEmpty()) {
+            _activity.value = "Looking up book information…"
             runCatching { bookInfo.lookUpPending() }
-            _status.value = status()
         }
+        _activity.value = null
+    }
+
+    fun rescanSoon() {
+        scope.launch { rescan() }
+    }
+
+    fun refreshLists() {
+        _books.value = store.liveBooks()
+        _folders.value = library.folders()
+    }
+
+    // Settings
+
+    private fun updateConfig(change: (AppConfig) -> AppConfig) {
+        _config.value = change(config).also { it.save(paths) }
     }
 
     fun setLookUpOnline(on: Boolean) {
-        config = config.copy(lookUpOnline = on).also { it.save(paths) }
-        if (on) scope.launch { rescan() }
+        updateConfig { it.copy(lookUpOnline = on) }
+        if (on) rescanSoon()
     }
 
-    fun setWriteIntoFiles(on: Boolean) {
-        config = config.copy(writeIntoFiles = on).also { it.save(paths) }
+    fun setWriteIntoFiles(on: Boolean) = updateConfig { it.copy(writeIntoFiles = on) }
+
+    fun setTheme(base: ThemeBase = config.themeBase, accent: ThemeAccent = config.themeAccent) =
+        updateConfig { it.copy(themeBase = base, themeAccent = accent) }
+
+    fun setStartAtLogin(on: Boolean) {
+        updateConfig { it.copy(startWithWindows = on) }
+        platform.setStartAtLogin(on)
+    }
+
+    fun setLibraryRoot(folder: Path) {
+        updateConfig { it.copy(libraryRoot = folder.toString()) }
+        _status.value = status()
+        rescanSoon()
     }
 
     val backupCount: Int get() = bookInfo.backupCount()
@@ -85,8 +133,10 @@ class LibraryService(private val paths: AppPaths) {
     /** Puts every original book file back, and stops writing into files. */
     fun restoreOriginals(): Int {
         setWriteIntoFiles(false)
-        return bookInfo.restoreOriginals().also { _status.value = status() }
+        return bookInfo.restoreOriginals().also { refreshLists() }
     }
+
+    // Phones
 
     /** Opens a five-minute pairing window and returns what the QR code shows. */
     fun invite(): PairingInvite = PairingInvite(
@@ -95,7 +145,7 @@ class LibraryService(private val paths: AppPaths) {
         port = config.port,
         certSha256 = identity.fingerprint,
         code = pairing.open(),
-        addresses = Addresses.current(),
+        addresses = _status.value.addresses.ifEmpty { Addresses.current() },
     )
 
     fun closePairing() = pairing.close()
@@ -107,17 +157,8 @@ class LibraryService(private val paths: AppPaths) {
         _status.value = status()
     }
 
-    fun setLibraryRoot(folder: Path) {
-        config = config.copy(libraryRoot = folder.toString()).also { it.save(paths) }
-        scope.launch { rescan() }
-    }
-
-    fun setStartWithWindows(on: Boolean) {
-        config = config.copy(startWithWindows = on).also { it.save(paths) }
-        Autostart.apply(on)
-    }
-
-    fun refresh() {
+    /** Refreshes devices and addresses (addresses ask the network and Tailscale, so not too often). */
+    fun refreshStatus() {
         _status.value = status()
     }
 
@@ -128,34 +169,14 @@ class LibraryService(private val paths: AppPaths) {
         store.close()
     }
 
-    private fun status() = Status(
+    private fun status(addresses: List<String> = Addresses.current()) = Status(
         libraryRoot = config.libraryRoot,
         libraryFound = Path.of(config.libraryRoot).toFile().isDirectory,
-        bookCount = store.liveBooks().size,
         devices = store.devices(),
-        addresses = Addresses.current(),
+        addresses = addresses,
     )
 
     private companion object {
         const val RESCAN_MS = 30_000L
-    }
-}
-
-/** Start with Windows, via the per-user Run key; only possible from the packaged .exe. */
-object Autostart {
-    private const val KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"
-    private const val VALUE = "Preform Library"
-
-    /** The installed .exe, as jpackage reports it; null when running from a build. */
-    val exe: String? get() = System.getProperty("jpackage.app-path")
-
-    fun apply(on: Boolean) {
-        val command = if (on) {
-            val path = exe ?: return
-            listOf("reg", "add", KEY, "/v", VALUE, "/t", "REG_SZ", "/d", "\"$path\" --background", "/f")
-        } else {
-            listOf("reg", "delete", KEY, "/v", VALUE, "/f")
-        }
-        runCatching { ProcessBuilder(command).redirectErrorStream(true).start().waitFor() }
     }
 }

@@ -1,0 +1,60 @@
+package com.preform.desktop
+
+import androidx.compose.ui.ImageComposeScene
+import androidx.compose.ui.unit.Density
+import com.preform.desktop.ui.CoverCache
+import com.preform.desktop.ui.LibraryWindow
+import com.preform.desktop.ui.Place
+import com.preform.desktop.ui.PreformTheme
+import com.preform.desktop.ui.WindowState
+import org.jetbrains.skia.EncodedImageFormat
+import org.junit.Assume.assumeTrue
+import org.junit.Test
+import java.nio.file.Files
+import java.nio.file.Path
+import kotlin.io.path.createDirectories
+import kotlin.io.path.writeBytes
+
+/**
+ * Renders the window off-screen to PNGs for review, from a copy of a real data folder:
+ * `./gradlew :desktop:test --tests '*WindowScreenshots*' -Dscreenshots.data=<data dir>`.
+ * Skipped in normal test runs.
+ */
+class WindowScreenshots {
+
+    @Test
+    fun render() {
+        val source = System.getProperty("screenshots.data")
+        assumeTrue("Set screenshots.data to render", !source.isNullOrBlank())
+        val data = Files.createTempDirectory("preform-shots")
+        Path.of(source!!).toFile().copyRecursively(data.toFile())
+        val out = Path.of("build/screenshots").createDirectories()
+
+        val service = LibraryService(AppPaths(data))
+        service.refreshLists()
+        val covers = CoverCache(service.library)
+        val books = service.books.value
+
+        fun shot(name: String, base: ThemeBase, accent: ThemeAccent, setup: WindowState.() -> Unit) {
+            val state = WindowState().apply(setup)
+            val scene = ImageComposeScene(1240, 820, Density(1f)) {
+                PreformTheme(base, accent) { LibraryWindow(service, covers, state) }
+            }
+            // Covers load on a background thread; give them a few frames.
+            repeat(12) { i ->
+                scene.render(i * 100_000_000L)
+                Thread.sleep(120)
+            }
+            val png = scene.render(2_000_000_000L).encodeToData(EncodedImageFormat.PNG)!!.bytes
+            out.resolve("$name.png").writeBytes(png)
+            scene.close()
+        }
+
+        val dune = books.firstOrNull { it.catalog.title == "Dune" }?.catalog?.contentId
+        shot("all-ink", ThemeBase.INK, ThemeAccent.BLUE) { dune?.let { selection = setOf(it) } }
+        shot("folder-paper", ThemeBase.PAPER, ThemeAccent.GREEN) { place = Place.Folder("Fiction") }
+        shot("phones-slate", ThemeBase.SLATE, ThemeAccent.VIOLET) { place = Place.Phones }
+        shot("settings-mono", ThemeBase.MONO, ThemeAccent.RED) { place = Place.Settings }
+        service.stop()
+    }
+}

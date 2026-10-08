@@ -29,13 +29,20 @@ class AppPaths(val data: Path) {
     }
 
     companion object {
-        fun default(): AppPaths {
+        fun default(platform: Platform = Platform.current): AppPaths {
             val override = System.getenv("PREFORM_DATA_DIR")?.takeIf { it.isNotBlank() }
-            val base = override ?: (System.getenv("APPDATA") ?: System.getProperty("user.home")) + "\\Preform"
-            return AppPaths(Path.of(base))
+            return AppPaths(override?.let { Path.of(it) } ?: platform.dataDir)
         }
     }
 }
+
+/** The organizer's look: the same bases and accents as the phone. */
+enum class ThemeBase(val dark: Boolean) {
+    MONO(false), PAPER(false), PARCHMENT(false),
+    NOIR(true), INK(true), SLATE(true),
+}
+
+enum class ThemeAccent { MONO, RED, PINK, YELLOW, GREEN, TEAL, BLUE, INDIGO, VIOLET }
 
 @Serializable
 data class AppConfig(
@@ -50,26 +57,24 @@ data class AppConfig(
     val lookUpOnline: Boolean = true,
     /** Also write what was found into the book files, keeping the originals as backups. */
     val writeIntoFiles: Boolean = true,
+    val themeBase: ThemeBase = ThemeBase.INK,
+    val themeAccent: ThemeAccent = ThemeAccent.BLUE,
 ) {
     fun save(paths: AppPaths) = paths.config.writeText(Protocol.json.encodeToString(serializer(), this))
 
     companion object {
-        fun loadOrCreate(paths: AppPaths): AppConfig {
+        fun loadOrCreate(paths: AppPaths, platform: Platform = Platform.current): AppConfig {
             if (paths.config.exists()) {
                 runCatching { return Protocol.json.decodeFromString(serializer(), paths.config.readText()) }
             }
-            val library = System.getenv("PREFORM_LIBRARY")?.takeIf { it.isNotBlank() }
-                ?: DEFAULT_LIBRARY.takeIf { Path.of(it).exists() }
-                ?: (System.getProperty("user.home") + "\\Documents\\Books")
+            val library = System.getenv("PREFORM_LIBRARY")?.takeIf { it.isNotBlank() } ?: platform.defaultLibrary.toString()
             return AppConfig(
                 serverId = UUID.randomUUID().toString(),
-                serverName = System.getenv("COMPUTERNAME")?.takeIf { it.isNotBlank() } ?: "My PC",
+                serverName = platform.computerName(),
                 port = Protocol.DEFAULT_PORT,
                 libraryRoot = library,
                 keystorePassword = ByteArray(24).also(SecureRandom()::nextBytes).joinToString("") { "%02x".format(it) },
             ).also { it.save(paths) }
         }
-
-        const val DEFAULT_LIBRARY = "E:\\Books"
     }
 }
