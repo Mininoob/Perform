@@ -1,0 +1,4 @@
+# Shell scripts and plists run or are read on macOS: keep Unix line endings.
+*.sh text eol=lf
+gradlew text eol=lf
+*.plist text eol=lf

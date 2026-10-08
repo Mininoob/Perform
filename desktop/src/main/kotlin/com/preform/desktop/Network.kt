@@ -49,10 +49,27 @@ object Addresses {
  * Announces the library on the home network (DNS-SD), so a phone still finds the PC
  * after the router hands it a new address.
  */
-class Discovery(private val serverId: String, private val name: String, private val port: Int) {
+class Discovery(
+    private val serverId: String,
+    private val name: String,
+    private val port: Int,
+    private val platform: Platform = Platform.current,
+) {
     private val running = mutableListOf<JmDNS>()
+    private var dnsSd: Process? = null
 
     fun start() {
+        if (platform.isMac) {
+            // macOS has its own mDNS responder; announcing through it (dns-sd) avoids two
+            // stacks fighting over port 5353 and needs no extra permission.
+            dnsSd = runCatching {
+                ProcessBuilder("dns-sd", "-R", name, Protocol.SERVICE_TYPE, "local", port.toString(), "id=$serverId")
+                    .redirectErrorStream(true)
+                    .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                    .start()
+            }.getOrNull()
+            return
+        }
         Addresses.current()
             .filter { !Addresses.isTailscale(it) && it.first().isDigit() }
             .forEach { ip ->
@@ -67,6 +84,8 @@ class Discovery(private val serverId: String, private val name: String, private 
     }
 
     fun stop() {
+        dnsSd?.destroy()
+        dnsSd = null
         running.forEach { runCatching { it.unregisterAllServices(); it.close() } }
         running.clear()
     }
