@@ -88,7 +88,8 @@ class PeerWindowTest {
         state.go(Place.Peer("mac-id"))
         waitForIdle()
 
-        onNodeWithText("Studio Mac").assertExists()
+        // In the sidebar and as the page's title.
+        assertTrue(onAllNodesWithText("Studio Mac").fetchSemanticsNodes().size >= 2)
         // Emma is the same file as ours; Dune isn't here at all.
         onNodeWithText("In yours").assertExists()
         onNodeWithText("Not in yours").assertExists()
