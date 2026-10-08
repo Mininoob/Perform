@@ -207,7 +207,8 @@ private fun BookGrid(
     val page = state.page
     val atTop = state.location == null
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 104.dp),
+        // The same cover scale as the shelf rows: one series, one size.
+        columns = GridCells.Adaptive(minSize = 96.dp),
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = Margin, end = Margin, bottom = 32.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -333,18 +334,19 @@ private fun InHand(book: BookEntity, opening: Boolean, onOpen: () -> Unit, onDet
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            val started = book.progression >= 0.005
             Spacer(Modifier.height(18.dp))
             ProgressRule(book.progression, Modifier.fillMaxWidth())
             Spacer(Modifier.height(8.dp))
             Text(
-                listOfNotNull("${(book.progression * 100).roundToInt()}%", chapterOf(book)).joinToString("  ·  "),
+                if (started) listOfNotNull("${(book.progression * 100).roundToInt()}%", chapterOf(book)).joinToString("  ·  ") else "Not started",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Spacer(Modifier.height(18.dp))
-            Button(onClick = onOpen) { Text("Continue") }
+            Button(onClick = onOpen) { Text(if (started) "Continue" else "Read") }
         }
     }
 }
@@ -357,9 +359,9 @@ private fun chapterOf(book: BookEntity): String? =
 @Composable
 private fun ViewTabs(view: LibraryView, onChange: (LibraryView) -> Unit, modifier: Modifier = Modifier) {
     val selected = LibraryView.entries.indexOf(view)
+    Column(modifier) {
     SecondaryScrollableTabRow(
         selectedTabIndex = selected,
-        modifier = modifier,
         edgePadding = Margin - 16.dp,
         containerColor = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
@@ -369,7 +371,7 @@ private fun ViewTabs(view: LibraryView, onChange: (LibraryView) -> Unit, modifie
                 color = MaterialTheme.colorScheme.onBackground,
             )
         },
-        divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant) },
+        divider = {},
     ) {
         LibraryView.entries.forEachIndexed { i, option ->
             Tab(
@@ -380,6 +382,8 @@ private fun ViewTabs(view: LibraryView, onChange: (LibraryView) -> Unit, modifie
                 text = { Text(option.label, style = MaterialTheme.typography.labelLarge) },
             )
         }
+    }
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 
@@ -398,7 +402,7 @@ private fun GridHead(title: String?, count: Int, sort: LibrarySort, onSortChange
             modifier = Modifier.weight(1f),
         )
         Box {
-            TextButton(onClick = { open = true }) { Text(sort.label) }
+            TextButton(onClick = { open = true }, colors = quiet()) { Text(sort.label) }
             DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
                 LibrarySort.entries.forEach { option ->
                     DropdownMenuItem(text = { Text(option.label) }, onClick = { onSortChange(option); open = false })
@@ -428,21 +432,22 @@ private fun ShelfRow(
 ) {
     Column(Modifier.bleed(Margin)) {
         Row(Modifier.fillMaxWidth().padding(start = Margin, end = Margin - 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                shelf.name,
-                style = MaterialTheme.typography.titleLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false),
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(
-                "${shelf.books.size}",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(onClick = onEnter) { Text("See all") }
+            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    shelf.name,
+                    style = MaterialTheme.typography.titleLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "${shelf.books.size}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            TextButton(onClick = onEnter, colors = quiet()) { Text("See all") }
         }
         Spacer(Modifier.height(6.dp))
         LazyRow(
@@ -582,6 +587,10 @@ private fun Cover(book: BookEntity, opening: Boolean, modifier: Modifier, downlo
 
 enum class DownloadAction { PIN, UNPIN, REMOVE_DOWNLOAD }
 
+/** Secondary text actions: the accent is kept for the way forward (the book in hand, Read, Continue). */
+@Composable
+private fun quiet() = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+
 /** Reading progress as one rule: the line is the state, no badge or percentage pill. */
 @Composable
 private fun ProgressRule(progress: Double, modifier: Modifier) {
@@ -600,7 +609,7 @@ private fun BookSheet(book: BookEntity, onDismiss: () -> Unit, onOpen: () -> Uni
                 Cover(book, opening = false, modifier = Modifier.width(112.dp), large = true)
                 Spacer(Modifier.width(20.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(book.title, style = MaterialTheme.typography.headlineSmall)
+                    Text(book.title, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
                     book.author?.let {
                         Text(
                             it,

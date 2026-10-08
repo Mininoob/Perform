@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.AndroidUiDispatcher
 import androidx.compose.ui.platform.LocalConfiguration
@@ -265,6 +266,15 @@ class ReaderActivity : FragmentActivity() {
         val colors = if (session.book.format == BookFormat.PDF) appColors else prefs.colors(appColors)
         LaunchedEffect(colors.background) { pdfLock.background = colors.background }
         val chrome = colors.toChrome(accent = palette.accent)
+        // System bar icons contrast with the page itself: dark icons on a light page.
+        val lightPage = androidx.compose.ui.graphics.Color(colors.background).luminance() > 0.5f
+        val view = androidx.compose.ui.platform.LocalView.current
+        androidx.compose.runtime.SideEffect {
+            androidx.core.view.WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = lightPage
+                isAppearanceLightNavigationBars = lightPage
+            }
+        }
         var showSettings by remember { mutableStateOf(false) }
         val pageCount = pdfPages?.pageCount ?: 0
         val progression = spread?.let { if (pageCount > 1) it / (pageCount - 1).toDouble() else 0.0 }

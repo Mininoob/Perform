@@ -62,6 +62,14 @@ class MainActivity : ComponentActivity() {
             // the theme picked in settings.
             val effectiveTheme by prefs.effectiveTheme.collectAsStateWithLifecycle(AppTheme.DEFAULT)
             val appTheme by prefs.appTheme.collectAsStateWithLifecycle(AppTheme.DEFAULT)
+            // System bar icons follow the app's theme, not the phone's: dark icons on a light base.
+            val view = androidx.compose.ui.platform.LocalView.current
+            androidx.compose.runtime.SideEffect {
+                androidx.core.view.WindowCompat.getInsetsController(window, view).apply {
+                    isAppearanceLightStatusBars = !effectiveTheme.base.dark
+                    isAppearanceLightNavigationBars = !effectiveTheme.base.dark
+                }
+            }
             PreformTheme(effectiveTheme) {
                 val library: LibraryViewModel = viewModel { LibraryViewModel(container) }
                 val state by library.state.collectAsStateWithLifecycle()

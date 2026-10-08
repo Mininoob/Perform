@@ -247,7 +247,7 @@ private fun Group(title: String, content: @Composable () -> Unit) {
             title.uppercase(),
             style = MaterialTheme.typography.labelSmall,
             letterSpacing = 1.2.sp,
-            color = MaterialTheme.colorScheme.primary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         content()
         Spacer(Modifier.height(2.dp))
