@@ -52,6 +52,10 @@ data class LibraryUiState(
     val page: ShelfPage? = null,
     /** False until the first database read, so an empty library isn't flashed on launch. */
     val loaded: Boolean = false,
+    /** Every folder there is, for "Move to". */
+    val folders: List<String> = emptyList(),
+    /** Books picked in selection mode; empty when not selecting. */
+    val selection: Set<Long> = emptySet(),
 )
 
 sealed interface LibraryEvent {
@@ -79,17 +83,27 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
         val sort: LibrarySort,
         val view: LibraryView,
         val location: String?,
+        val folders: List<String>,
     )
 
-    private val listing = combine(library.books, query, sort, view, location) { books, q, s, v, l -> Listing(books, q, s, v, l) }
+    private val selection = MutableStateFlow<Set<Long>>(emptySet())
+
+    /** Books with the folders that have nothing in them yet. */
+    private val shelved = combine(library.books, container.folders) { books, folders ->
+        books to folders.filter { !it.removed }.map { it.path }
+    }
+
+    private val listing = combine(shelved, query, sort, view, location) { (books, folders), q, s, v, l -> Listing(books, q, s, v, l, folders) }
 
     val state: StateFlow<LibraryUiState> = combine(
         listing,
         container.preferences.libraryFolder,
         library.scanState,
         opening,
-        combine(container.sync.downloads, refreshing) { downloads, busy -> downloads to busy },
-    ) { (books, q, s, v, l), folder, scan, openingId, (downloads, busy) ->
+        combine(container.sync.downloads, refreshing, selection) { downloads, busy, picked -> Triple(downloads, busy, picked) },
+    ) { listed, folder, scan, openingId, (downloads, busy, picked) ->
+        val (books, q, s, v, l) = listed
+        val folders = listed.folders
         val filtered = if (q.isBlank()) books else books.filter {
             it.title.contains(q, ignoreCase = true) || it.author?.contains(q, ignoreCase = true) == true
         }
@@ -100,7 +114,7 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
             location = l,
             page = when {
                 q.isNotBlank() -> null
-                v == LibraryView.SHELVES -> folderPage(sorted, l ?: "")
+                v == LibraryView.SHELVES -> folderPage(sorted, l ?: "", folders)
                 v == LibraryView.GENRES -> genrePage(sorted, l)
                 else -> null
             },
@@ -113,11 +127,14 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
             downloads = downloads,
             refreshing = busy,
             loaded = true,
+            folders = allFolders(books, folders),
+            selection = picked.filterTo(HashSet()) { id -> books.any { it.id == id } },
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
 
     init {
         refresh()
+        viewModelScope.launch { container.sync.notices.collect { _events.send(LibraryEvent.Message(it)) } }
         viewModelScope.launch {
             container.preferences.libraryView.first()
                 ?.let { saved -> LibraryView.entries.firstOrNull { it.name == saved } }
@@ -174,6 +191,62 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
                 }
                 DownloadAction.UNPIN -> container.sync.setPinned(book, false)
                 DownloadAction.REMOVE_DOWNLOAD -> container.sync.removeDownload(book)
+            }
+        }
+    }
+
+    // Organizing: shown at once, sent to the PC in the background.
+
+    fun moveBooks(books: List<BookEntity>, folder: String) = organize {
+        val moved = container.organizer.move(books, folder)
+        selection.value = emptySet()
+        if (moved > 0) {
+            val where = if (folder.isEmpty()) "the top of the library" else "“${folder.substringAfterLast('/')}”"
+            _events.send(LibraryEvent.Message(if (moved == 1) "Moved to $where" else "Moved $moved books to $where"))
+        }
+    }
+
+    /** Makes a folder in [parent]; with [thenMove], moves those books into it. */
+    fun makeFolder(parent: String, name: String, thenMove: List<BookEntity> = emptyList()) = organize {
+        val path = container.organizer.makeFolder(parent, name)
+        if (thenMove.isNotEmpty()) {
+            container.organizer.move(thenMove, path)
+            selection.value = emptySet()
+        }
+    }
+
+    fun renameFolder(path: String, name: String) = organize {
+        val renamed = container.organizer.renameFolder(path, name)
+        location.value?.let { here ->
+            if (here == path || here.startsWith("$path/")) location.value = renamed + here.removePrefix(path)
+        }
+    }
+
+    fun removeFolder(path: String) = organize {
+        container.organizer.removeFolder(path)
+        location.value?.let { here -> if (here == path || here.startsWith("$path/")) location.value = path.substringBeforeLast('/', "").ifEmpty { null } }
+    }
+
+    fun select(book: BookEntity) {
+        selection.value = selection.value + book.id
+    }
+
+    fun toggleSelected(book: BookEntity) {
+        selection.value = if (book.id in selection.value) selection.value - book.id else selection.value + book.id
+    }
+
+    fun clearSelection() {
+        selection.value = emptySet()
+    }
+
+    private fun organize(work: suspend () -> Unit) {
+        viewModelScope.launch {
+            try {
+                work()
+                // Send it now rather than at the next refresh; quietly retried later if the PC is away.
+                launch { container.sync.sync() }
+            } catch (e: OrganizeError) {
+                _events.send(LibraryEvent.Message(e.message ?: "That didn't work."))
             }
         }
     }

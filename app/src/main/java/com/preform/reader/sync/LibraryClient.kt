@@ -8,6 +8,9 @@ import com.preform.sync.LookupResult
 import com.preform.sync.PairRequest
 import com.preform.sync.PairResponse
 import com.preform.sync.Protocol
+import com.preform.sync.OrganizeResult
+import com.preform.sync.OrganizeRequest
+import com.preform.sync.OrganizeChange
 import com.preform.sync.StatePage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -64,6 +67,14 @@ class LibraryClient(
         }
     }
 
+    /** Sends organizing changes made on the phone; the PC applies the ones newer than its own. */
+    suspend fun organize(changes: List<OrganizeChange>): OrganizeResult {
+        val body = Protocol.json.encodeToString(OrganizeRequest.serializer(), OrganizeRequest(changes)).toRequestBody(JSON)
+        return call(quick, "/organize") { post(body) }.use { response ->
+            Protocol.json.decodeFromString(OrganizeResult.serializer(), response.body!!.string())
+        }
+    }
+
     /** Saves a cover to [target]; false when the PC has none. */
     suspend fun cover(contentId: String, full: Boolean, target: File): Boolean = try {
         call(quick, "/books/$contentId/cover?size=${if (full) "full" else "thumb"}") { get() }.use { response ->
@@ -101,10 +112,11 @@ class LibraryClient(
     }
 
     /** Adds a book from this phone to the PC library; returns how the PC filed it. */
-    suspend fun upload(file: File, name: String): CatalogBook {
+    suspend fun upload(file: File, name: String, folder: String? = null): CatalogBook {
         val body: RequestBody = file.asRequestBody("application/octet-stream".toMediaType())
         val encoded = java.net.URLEncoder.encode(name, "UTF-8")
-        return call(slow, "/books?name=$encoded") { put(body) }.use { response ->
+        val into = folder?.let { "&folder=" + java.net.URLEncoder.encode(it, "UTF-8") }.orEmpty()
+        return call(slow, "/books?name=$encoded$into") { put(body) }.use { response ->
             Protocol.json.decodeFromString(CatalogBook.serializer(), response.body!!.string())
         }
     }

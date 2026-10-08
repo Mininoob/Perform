@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -32,6 +33,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Settings
@@ -102,6 +104,7 @@ fun LibraryScreen(
     onRemove: (BookEntity) -> Unit,
     onDownloadAction: (BookEntity, DownloadAction) -> Unit,
     shelfActions: ShelfActions,
+    organize: OrganizeActions,
     onQueryChange: (String) -> Unit,
     onSortChange: (LibrarySort) -> Unit,
     onRefresh: () -> Unit,
@@ -111,8 +114,14 @@ fun LibraryScreen(
 ) {
     var searching by remember { mutableStateOf(false) }
     var details by remember { mutableStateOf<BookEntity?>(null) }
+    var moving by remember { mutableStateOf<List<BookEntity>?>(null) }
+    var naming by remember { mutableStateOf<FolderNaming?>(null) }
+    var removing by remember { mutableStateOf<String?>(null) }
+    val selecting = state.selection.isNotEmpty()
+    val here = if (state.view == LibraryView.SHELVES) state.location.orEmpty() else ""
     // Back climbs out of a shelf before it leaves the library.
-    BackHandler(enabled = state.location != null && state.query.isBlank(), onBack = shelfActions.onUp)
+    BackHandler(enabled = state.location != null && state.query.isBlank() && !selecting, onBack = shelfActions.onUp)
+    BackHandler(enabled = selecting, onBack = organize.onClearSelection)
     BackHandler(enabled = searching) { searching = false; onQueryChange("") }
 
     val scroll = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -121,6 +130,9 @@ fun LibraryScreen(
         scrolledContainerColor = MaterialTheme.colorScheme.background,
     )
     val actions: @Composable () -> Unit = {
+        if (state.view == LibraryView.SHELVES) {
+            IconButton(onClick = { naming = FolderNaming.New(here) }) { Icon(FolderGlyphs.New, contentDescription = "New folder") }
+        }
         IconButton(onClick = { searching = true }) { Icon(Icons.Default.Search, contentDescription = "Search") }
         IconButton(onClick = onAddBook) { Icon(Icons.Default.Add, contentDescription = "Add book") }
         IconButton(onClick = onOpenSettings) { Icon(Icons.Outlined.Settings, contentDescription = "Settings") }
@@ -131,7 +143,18 @@ fun LibraryScreen(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
-            if (searching) {
+            if (selecting) {
+                TopAppBar(
+                    colors = barColors,
+                    navigationIcon = {
+                        IconButton(onClick = organize.onClearSelection) { Icon(Icons.Default.Close, contentDescription = "Stop selecting") }
+                    },
+                    title = { Text(if (state.selection.size == 1) "1 book" else "${state.selection.size} books") },
+                    actions = {
+                        TextButton(onClick = { moving = state.books.filter { it.id in state.selection } }) { Text("Move to…") }
+                    },
+                )
+            } else if (searching) {
                 TopAppBar(
                     colors = barColors,
                     title = {
@@ -180,12 +203,41 @@ fun LibraryScreen(
                 !state.loaded -> Unit
                 state.books.isEmpty() && state.query.isBlank() && state.scan == ScanState.Idle ->
                     EmptyLibrary(state.folderLabel, onChooseFolder, onAddBook)
-                else -> BookGrid(state, onOpen, onRemove, onDownloadAction, shelfActions, onSortChange, onDetails = { details = it })
+                else -> BookGrid(
+                    state, onOpen, onRemove, onDownloadAction, shelfActions, onSortChange,
+                    onDetails = { details = it },
+                    organize = organize,
+                    onMoveBooks = { moving = it },
+                    onRenameFolder = { naming = FolderNaming.Rename(it) },
+                    onRemoveFolder = { removing = it },
+                )
             }
         }
     }
 
     details?.let { book -> BookSheet(book, onDismiss = { details = null }, onOpen = { details = null; onOpen(book) }) }
+    moving?.let { books ->
+        MoveSheet(
+            books = books,
+            folders = state.folders,
+            here = here,
+            onDismiss = { moving = null },
+            onMove = { folder -> moving = null; organize.onMove(books, folder) },
+            onNewFolder = { moving = null; naming = FolderNaming.New(here, books) },
+        )
+    }
+    naming?.let { n ->
+        FolderNameDialog(n, onDismiss = { naming = null }) { name ->
+            naming = null
+            when (n) {
+                is FolderNaming.New -> organize.onNewFolder(n.parent, name, n.thenMove)
+                is FolderNaming.Rename -> organize.onRenameFolder(n.path, name)
+            }
+        }
+    }
+    removing?.let { path ->
+        RemoveFolderDialog(path, onDismiss = { removing = null }) { removing = null; organize.onRemoveFolder(path) }
+    }
 }
 
 /** "Library" at the top; inside a shelf or genre, its name. */
@@ -203,8 +255,13 @@ private fun BookGrid(
     shelfActions: ShelfActions,
     onSortChange: (LibrarySort) -> Unit,
     onDetails: (BookEntity) -> Unit,
+    organize: OrganizeActions,
+    onMoveBooks: (List<BookEntity>) -> Unit,
+    onRenameFolder: (String) -> Unit,
+    onRemoveFolder: (String) -> Unit,
 ) {
     val page = state.page
+    val selecting = state.selection.isNotEmpty()
     val atTop = state.location == null
     LazyVerticalGrid(
         // The same cover scale as the shelf rows: one series, one size.
@@ -234,7 +291,14 @@ private fun BookGrid(
         val tiles = page?.loose ?: state.books
         page?.shelves?.forEach { shelf ->
             item(span = { GridItemSpan(maxLineSpan) }, key = "shelf:${shelf.key}") {
-                ShelfRow(shelf, state, onOpen, onDetails, onEnter = { shelfActions.onEnter(shelf.key) })
+                ShelfRow(
+                    shelf, state, onOpen, onDetails,
+                    onEnter = { shelfActions.onEnter(shelf.key) },
+                    // Folders can be renamed and removed; genres are worked out, not kept.
+                    folderMenu = state.view == LibraryView.SHELVES,
+                    onRename = { onRenameFolder(shelf.key) },
+                    onRemove = { onRemoveFolder(shelf.key) },
+                )
             }
         }
 
@@ -259,10 +323,15 @@ private fun BookGrid(
                 book = book,
                 opening = state.opening == book.id,
                 download = state.downloads[book.id],
-                onOpen = { onOpen(book) },
+                onOpen = { if (selecting) organize.onToggle(book) else onOpen(book) },
                 onRemove = { onRemove(book) },
                 onDetails = { onDetails(book) },
                 onDownloadAction = { onDownloadAction(book, it) },
+                selecting = selecting,
+                selected = book.id in state.selection,
+                onMove = { onMoveBooks(listOf(book)) },
+                onSelect = { organize.onSelect(book) },
+                onToggle = { organize.onToggle(book) },
             )
         }
 
@@ -429,10 +498,19 @@ private fun ShelfRow(
     onOpen: (BookEntity) -> Unit,
     onDetails: (BookEntity) -> Unit,
     onEnter: () -> Unit,
+    folderMenu: Boolean = false,
+    onRename: () -> Unit = {},
+    onRemove: () -> Unit = {},
 ) {
+    var menu by remember { mutableStateOf(false) }
     Column(Modifier.bleed(Margin)) {
         Row(Modifier.fillMaxWidth().padding(start = Margin, end = Margin - 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) {
+            Row(
+                // Long-press a folder's name to rename or remove it.
+                Modifier.combinedClickable(onClick = onEnter, onLongClick = { if (folderMenu) menu = true }),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(
                     shelf.name,
                     style = MaterialTheme.typography.titleLarge,
@@ -447,9 +525,24 @@ private fun ShelfRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            TextButton(onClick = onEnter, colors = quiet()) { Text("See all") }
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(text = { Text("Rename folder…") }, onClick = { menu = false; onRename() })
+                DropdownMenuItem(text = { Text("Remove folder…") }, onClick = { menu = false; onRemove() })
+            }
+            }
+            if (shelf.books.isNotEmpty()) TextButton(onClick = onEnter, colors = quiet()) { Text("See all") }
         }
         Spacer(Modifier.height(6.dp))
+        if (shelf.books.isEmpty()) {
+            // A folder with nothing in it yet: the shelf is there, waiting.
+            Text(
+                "Empty. Move books here from a book's menu.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = Margin, end = Margin, top = 2.dp, bottom = 6.dp),
+            )
+            return@Column
+        }
         LazyRow(
             contentPadding = PaddingValues(horizontal = Margin),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -525,15 +618,52 @@ private fun BookTile(
     onRemove: () -> Unit,
     onDetails: () -> Unit,
     onDownloadAction: (DownloadAction) -> Unit,
+    selecting: Boolean = false,
+    selected: Boolean = false,
+    onMove: () -> Unit = {},
+    onSelect: () -> Unit = {},
+    onToggle: () -> Unit = {},
 ) {
     var menu by remember { mutableStateOf(false) }
     Box {
-        Column(Modifier.combinedClickable(onClick = onOpen, onLongClick = { menu = true })) {
-            Cover(book, opening, Modifier.fillMaxWidth(), download)
+        Column(Modifier.combinedClickable(onClick = onOpen, onLongClick = { if (selecting) onToggle() else menu = true })) {
+            Box {
+                Cover(book, opening, Modifier.fillMaxWidth(), download)
+                if (selected) {
+                    // Picked: a ring in the accent and a small check, gone when selecting ends.
+                    Box(
+                        Modifier
+                            .matchParentSize()
+                            .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(3.dp)),
+                    )
+                    Box(
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
+                            .size(20.dp)
+                            .background(MaterialTheme.colorScheme.primary, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(14.dp))
+                    }
+                } else if (selecting) {
+                    Box(
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
+                            .size(20.dp)
+                            .border(1.5.dp, Color.White.copy(alpha = 0.9f), CircleShape),
+                    )
+                }
+            }
             Caption(book)
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             DropdownMenuItem(text = { Text("Book info") }, onClick = { menu = false; onDetails() })
+            if (book.movable) {
+                DropdownMenuItem(text = { Text("Move to…") }, onClick = { menu = false; onMove() })
+                DropdownMenuItem(text = { Text("Select") }, onClick = { menu = false; onSelect() })
+            }
             if (book.source == BookSource.SERVER) {
                 if (book.pinned) {
                     DropdownMenuItem(text = { Text("Don't keep downloaded") }, onClick = { menu = false; onDownloadAction(DownloadAction.UNPIN) })

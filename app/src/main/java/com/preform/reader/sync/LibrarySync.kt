@@ -11,16 +11,21 @@ import com.preform.reader.library.BookEntity
 import com.preform.reader.library.BookFormat
 import com.preform.reader.library.BookSource
 import com.preform.reader.library.CoverExtractor
+import com.preform.reader.library.FolderEntity
 import com.preform.sync.LookupQuery
 import com.preform.reader.library.GENRE_SEPARATOR
 import com.preform.sync.CatalogBook
 import com.preform.sync.Format
 import com.preform.sync.PairRequest
+import com.preform.sync.OrganizeChange
 import com.preform.sync.PairingInvite
+import com.preform.sync.Protocol
 import com.preform.sync.contentIdOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -120,9 +125,16 @@ class LibrarySync(
         val result = runCatching {
             withContext(Dispatchers.IO) {
                 val client = client(connection)
-                val page = client.catalog(settings.catalogCursor())
+                // The phone's own moves go first, so the catalog that follows already has them.
+                val overtaken = pushChanges(client)
+                // A change the PC had something newer for: read everything again to settle on its answer.
+                val page = client.catalog(if (overtaken > 0) 0 else settings.catalogCursor())
                 page.books.forEach { upsert(client, it) }
                 page.removed.forEach { id -> dao.serverBook(id)?.let { forget(it) } }
+                page.folders.forEach { dao.saveFolder(FolderEntity(it.path, it.removed, it.stamp.at)) }
+                if (overtaken > 0) {
+                    _notices.tryEmit(if (overtaken == 1) "A move was overtaken by a newer change on your PC." else "$overtaken moves were overtaken by newer changes on your PC.")
+                }
                 settings.setCatalogCursor(page.cursor)
                 settings.setLastSync(System.currentTimeMillis())
                 lookUpLocalBooks(client)
@@ -194,12 +206,33 @@ class LibrarySync(
                     coverFullPath = if (coversChanged) covers?.full else existing.coverFullPath,
                     coverColor = if (coversChanged) covers?.color else existing.coverColor,
                     coverEtag = book.coverEtag,
-                    shelf = book.folder,
+                    // Moved here and not confirmed yet: keep the phone's shelf until the PC has it.
+                    shelf = if (existing.shelfDirty) existing.shelf else book.folder,
                     genres = book.genres.joinToString(GENRE_SEPARATOR),
                 ),
             )
         }
     }
+
+    /**
+     * Sends organizing changes waiting on the phone. Returns how many lost to something
+     * newer on the PC. Books moved meanwhile stay marked, so the next sync carries them.
+     */
+    private suspend fun pushChanges(client: LibraryClient): Int {
+        val pending = dao.pending()
+        if (pending.isEmpty()) return 0
+        val dirty = dao.dirtyShelves()
+        val changes = pending.mapNotNull { runCatching { Protocol.json.decodeFromString(OrganizeChange.serializer(), it.json) }.getOrNull() }
+        val result = client.organize(changes)
+        dao.clearPending(pending.map { it.id })
+        dao.clearShelfDirty(dirty)
+        return result.lost.size
+    }
+
+    private val _notices = MutableSharedFlow<String>(extraBufferCapacity = 4)
+
+    /** Short messages for the library's snackbar. */
+    val notices: SharedFlow<String> = _notices
 
     private class Covers(val thumb: String?, val full: String?, val color: Int?)
 
@@ -329,7 +362,11 @@ class LibrarySync(
 
     // Housekeeping
 
-    private suspend fun forgetServerBooks() = dao.serverBooks().forEach { forget(it) }
+    private suspend fun forgetServerBooks() {
+        dao.serverBooks().forEach { forget(it) }
+        // Moves meant for that PC mean nothing to another one.
+        dao.clearAllPending()
+    }
 
     private suspend fun forget(book: BookEntity) {
         book.localPath?.let { File(it).delete() }

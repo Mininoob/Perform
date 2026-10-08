@@ -27,16 +27,29 @@ data class ShelfPage(
 /**
  * The shelves inside folder [path] ("" for the top): one per sub-folder, holding every
  * book anywhere below it, plus the books directly in [path]. Books keep the order given.
+ * [folders] adds folders with nothing in them yet, as empty shelves.
  */
-fun folderPage(books: List<BookEntity>, path: String): ShelfPage {
+fun folderPage(books: List<BookEntity>, path: String, folders: Collection<String> = emptyList()): ShelfPage {
     val prefix = if (path.isEmpty()) "" else "$path/"
-    val shelves = books
+    val withBooks = books
         .filter { it.shelf != path && it.shelf.startsWith(prefix) }
         .groupBy { it.shelf.removePrefix(prefix).substringBefore('/') }
-        .map { (name, onShelf) -> Shelf(key = prefix + name, name = name, books = onShelf) }
+    val empty = folders
+        .filter { it.startsWith(prefix) && it != path }
+        .map { it.removePrefix(prefix).substringBefore('/') }
+        .filter { it.isNotEmpty() && it !in withBooks }
+        .distinct()
+    val shelves = (withBooks.map { (name, onShelf) -> Shelf(key = prefix + name, name = name, books = onShelf) } +
+        empty.map { Shelf(key = prefix + it, name = it, books = emptyList()) })
         .sortedBy { it.name.lowercase() }
     return ShelfPage(shelves, loose = books.filter { it.shelf == path })
 }
+
+/** Every folder, for "Move to": shelves books sit on, their parents, and empty folders. */
+fun allFolders(books: List<BookEntity>, folders: Collection<String>): List<String> =
+    (books.flatMap { LibraryOrganizer.prefixes(it.shelf) } + folders.flatMap { LibraryOrganizer.prefixes(it) })
+        .distinct()
+        .sortedWith(compareBy { it.lowercase() })
 
 /**
  * At the top ([genre] null): a shelf per genre, fullest first, books without a genre on

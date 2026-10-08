@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import com.preform.reader.library.CoverExtractor
 import com.preform.reader.library.LibraryDatabase
+import com.preform.reader.library.LibraryOrganizer
 import com.preform.reader.library.LibraryRepository
 import com.preform.reader.reader.OpenBooks
 import com.preform.reader.reader.ReadiumServices
@@ -46,6 +47,10 @@ class AppContainer(context: Context) {
         preferences = preferences,
     )
     val openBooks = OpenBooks()
+
+    /** Folders made, renamed and removed here, and books moved; the PC follows on the next sync. */
+    val organizer = LibraryOrganizer(database.books(), paired = { sync.settings.connectionNow() != null })
+    val folders = database.books().observeFolders()
 }
 
 val Context.container: AppContainer

@@ -27,6 +27,7 @@ import com.preform.reader.reader.ReaderActivity
 import com.preform.reader.settings.AppSettingsActions
 import com.preform.reader.settings.AppSettingsScreen
 import com.preform.reader.sync.PrivateLibraryScreen
+import com.preform.reader.library.OrganizeActions
 import com.preform.reader.library.ShelfActions
 import com.preform.reader.settings.AppSettingsState
 import com.preform.reader.settings.AppTheme
@@ -111,6 +112,17 @@ class MainActivity : ComponentActivity() {
                                     onViewChange = library::setView,
                                     onEnter = library::enterShelf,
                                     onUp = library::leaveShelf,
+                                )
+                            },
+                            organize = remember(library) {
+                                OrganizeActions(
+                                    onMove = library::moveBooks,
+                                    onNewFolder = library::makeFolder,
+                                    onRenameFolder = library::renameFolder,
+                                    onRemoveFolder = library::removeFolder,
+                                    onSelect = library::select,
+                                    onToggle = library::toggleSelected,
+                                    onClearSelection = library::clearSelection,
                                 )
                             },
                             onQueryChange = library::setQuery,

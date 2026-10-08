@@ -8,6 +8,7 @@ import androidx.room.Database
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
@@ -81,6 +82,8 @@ data class BookEntity(
     val series: String? = null,
     /** Place in the series; fractional for in-between books (2.5). */
     val seriesIndex: Double? = null,
+    /** Moved on this phone and not yet confirmed by the PC: a sync mustn't put it back. */
+    @ColumnInfo(defaultValue = "0") val shelfDirty: Boolean = false,
 ) {
     val genreList: List<String> get() = genres.split(GENRE_SEPARATOR).filter(String::isNotEmpty)
 
@@ -89,7 +92,25 @@ data class BookEntity(
         get() = if (source == BookSource.SERVER) localPath?.let { "file://$it" } else uri
 
     val downloaded: Boolean get() = source != BookSource.SERVER || localPath != null
+
+    /** Books whose shelf the person can change here: the PC's and imported ones. Folder books follow their real folder. */
+    val movable: Boolean get() = source != BookSource.FOLDER
 }
+
+/** A folder as the library knows it, so an empty one still shows as a shelf. */
+@Entity(tableName = "folders")
+data class FolderEntity(
+    @PrimaryKey val path: String,
+    @ColumnInfo(defaultValue = "0") val removed: Boolean = false,
+    val at: Long,
+)
+
+/** An organizing change made here and waiting to reach the PC, as OrganizeChange JSON. */
+@Entity(tableName = "pending_changes")
+data class PendingChangeEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val json: String,
+)
 
 @Dao
 interface BookDao {
@@ -151,11 +172,46 @@ interface BookDao {
     /** Books only this phone has, not yet looked up by the PC. */
     @Query("SELECT * FROM books WHERE source != 'SERVER' AND lookedUp = 0 AND hidden = 0 LIMIT :limit")
     suspend fun localBooksAwaitingLookup(limit: Int): List<BookEntity>
+
+    // Organizing
+
+    @Query("UPDATE books SET shelf = :shelf, shelfDirty = :dirty WHERE id IN (:ids)")
+    suspend fun setShelf(ids: List<Long>, shelf: String, dirty: Boolean)
+
+    @Query("SELECT * FROM books WHERE source != 'FOLDER' AND (shelf = :path OR shelf LIKE :path || '/%')")
+    suspend fun movableUnder(path: String): List<BookEntity>
+
+    @Query("SELECT id FROM books WHERE shelfDirty = 1")
+    suspend fun dirtyShelves(): List<Long>
+
+    @Query("UPDATE books SET shelfDirty = 0 WHERE id IN (:ids)")
+    suspend fun clearShelfDirty(ids: List<Long>)
+
+    @Query("SELECT * FROM folders")
+    fun observeFolders(): Flow<List<FolderEntity>>
+
+    @Query("SELECT * FROM folders")
+    suspend fun folders(): List<FolderEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveFolder(folder: FolderEntity)
+
+    @Insert
+    suspend fun queue(change: PendingChangeEntity): Long
+
+    @Query("SELECT * FROM pending_changes ORDER BY id")
+    suspend fun pending(): List<PendingChangeEntity>
+
+    @Query("DELETE FROM pending_changes WHERE id IN (:ids)")
+    suspend fun clearPending(ids: List<Long>)
+
+    @Query("DELETE FROM pending_changes")
+    suspend fun clearAllPending()
 }
 
 @Database(
-    entities = [BookEntity::class],
-    version = 6,
+    entities = [BookEntity::class, FolderEntity::class, PendingChangeEntity::class],
+    version = 7,
     exportSchema = true,
     autoMigrations = [
         // v2: per-book Book Mode.
@@ -168,6 +224,8 @@ interface BookDao {
         AutoMigration(from = 4, to = 5),
         // v6: series.
         AutoMigration(from = 5, to = 6),
+        // v7: organizing on the phone: folders, moves waiting for the PC.
+        AutoMigration(from = 6, to = 7),
     ],
 )
 abstract class LibraryDatabase : RoomDatabase() {
