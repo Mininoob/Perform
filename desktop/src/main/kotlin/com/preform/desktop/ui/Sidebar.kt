@@ -55,15 +55,12 @@ fun Sidebar(
     checks: Map<CheckKind, List<LibraryBook>>,
     status: Status,
     activity: String?,
+    customGenres: List<String> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.background(colors.raised)) {
-        Row(Modifier.padding(start = 20.dp, top = 20.dp, bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Image(remember { SeriesMark() }, null, Modifier.size(26.dp))
-            Spacer(Modifier.width(10.dp))
-            Text("Preform Library", fontFamily = LiterataDisplay, fontSize = 19.sp, color = colors.text)
-        }
-
+        // The mark and name live in the title bar above.
+        Spacer(Modifier.height(6.dp))
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 10.dp)) {
             Heading("Library")
             // Dropping books on "All books" moves them to the top of the library.
@@ -77,12 +74,25 @@ fun Sidebar(
                 FolderTree(folders, books, state, actions)
             }
 
-            val genres = remember(books) { genreCounts(books) }
-            if (genres.isNotEmpty()) {
-                Heading("Genres")
-                genres.forEach { (genre, count) ->
-                    Item(Glyphs.Tag, genre, count, state.place == Place.Genre(genre)) { state.go(Place.Genre(genre)) }
-                }
+            val genres = remember(books, customGenres) { genreCounts(books, customGenres) }
+            Heading("Genres", action = "New genre") { state.dialog = Dialog.NewGenre(emptyList()) }
+            genres.forEach { (genre, count) ->
+                // Dropping books on a genre gives them that genre.
+                Item(
+                    Glyphs.Tag, genre, count, state.place == Place.Genre(genre),
+                    drag = state.drag,
+                    dropPath = (GENRE_DROP + genre).takeIf { genre != Genres.UNCATEGORIZED },
+                    menu = if (genre in customGenres) {
+                        {
+                            listOf(
+                                ContextMenuItem("Rename…") { state.dialog = Dialog.RenameGenre(genre) },
+                                ContextMenuItem("Remove genre…") { state.dialog = Dialog.RemoveGenre(genre, count) },
+                            )
+                        }
+                    } else {
+                        null
+                    },
+                ) { state.go(Place.Genre(genre)) }
             }
             Heading("Checks")
             val found = checks.filter { it.value.isNotEmpty() }
@@ -104,9 +114,13 @@ fun Sidebar(
     }
 }
 
-/** Genres with their book counts, fullest first, "Uncategorized" last. */
-private fun genreCounts(books: List<LibraryBook>): List<Pair<String, Int>> {
+/**
+ * Genres with their book counts, fullest first, "Uncategorized" last. The library's own
+ * genres show even while empty, so books can be dragged onto them.
+ */
+private fun genreCounts(books: List<LibraryBook>, custom: List<String>): List<Pair<String, Int>> {
     val counts = HashMap<String, Int>()
+    custom.forEach { counts[it] = 0 }
     books.forEach { b -> b.catalog.genres.ifEmpty { listOf(Genres.UNCATEGORIZED) }.forEach { counts[it] = (counts[it] ?: 0) + 1 } }
     return counts.entries
         .sortedWith(compareBy<Map.Entry<String, Int>> { it.key == Genres.UNCATEGORIZED }.thenByDescending { it.value }.thenBy { it.key })
@@ -275,3 +289,6 @@ private fun StatusLine(status: Status, activity: String?) {
         )
     }
 }
+
+/** Drop-target keys for genres, kept apart from folder paths. */
+const val GENRE_DROP = "genre:"

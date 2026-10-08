@@ -132,4 +132,15 @@ class AutoOrganizeTest {
         assertTrue(root.resolve("Downloads/x/hobbit.epub").exists())
         assertFalse(root.resolve("Fantasy").exists())
     }
+
+    @Test
+    fun `genre guesses come from folder names and titles, never invented`() {
+        fun book(title: String, folder: String) = LibraryBook(
+            catalog = com.preform.sync.CatalogBook(contentId = title, title = title, format = com.preform.sync.Format.EPUB, sizeBytes = 1, addedAt = 0, folder = folder),
+            relativePath = "$folder/$title.epub",
+            modified = 0,
+        )
+        org.junit.Assert.assertEquals(listOf("Fantasy"), guessGenres(book("The Name of the Wind", "Fiction/Fantasy")))
+        org.junit.Assert.assertTrue(guessGenres(book("Untitled", "Downloads")).isEmpty())
+    }
 }

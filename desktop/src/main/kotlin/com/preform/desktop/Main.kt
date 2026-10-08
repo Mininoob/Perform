@@ -12,7 +12,16 @@ import androidx.compose.ui.window.Tray
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
 import com.preform.desktop.ui.BookMark
+import com.preform.desktop.ui.ResizeEdges
+import com.preform.desktop.ui.TitleBar
+import com.preform.desktop.ui.blendMacTitleBar
+import com.preform.desktop.ui.colors
+import com.preform.desktop.ui.windowOutline
 import com.preform.desktop.ui.CoverCache
 import com.preform.desktop.ui.LibraryWindow
 import com.preform.desktop.ui.Place
@@ -69,10 +78,19 @@ fun main(args: Array<String>) {
             icon = windowIcon,
             state = rememberWindowState(size = DpSize(1240.dp, 820.dp)),
             onKeyEvent = { windowState.onKey(it, platform.isMac) },
+            // Our own title bar: macOS keeps its buttons over it; Windows draws its own.
+            undecorated = !platform.isMac,
         ) {
             window.minimumSize = Dimension(960, 620)
+            if (platform.isMac) blendMacTitleBar()
             PreformTheme(config.themeBase, config.themeAccent) {
-                LibraryWindow(service, covers, windowState)
+                Box(Modifier.fillMaxSize().windowOutline(colors.line, enabled = !platform.isMac)) {
+                    Column(Modifier.fillMaxSize()) {
+                        TitleBar(platform.isMac)
+                        LibraryWindow(service, covers, windowState)
+                    }
+                    if (!platform.isMac) ResizeEdges()
+                }
             }
         }
     }

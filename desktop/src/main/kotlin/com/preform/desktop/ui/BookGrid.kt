@@ -78,7 +78,8 @@ fun BookGrid(
 ) {
     Column(modifier) {
         Toolbar(state, books.size, actions, onRescan)
-        (state.place as? Place.Check)?.let { CheckBanner(it.kind, books, actions) }
+        (state.place as? Place.Check)?.let { CheckBanner(it.kind, books, state, actions) }
+        if ((state.place as? Place.Genre)?.name == Genres.UNCATEGORIZED && books.isNotEmpty()) UncategorizedBanner(books, state, actions)
         when {
             !libraryFound -> Empty("Your library folder can't be found.", "Choose it again in Settings.") { state.go(Place.Settings) }
             libraryEmpty -> Empty("No books yet.", "Add EPUB or PDF files to your library folder, or drop them here.", null)
@@ -223,7 +224,12 @@ private fun Grid(state: WindowState, books: List<LibraryBook>, covers: CoverCach
                                 val target = state.drag.hover
                                 val ids = state.drag.ids.toSet()
                                 state.drag.ids = emptyList()
-                                if (target != null) actions.moveBooks(current.filter { it.catalog.contentId in ids }, target)
+                                val dropped = current.filter { it.catalog.contentId in ids }
+                                when {
+                                    target == null -> Unit
+                                    target.startsWith(GENRE_DROP) -> actions.addGenre(dropped, target.removePrefix(GENRE_DROP))
+                                    else -> actions.moveBooks(dropped, target)
+                                }
                             },
                             onDragCancel = { state.drag.ids = emptyList() },
                         )
@@ -289,6 +295,8 @@ private fun bookMenu(book: LibraryBook, state: WindowState, actions: Actions): L
             add(ContextMenuItem("Rename file…") { state.dialog = Dialog.RenameFile(one) })
             add(ContextMenuItem("Show in ${actions.platform.fileManagerName}") { actions.reveal(one) })
         }
+        add(ContextMenuItem("Sort into genres…") { state.dialog = Dialog.Sort(targets) })
+        add(ContextMenuItem("Add to a new genre…") { state.dialog = Dialog.NewGenre(targets) })
         add(ContextMenuItem("Look up again") { actions.lookUpAgain(targets) })
         add(ContextMenuItem("Move to ${actions.platform.trashName}…") { state.dialog = Dialog.Trash(targets) })
     }
@@ -339,7 +347,7 @@ fun ProgressRule(progress: Double, modifier: Modifier = Modifier) {
 
 /** What a check means, and the fix that applies to all of its books at once. */
 @Composable
-private fun CheckBanner(kind: CheckKind, books: List<LibraryBook>, actions: Actions) {
+private fun CheckBanner(kind: CheckKind, books: List<LibraryBook>, state: WindowState, actions: Actions) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -352,11 +360,35 @@ private fun CheckBanner(kind: CheckKind, books: List<LibraryBook>, actions: Acti
             CheckKind.IDENTICAL -> TextButton(colors = quietButton(), onClick = { actions.trashExtraCopies(books) }) {
                 Text("Move extra copies to the ${actions.platform.trashName}", color = colors.accent, fontSize = 13.sp)
             }
-            CheckKind.TITLE_FROM_FILE, CheckKind.NO_AUTHOR, CheckKind.NO_COVER, CheckKind.NO_GENRE ->
+            CheckKind.NO_GENRE -> SortButtons(books, state, actions)
+            CheckKind.TITLE_FROM_FILE, CheckKind.NO_AUTHOR, CheckKind.NO_COVER ->
                 TextButton(colors = quietButton(), onClick = { actions.lookUpAgain(books) }) { Text("Look them all up again", color = colors.accent, fontSize = 13.sp) }
             else -> Unit
         }
     }
+}
+
+/** Above the Uncategorized shelf: the way to give these books a home. */
+@Composable
+private fun UncategorizedBanner(books: List<LibraryBook>, state: WindowState, actions: Actions) {
+    Row(
+        Modifier.fillMaxWidth().padding(start = 28.dp, end = 24.dp, bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "Books without a genre. Let Preform suggest genres, sort them one by one, or drag them onto a genre.",
+            color = colors.muted,
+            fontSize = 13.sp,
+            modifier = Modifier.weight(1f),
+        )
+        SortButtons(books, state, actions)
+    }
+}
+
+@Composable
+private fun SortButtons(books: List<LibraryBook>, state: WindowState, actions: Actions) {
+    TextButton(colors = quietButton(), onClick = { state.dialog = Dialog.Sort(books) }) { Text("Sort them…", color = colors.text, fontSize = 13.sp) }
+    TextButton(colors = quietButton(), onClick = { state.dialog = Dialog.AutoGenre(books) }) { Text("Auto genre…", color = colors.accent, fontSize = 13.sp) }
 }
 
 @Composable

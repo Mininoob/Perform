@@ -1,5 +1,6 @@
 package com.preform.desktop
 
+import com.preform.sync.Genres
 import com.preform.sync.PairingInvite
 import com.preform.sync.PeerHello
 import com.preform.sync.PeerKind
@@ -8,6 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,7 +33,22 @@ data class BookEdits(
     val description: String,
     /** A new cover image (any common format), or null to keep the current one. */
     val cover: ByteArray? = null,
-)
+) {
+    companion object {
+        /** A book's details as they stand, to change one thing and save. */
+        fun of(book: LibraryBook) = book.catalog.let { c ->
+            BookEdits(
+                title = c.title,
+                author = c.author.orEmpty(),
+                series = c.series.orEmpty(),
+                seriesIndex = c.seriesIndex,
+                year = c.year,
+                genres = c.genres,
+                description = c.description.orEmpty(),
+            )
+        }
+    }
+}
 
 data class Status(
     val libraryRoot: String,
@@ -138,7 +155,8 @@ class LibraryService(private val paths: AppPaths, val platform: Platform = Platf
     }
 
     fun rescanSoon() {
-        scope.launch { rescan() }
+        // A rescan racing shutdown finds the store closed; that's not worth an error.
+        scope.launch { runCatching { rescan() } }
     }
 
     fun refreshLists() {
@@ -232,6 +250,47 @@ class LibraryService(private val paths: AppPaths, val platform: Platform = Platf
     suspend fun applyPlan(moves: List<PlannedMove>) = organize { library.applyMoves(moves) }
     suspend fun undoPlan(applied: List<Library.AppliedMove>) = organize { library.undoMoves(applied) }
 
+    // Genres
+
+    /** Every genre a book can be given: the standard ones, the library's own, and any found on books. */
+    fun genres(books: List<LibraryBook> = _books.value): List<String> =
+        (Genres.ALL + config.customGenres + books.flatMap { it.catalog.genres }).distinct()
+
+    fun genreHints(): GenreHints = GenreHints.of(_books.value, genres())
+
+    /** Makes a genre of the library's own; null if the name is empty or already taken. */
+    fun addGenre(name: String): String? {
+        val clean = cleanGenre(name) ?: return null
+        if (genres().any { it.equals(clean, ignoreCase = true) } || clean.equals(Genres.UNCATEGORIZED, ignoreCase = true)) return null
+        updateConfig { it.copy(customGenres = it.customGenres + clean) }
+        return clean
+    }
+
+    /** Renames a genre of the library's own, on every book that has it. Returns the books changed. */
+    suspend fun renameGenre(old: String, new: String): Int {
+        val clean = cleanGenre(new) ?: throw OrganizeException("A genre needs a name.")
+        if (genres().any { it.equals(clean, ignoreCase = true) && !it.equals(old, ignoreCase = true) }) {
+            throw OrganizeException("There's already a genre called “$clean”.")
+        }
+        updateConfig { c -> c.copy(customGenres = c.customGenres.map { if (it == old) clean else it }) }
+        return retag(old) { genres -> genres.map { if (it == old) clean else it }.distinct() }
+    }
+
+    /** Removes a genre of the library's own, and takes it off every book that has it. */
+    suspend fun removeGenre(name: String): Int {
+        updateConfig { c -> c.copy(customGenres = c.customGenres - name) }
+        return retag(name) { genres -> genres - name }
+    }
+
+    private suspend fun retag(genre: String, change: (List<String>) -> List<String>): Int {
+        val having = _books.value.filter { genre in it.catalog.genres }
+        having.forEach { book -> saveEdits(book, BookEdits.of(book).copy(genres = change(book.catalog.genres))) }
+        return having.size
+    }
+
+    private fun cleanGenre(name: String): String? =
+        name.trim().replace(Regex("""\s+"""), " ").filter { it != '|' && it != '/' }.take(40).ifBlank { null }
+
     /** Forgets earlier lookups for these books, so the next pass asks Open Library again. */
     suspend fun lookUpAgain(contentIds: Collection<String>) {
         organize { store.resetLookup(contentIds) }
@@ -300,6 +359,8 @@ class LibraryService(private val paths: AppPaths, val platform: Platform = Platf
     }
 
     fun stop() {
+        // Background work first, so nothing reaches for the store after it's closed.
+        scope.cancel()
         scanning?.cancel()
         discovery.stop()
         server.stop()

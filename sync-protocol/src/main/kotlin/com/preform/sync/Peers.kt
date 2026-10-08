@@ -72,15 +72,17 @@ object SameBook {
         else -> BookMatch.NONE
     }
 
+    /** The first author's surname, lowercased: "tolkien" for "J.R.R. Tolkien"; null without one. */
+    fun authorKey(author: String?): String? = author
+        ?.split(',', '&', ';')?.first()
+        ?.lowercase()
+        ?.split(Regex("""[^\p{L}\p{N}]+"""))
+        ?.filter { it.length >= 2 }
+        ?.lastOrNull()
+
     /** "the hobbit|tolkien"; null without an author. */
     fun key(title: String, author: String?): String? {
-        val surname = author
-            ?.split(',', '&', ';')?.first()
-            ?.lowercase()
-            ?.split(Regex("""[^\p{L}\p{N}]+"""))
-            ?.filter { it.length >= 2 }
-            ?.lastOrNull()
-            ?: return null
+        val surname = authorKey(author) ?: return null
         val t = title.replace(Regex("""[(\[].*?[)\]]"""), " ").substringBefore(':').lowercase().trim()
             .replace(Regex("""^(the|a|an)\s+"""), "")
             .filter(Char::isLetterOrDigit)

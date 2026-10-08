@@ -195,7 +195,8 @@ fun LibraryWindow(service: LibraryService, covers: CoverCache, state: WindowStat
             checks = checks,
             status = status,
             activity = activity,
-            modifier = Modifier.width(248.dp).fillMaxHeight(),
+            customGenres = config.customGenres,
+            modifier = Modifier.width(SIDEBAR_WIDTH).fillMaxHeight(),
         )
         VerticalDivider(color = colors.line)
         Box(Modifier.weight(1f).fillMaxHeight()) {

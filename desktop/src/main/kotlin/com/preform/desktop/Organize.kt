@@ -1,6 +1,7 @@
 package com.preform.desktop
 
 import com.preform.sync.Genres
+import com.preform.sync.SameBook
 
 /** How auto-organize lays the library out in folders. */
 enum class OrganizeScheme(val label: String, val example: String) {
@@ -72,3 +73,43 @@ private fun fileTitle(book: LibraryBook): String {
 }
 
 private fun join(folder: String, name: String) = if (folder.isEmpty()) name else "$folder/$name"
+
+/**
+ * Genres a book probably belongs in, from what the library already says about it, best
+ * first: the genres of the author's other books here, a folder named exactly like a genre
+ * (custom ones included), then what its folder names, title and series suggest. Only ever
+ * offered: the sorter puts them first, auto genre shows them for review.
+ */
+fun guessGenres(book: LibraryBook, hints: GenreHints = GenreHints.NONE, max: Int = 3): List<String> {
+    val c = book.catalog
+    val folders = c.folder.split('/').filter(String::isNotBlank)
+    val byAuthor = SameBook.authorKey(c.author)?.let { hints.byAuthor[it] }.orEmpty()
+    val named = folders.asReversed().mapNotNull { f -> hints.genres.firstOrNull { it.equals(f, ignoreCase = true) } }
+    val clues = Genres.classify(folders + listOfNotNull(c.title, c.series), max)
+    val all = (byAuthor + named + clues).distinct()
+    // Plain "Fiction" only when nothing more specific turned up, as in Genres.classify.
+    return all.filter { it != "Fiction" }.ifEmpty { all }.take(max)
+}
+
+/** What the rest of the library says, for [guessGenres]. */
+class GenreHints(
+    /** Author surname key to the genres of their books here, most used first. */
+    val byAuthor: Map<String, List<String>>,
+    /** Every genre a book can have: the standard ones and the library's own. */
+    val genres: List<String>,
+) {
+    companion object {
+        val NONE = GenreHints(emptyMap(), Genres.ALL)
+
+        fun of(books: List<LibraryBook>, genres: List<String>): GenreHints {
+            // Insertion-ordered, so ties keep the order the books list their genres in.
+            val byAuthor = LinkedHashMap<String, MutableMap<String, Int>>()
+            books.filter { it.catalog.genres.isNotEmpty() }.forEach { b ->
+                val key = SameBook.authorKey(b.catalog.author) ?: return@forEach
+                val counts = byAuthor.getOrPut(key) { LinkedHashMap() }
+                b.catalog.genres.forEach { counts[it] = (counts[it] ?: 0) + 1 }
+            }
+            return GenreHints(byAuthor.mapValues { (_, c) -> c.entries.sortedByDescending { it.value }.map { it.key } }, genres)
+        }
+    }
+}

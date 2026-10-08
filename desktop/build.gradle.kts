@@ -102,6 +102,7 @@ compose.desktop {
 tasks.test {
     // For WindowScreenshots: -Dscreenshots.data=<a data folder to render from>.
     systemProperty("screenshots.data", System.getProperty("screenshots.data") ?: "")
+    systemProperty("screenshots.library", System.getProperty("screenshots.library") ?: "")
     // For IconMaker: -Dicons.out=<folder> (resolved from the project root).
     systemProperty("icons.out", System.getProperty("icons.out")?.let { rootProject.file(it).path } ?: "")
 }

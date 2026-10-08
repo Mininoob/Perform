@@ -151,7 +151,7 @@ fun EditBookDialog(
                         )
                         Text("Genres", color = colors.muted, fontSize = 12.sp)
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Genres.ALL.forEach { genre ->
+                            remember { actions.genres() }.forEach { genre ->
                                 val on = genre in genres
                                 Text(
                                     genre,

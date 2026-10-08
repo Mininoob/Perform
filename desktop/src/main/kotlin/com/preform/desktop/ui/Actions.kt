@@ -66,6 +66,17 @@ sealed interface Dialog {
     data class RenameFolder(val path: String) : Dialog
     data class DeleteFolder(val path: String) : Dialog
     data class Trash(val books: List<LibraryBook>) : Dialog
+
+    /** Going through books one at a time, giving each its genres. */
+    data class Sort(val books: List<LibraryBook>) : Dialog
+
+    /** Proposed genres for many books at once, to review and apply. */
+    data class AutoGenre(val books: List<LibraryBook>) : Dialog
+
+    /** Naming a new genre; [books] get it straight away. */
+    data class NewGenre(val books: List<LibraryBook>) : Dialog
+    data class RenameGenre(val name: String) : Dialog
+    data class RemoveGenre(val name: String, val books: Int) : Dialog
 }
 
 /** Books being dragged onto a folder in the sidebar. */
@@ -160,6 +171,71 @@ class Actions(
         if (book.catalog.contentId in state.selection) state.selection = state.selection - book.catalog.contentId + id
         state.notice = Notice("Saved “${edits.title.trim()}”")
     }
+
+    /** Gives [books] [genre] as well as any they have (a drop on a genre in the sidebar). */
+    fun addGenre(books: List<LibraryBook>, genre: String) {
+        val changes = books.filter { genre !in it.catalog.genres }.map { it to (it.catalog.genres + genre) }
+        if (changes.isEmpty()) {
+            state.notice = Notice(if (books.size == 1) "Already in $genre" else "All already in $genre")
+            return
+        }
+        setGenres(changes, "Added ${count(changes.size)} to $genre")
+    }
+
+    /**
+     * Auto genre's result: gives the reviewed guesses, and asks Open Library about the
+     * books it had nothing for. One notice for both, so Undo stays offered.
+     */
+    fun autoGenre(changes: List<Pair<LibraryBook, List<String>>>, lookUp: List<LibraryBook>) {
+        if (lookUp.isNotEmpty()) scope.launch { service.lookUpAgain(lookUp.map { it.catalog.contentId }) }
+        val gave = if (changes.isEmpty()) null else "Gave ${count(changes.size)} a genre"
+        val asked = if (lookUp.isEmpty()) null else "looking up ${count(lookUp.size)} online"
+        val message = listOfNotNull(gave, asked).joinToString("; ").replaceFirstChar { it.uppercase() }
+        if (changes.isEmpty()) state.notice = Notice(message) else setGenres(changes, message)
+    }
+
+    /** Sets each book's genres, with Undo putting the old ones back. */
+    fun setGenres(changes: List<Pair<LibraryBook, List<String>>>, message: String? = null) = run {
+        val before = HashMap<String, List<String>>()
+        changes.forEach { (book, genres) ->
+            val id = service.saveEdits(book, editsOf(book).copy(genres = genres.distinct()))
+            before[id] = book.catalog.genres
+        }
+        if (message == null) return@run
+        state.notice = Notice(message, undo = {
+            val now = service.books.value.associateBy { it.catalog.contentId }
+            before.forEach { (id, genres) -> now[id]?.let { service.saveEdits(it, editsOf(it).copy(genres = genres)) } }
+        })
+    }
+
+    private fun editsOf(book: LibraryBook) = com.preform.desktop.BookEdits.of(book)
+
+    /** Makes a genre; with [books], gives it to them too. Returns its name, or null if taken. */
+    fun newGenre(name: String, books: List<LibraryBook> = emptyList()): String? {
+        val made = service.addGenre(name)
+        when {
+            made == null -> state.notice = Notice("There's already a genre called “${name.trim()}”.")
+            books.isEmpty() -> state.notice = Notice("Made the genre “$made”. Drag books onto it to add them.")
+            else -> addGenre(books, made)
+        }
+        return made
+    }
+
+    fun renameGenre(old: String, new: String) = run {
+        service.renameGenre(old, new)
+        if (state.place == Place.Genre(old)) state.go(Place.Genre(new.trim()))
+        state.notice = Notice("Renamed “$old” to “${new.trim()}”")
+    }
+
+    fun removeGenre(name: String) = run {
+        val n = service.removeGenre(name)
+        if (state.place == Place.Genre(name)) state.go(Place.All)
+        state.notice = Notice(if (n == 0) "Removed “$name”" else "Removed “$name” from ${count(n)}")
+    }
+
+    fun genres() = service.genres()
+
+    fun genreHints() = service.genreHints()
 
     fun applyPlan(moves: List<com.preform.desktop.PlannedMove>) = run {
         val applied = service.applyPlan(moves)
@@ -269,6 +345,27 @@ fun Dialogs(state: WindowState, actions: Actions, folders: List<String>, covers:
     when (dialog) {
         is Dialog.Edit -> EditBookDialog(dialog.book, covers, actions, writesIntoFiles, onDismiss = close)
         Dialog.Organize -> OrganizeDialog(state, actions, onDismiss = close)
+        is Dialog.Sort -> SortDialog(dialog.books, covers, actions, onDismiss = close)
+        is Dialog.AutoGenre -> AutoGenreDialog(dialog.books, covers, actions, onDismiss = close)
+        is Dialog.NewGenre -> NameDialog(
+            title = if (dialog.books.isEmpty()) "New genre" else "New genre for ${if (dialog.books.size == 1) "“${dialog.books.single().catalog.title}”" else "${dialog.books.size} books"}",
+            initial = "",
+            confirm = "Make genre",
+            onDismiss = close,
+        ) { close(); actions.newGenre(it, dialog.books) }
+        is Dialog.RenameGenre -> NameDialog(
+            title = "Rename genre",
+            initial = dialog.name,
+            confirm = "Rename",
+            onDismiss = close,
+        ) { close(); actions.renameGenre(dialog.name, it) }
+        is Dialog.RemoveGenre -> Confirm(
+            title = "Remove “${dialog.name}”?",
+            text = if (dialog.books == 0) "Nothing has this genre yet."
+            else "It comes off ${if (dialog.books == 1) "the 1 book" else "the ${dialog.books} books"} that have it. The books themselves stay.",
+            confirm = "Remove genre",
+            onDismiss = close,
+        ) { close(); actions.removeGenre(dialog.name) }
         is Dialog.MoveTo -> MoveToDialog(folders, onDismiss = close) { folder ->
             close()
             actions.moveBooks(dialog.books, folder)

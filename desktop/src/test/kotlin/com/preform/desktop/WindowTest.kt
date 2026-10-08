@@ -78,6 +78,55 @@ class WindowTest {
     }
 
     @Test
+    fun `the sorter gives books genres one at a time`() = runComposeUiTest {
+        val state = WindowState()
+        setContent {
+            PreformTheme(ThemeBase.INK, ThemeAccent.BLUE) {
+                LibraryWindow(service, CoverCache(service.library), state)
+            }
+        }
+        waitForIdle()
+        val books = service.books.value.sortedBy { it.catalog.title }
+        state.dialog = com.preform.desktop.ui.Dialog.Sort(books)
+        waitForIdle()
+        onNodeWithText("1 of 2").assertExists()
+        // Dune: Science Fiction, saved; Emma: skipped.
+        onNodeWithText("Science Fiction").performClick()
+        onNodeWithText("Save and next").performClick()
+        waitForIdle()
+        onNodeWithText("2 of 2").assertExists()
+        onNodeWithText("Skip").performClick()
+        waitUntil(timeoutMillis = 5_000) { onAllNodesWithText("1 of 2 sorted. The rest are still in Uncategorized.").fetchSemanticsNodes().isNotEmpty() }
+        waitUntil(timeoutMillis = 5_000) { service.books.value.single { it.catalog.title == "Dune" }.catalog.genres == listOf("Science Fiction") }
+        assertTrue(service.books.value.single { it.catalog.title == "Emma" }.catalog.genres.isEmpty())
+    }
+
+    @Test
+    fun `dragging a book onto a genre gives it that genre`() = runComposeUiTest {
+        val state = WindowState()
+        setContent {
+            PreformTheme(ThemeBase.INK, ThemeAccent.BLUE) { LibraryWindow(service, CoverCache(service.library), state) }
+        }
+        val emma = service.books.value.single { it.catalog.title == "Emma" }
+        state.actions!!.setGenres(listOf(emma to listOf("Romance")))
+        waitUntil(timeoutMillis = 5_000) { onAllNodesWithText("Romance").fetchSemanticsNodes().isNotEmpty() }
+        waitForIdle()
+
+        val genre = onAllNodesWithText("Romance").onFirst().fetchSemanticsNode().boundsInRoot
+        val card = onNodeWithText("Dune").fetchSemanticsNode().boundsInRoot
+        val toGenre = genre.center - card.center
+        onNodeWithText("Dune").performMouseInput {
+            moveTo(center)
+            press()
+            repeat(12) { step -> moveTo(center + toGenre * ((step + 1) / 12f), delayMillis = 16) }
+            release()
+        }
+        waitUntil(timeoutMillis = 5_000) { "Romance" in service.books.value.single { it.catalog.title == "Dune" }.catalog.genres }
+        // It stays where it was on disk.
+        assertTrue(root.resolve("Dune.epub").exists())
+    }
+
+    @Test
     fun `selecting books and pressing Delete asks before using the bin`() = runComposeUiTest {
         val state = WindowState()
         setContent {

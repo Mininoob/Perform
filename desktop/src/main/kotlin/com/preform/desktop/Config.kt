@@ -59,6 +59,8 @@ data class AppConfig(
     val writeIntoFiles: Boolean = true,
     val themeBase: ThemeBase = ThemeBase.INK,
     val themeAccent: ThemeAccent = ThemeAccent.BLUE,
+    /** Genres made here, alongside the standard ones; they travel to phones like any other. */
+    val customGenres: List<String> = emptyList(),
 ) {
     fun save(paths: AppPaths) = paths.config.writeText(Protocol.json.encodeToString(serializer(), this))
 
