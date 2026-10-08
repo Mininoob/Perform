@@ -134,6 +134,9 @@ object Glyphs {
         }
     }
 
+    /** A plain hairline tick: "in yours". */
+    val Tick by lazy { line("Tick") { moveTo(5f, 12.5f); lineTo(10f, 17.5f); lineTo(19f, 7f) } }
+
     val ChevronRight by lazy { line("ChevronRight") { moveTo(9.5f, 6f); lineTo(15.5f, 12f); lineTo(9.5f, 18f) } }
 
     val ChevronDown by lazy { line("ChevronDown") { moveTo(6f, 9.5f); lineTo(12f, 15.5f); lineTo(18f, 9.5f) } }

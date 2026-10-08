@@ -59,7 +59,7 @@ class WindowScreenshots {
         val dune = books.firstOrNull { it.catalog.title == "Dune" }?.catalog?.contentId
         shot("all-ink", ThemeBase.INK, ThemeAccent.BLUE) { dune?.let { selection = setOf(it) } }
         shot("folder-paper", ThemeBase.PAPER, ThemeAccent.GREEN) { place = Place.Folder("Fiction") }
-        shot("phones-slate", ThemeBase.SLATE, ThemeAccent.VIOLET) { place = Place.Phones }
+        shot("phones-slate", ThemeBase.SLATE, ThemeAccent.VIOLET) { place = Place.Devices }
         shot("settings-mono", ThemeBase.MONO, ThemeAccent.RED) { place = Place.Settings }
         shot("organize-ink", ThemeBase.INK, ThemeAccent.BLUE) {
             allBooks = books

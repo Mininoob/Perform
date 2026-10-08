@@ -70,6 +70,9 @@ sealed interface Dialog {
     /** Going through books one at a time, giving each its genres. */
     data class Sort(val books: List<LibraryBook>) : Dialog
 
+    /** Copying another library's books into a folder of this one. */
+    data class CopyTo(val books: List<LibraryBook>) : Dialog
+
     /** Proposed genres for many books at once, to review and apply. */
     data class AutoGenre(val books: List<LibraryBook>) : Dialog
 
@@ -237,6 +240,42 @@ class Actions(
 
     fun genreHints() = service.genreHints()
 
+    /**
+     * Copies another library's books into [folder] here: downloaded, checked against their
+     * ids and filed, one by one. Nothing changes over there. Undo sends the copies to the bin.
+     */
+    fun copyFromPeer(books: List<LibraryBook>, folder: String) = run {
+        val from = books.firstOrNull()?.peerId?.let { id -> service.peers.views.value.firstOrNull { it.peer.peerId == id }?.peer?.name } ?: "the other library"
+        state.notice = Notice("Copying ${count(books.size)} from $from…")
+        var added = 0
+        var already = 0
+        var failed = 0
+        val copied = mutableListOf<String>()
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            books.forEach { book ->
+                runCatching { service.peers.copy(book, folder) }
+                    .onSuccess { result ->
+                        if (result is com.preform.desktop.CopyResult.Added) {
+                            added += result.result.added
+                            already += result.result.alreadyThere
+                            if (result.result.added > 0) copied += book.catalog.contentId
+                        }
+                    }
+                    .onFailure { failed++ }
+            }
+        }
+        service.refreshLists()
+        val parts = listOfNotNull(
+            if (added > 0) "Copied ${count(added)} from $from into ${folderName(folder)}" else null,
+            if (already > 0) "${count(already)} already here" else null,
+            if (failed > 0) "${count(failed)} couldn't be copied" else null,
+        )
+        state.notice = Notice(
+            parts.joinToString("; ").ifEmpty { "Nothing to copy" },
+            undo = if (copied.isEmpty()) null else { { service.trash(copied) } },
+        )
+    }
+
     fun applyPlan(moves: List<com.preform.desktop.PlannedMove>) = run {
         val applied = service.applyPlan(moves)
         state.notice = Notice(
@@ -346,6 +385,14 @@ fun Dialogs(state: WindowState, actions: Actions, folders: List<String>, covers:
         is Dialog.Edit -> EditBookDialog(dialog.book, covers, actions, writesIntoFiles, onDismiss = close)
         Dialog.Organize -> OrganizeDialog(state, actions, onDismiss = close)
         is Dialog.Sort -> SortDialog(dialog.books, covers, actions, onDismiss = close)
+        is Dialog.CopyTo -> MoveToDialog(
+            folders,
+            title = if (dialog.books.size == 1) "Copy “${dialog.books.single().catalog.title}” to…" else "Copy ${dialog.books.size} books to…",
+            onDismiss = close,
+        ) { folder ->
+            close()
+            actions.copyFromPeer(dialog.books, folder)
+        }
         is Dialog.AutoGenre -> AutoGenreDialog(dialog.books, covers, actions, onDismiss = close)
         is Dialog.NewGenre -> NameDialog(
             title = if (dialog.books.isEmpty()) "New genre" else "New genre for ${if (dialog.books.size == 1) "“${dialog.books.single().catalog.title}”" else "${dialog.books.size} books"}",
@@ -448,7 +495,7 @@ private fun Confirm(title: String, text: String, confirm: String, onDismiss: () 
 }
 
 @Composable
-private fun MoveToDialog(folders: List<String>, onDismiss: () -> Unit, onPick: (String) -> Unit) {
+private fun MoveToDialog(folders: List<String>, title: String = "Move to…", onDismiss: () -> Unit, onPick: (String) -> Unit) {
     var filter by remember { mutableStateOf("") }
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
@@ -456,7 +503,7 @@ private fun MoveToDialog(folders: List<String>, onDismiss: () -> Unit, onPick: (
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = colors.raised,
-        title = { Text("Move to…", color = colors.text) },
+        title = { Text(title, color = colors.text) },
         text = {
             Column {
                 OutlinedTextField(

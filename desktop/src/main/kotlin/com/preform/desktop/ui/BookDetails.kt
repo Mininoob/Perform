@@ -45,18 +45,32 @@ fun BookDetails(
     onEdit: (LibraryBook) -> Unit,
     onTrashCopy: (String) -> Unit,
     progress: Map<String, Reading> = emptyMap(),
+    /** Another library's books: copy them here. */
+    onCopy: (List<LibraryBook>) -> Unit = {},
+    /** Set while browsing another library. */
+    peerName: String? = null,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.verticalScroll(rememberScrollState()).padding(24.dp)) {
         when (selected.size) {
-            0 -> PlaceSummary(place, shown)
-            1 -> OneBook(
-                service, covers, selected.single(),
-                onEdit = { onEdit(selected.single()) },
-                onTrashCopy = onTrashCopy,
-                reading = progress[selected.single().catalog.contentId],
-            )
-            else -> ManyBooks(selected, covers)
+            0 -> PlaceSummary(place, shown, listOfNotNull(((place as? Place.Peer)?.peerId ?: (place as? Place.Compare)?.peerId)?.let { it to (peerName ?: "") }).toMap())
+            1 -> if (selected.single().peerId != null) {
+                TheirBook(covers, selected.single(), peerName ?: "the other library", onCopy = { onCopy(selected) })
+            } else {
+                OneBook(
+                    service, covers, selected.single(),
+                    onEdit = { onEdit(selected.single()) },
+                    onTrashCopy = onTrashCopy,
+                    reading = progress[selected.single().catalog.contentId],
+                )
+            }
+            else -> {
+                ManyBooks(selected, covers)
+                if (selected.first().peerId != null) {
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = { onCopy(selected) }) { Text("Copy ${selected.size} to my library…") }
+                }
+            }
         }
     }
 }
@@ -135,6 +149,35 @@ private fun ColumnScope.OneBook(
     }
 }
 
+/** Another library's book: what it is and where it sits there, and the way to bring it here. */
+@Composable
+private fun ColumnScope.TheirBook(covers: CoverCache, book: LibraryBook, from: String, onCopy: () -> Unit) {
+    val c = book.catalog
+    BookCover(book, covers, Modifier.fillMaxWidth(0.78f).align(Alignment.CenterHorizontally), full = true)
+    Spacer(Modifier.height(22.dp))
+    Text(c.title, fontFamily = LiterataDisplay, fontSize = 22.sp, lineHeight = 28.sp, color = colors.text)
+    Spacer(Modifier.height(4.dp))
+    Text(c.author ?: "Unknown author", color = colors.muted, fontSize = 15.sp, fontFamily = Literata, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+    c.year?.let { Text("First published $it", color = colors.muted, fontSize = 13.sp) }
+    if (c.genres.isNotEmpty()) {
+        Spacer(Modifier.height(12.dp))
+        Text(c.genres.joinToString(" · "), color = colors.muted, fontSize = 13.sp)
+    }
+    c.description?.let {
+        Spacer(Modifier.height(16.dp))
+        Text(it, color = colors.text, fontSize = 13.sp, lineHeight = 19.sp)
+    }
+    Spacer(Modifier.height(20.dp))
+    HorizontalDivider(color = colors.line)
+    Spacer(Modifier.height(14.dp))
+    Fact("On", from)
+    Fact("Folder", c.folder.ifEmpty { "Library (top)" })
+    Fact("Format", "${c.format.name} · ${size(c.sizeBytes)}")
+    Spacer(Modifier.height(16.dp))
+    // The way forward here is bringing it over.
+    Button(onClick = onCopy) { Text("Copy to my library…") }
+}
+
 @Composable
 private fun ManyBooks(selected: List<LibraryBook>, covers: CoverCache) {
     Text("${selected.size} books selected", fontFamily = LiterataDisplay, fontSize = 22.sp, color = colors.text)
@@ -148,8 +191,8 @@ private fun ManyBooks(selected: List<LibraryBook>, covers: CoverCache) {
 }
 
 @Composable
-private fun PlaceSummary(place: Place, shown: List<LibraryBook>) {
-    Text(placeTitle(place), fontFamily = LiterataDisplay, fontSize = 22.sp, color = colors.text)
+private fun PlaceSummary(place: Place, shown: List<LibraryBook>, peerNames: Map<String, String> = emptyMap()) {
+    Text(placeTitle(place, peerNames), fontFamily = LiterataDisplay, fontSize = 22.sp, color = colors.text)
     Spacer(Modifier.height(8.dp))
     Text(
         "${shown.size} ${if (shown.size == 1) "book" else "books"} · ${size(shown.sumOf { it.catalog.sizeBytes })}",

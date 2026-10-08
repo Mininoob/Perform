@@ -40,7 +40,12 @@ import kotlinx.coroutines.withContext
 import org.jetbrains.skia.Image as SkiaImage
 
 /** Decoded covers, most recently used kept, so scrolling a big grid doesn't re-read files. */
-class CoverCache(private val library: Library, private val capacity: Int = 600) {
+class CoverCache(
+    private val library: Library,
+    /** Another library's book: its cover from the peer cache (fetched on first look when full). */
+    private val peerCover: (LibraryBook, Boolean) -> java.nio.file.Path? = { _, _ -> null },
+    private val capacity: Int = 600,
+) {
     private val images = object : LinkedHashMap<String, ImageBitmap>(capacity, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ImageBitmap>) = size > capacity
     }
@@ -50,17 +55,17 @@ class CoverCache(private val library: Library, private val capacity: Int = 600) 
     /** Loads off the UI thread; null when the book has no cover. */
     suspend fun load(book: LibraryBook, size: Library.CoverSize): ImageBitmap? {
         val etag = book.catalog.coverEtag ?: return null
-        val key = "${book.catalog.contentId}:$etag:${size.name}"
+        val key = key(book, size)
         cached(key)?.let { return it }
         val bitmap = withContext(Dispatchers.IO) {
-            library.cover(book.catalog.contentId, size)
+            (if (book.peerId != null) peerCover(book, size == Library.CoverSize.FULL) else library.cover(book.catalog.contentId, size))
                 ?.let { runCatching { SkiaImage.makeFromEncoded(it.toFile().readBytes()).toComposeImageBitmap() }.getOrNull() }
         } ?: return null
         synchronized(images) { images[key] = bitmap }
         return bitmap
     }
 
-    fun key(book: LibraryBook, size: Library.CoverSize) = "${book.catalog.contentId}:${book.catalog.coverEtag}:${size.name}"
+    fun key(book: LibraryBook, size: Library.CoverSize) = "${book.peerId.orEmpty()}${book.catalog.contentId}:${book.catalog.coverEtag}:${size.name}"
 }
 
 /** A book cover at 2:3, or a title card in the book's own tone when it has none. */

@@ -69,8 +69,8 @@ fun PhonesScreen(service: LibraryService, state: WindowState) {
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 40.dp, vertical = 28.dp)) {
-        Text("Phones", fontFamily = LiterataDisplay, fontSize = 26.sp, color = colors.text)
-        Text("Phones paired with this computer read its library, at home or over Tailscale.", color = colors.muted, fontSize = 13.sp)
+        Text("Devices", fontFamily = LiterataDisplay, fontSize = 26.sp, color = colors.text)
+        Text("Phones read this library, at home or over Tailscale. Other computers' libraries can be browsed and copied from.", color = colors.muted, fontSize = 13.sp)
         Spacer(Modifier.height(24.dp))
 
         Column(Modifier.widthIn(max = 640.dp)) {
@@ -80,9 +80,13 @@ fun PhonesScreen(service: LibraryService, state: WindowState) {
                 Button(onClick = { state.pairing = true }) { Text("Pair a phone") }
             }
 
-            Section("Paired")
-            if (status.devices.isEmpty()) Text("No phones paired yet.", color = colors.muted, fontSize = 13.sp)
-            status.devices.forEach { DeviceRow(it, onRevoke = { service.revoke(it.deviceId) }) }
+            val (computers, phones) = status.devices.partition { it.kind == com.preform.sync.PeerKind.COMPUTER }
+            Section("Phones")
+            if (phones.isEmpty()) Text("No phones paired yet.", color = colors.muted, fontSize = 13.sp)
+            phones.forEach { DeviceRow(it, onRevoke = { service.revoke(it.deviceId) }) }
+
+            Section("Computers")
+            ComputersSection(service, state, browsers = computers)
 
             Section("Reachable at")
             if (status.addresses.isEmpty()) Text("No network connection.", color = colors.muted, fontSize = 13.sp)

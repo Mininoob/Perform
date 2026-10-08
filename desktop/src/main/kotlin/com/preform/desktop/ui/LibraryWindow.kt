@@ -1,5 +1,6 @@
 package com.preform.desktop.ui
 
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -38,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.preform.desktop.CheckKind
 import com.preform.desktop.LibraryBook
+import com.preform.desktop.LibraryIndex
 import com.preform.desktop.LibraryService
 import com.preform.sync.Genres
 
@@ -48,8 +50,14 @@ sealed interface Place {
     data class Folder(val path: String) : Place
     data class Genre(val name: String) : Place
     data class Check(val kind: CheckKind) : Place
-    data object Phones : Place
+    data object Devices : Place
     data object Settings : Place
+
+    /** Another library's shelves: a paired computer's, or a phone's. */
+    data class Peer(val peerId: String, val folder: String = "") : Place
+
+    /** What one library has that the other doesn't: [theirs] is "only on the peer". */
+    data class Compare(val peerId: String, val theirs: Boolean) : Place
 }
 
 enum class SortOrder(val label: String) {
@@ -111,6 +119,12 @@ class WindowState {
         }
     }
 
+    /** Other libraries' names by id, for titles. */
+    var peerNames by mutableStateOf(emptyMap<String, String>())
+
+    /** Browsing another library's books (theirs to copy, not ours to organize). */
+    val browsingTheirs: Boolean get() = place.let { it is Place.Peer || (it is Place.Compare && it.theirs) }
+
     fun go(to: Place) {
         place = to
         selection = emptySet()
@@ -125,8 +139,18 @@ fun visibleBooks(
     query: String,
     sort: SortOrder,
     checks: Map<CheckKind, List<LibraryBook>> = emptyMap(),
+    /** The peer's books, for [Place.Peer] and [Place.Compare]. */
+    peer: List<LibraryBook> = emptyList(),
 ): List<LibraryBook> {
     val inPlace = when (place) {
+        is Place.Peer -> peer.filter { place.folder.isEmpty() || it.catalog.folder == place.folder || it.catalog.folder.startsWith(place.folder + "/") }
+        is Place.Compare -> if (place.theirs) {
+            val ours = LibraryIndex(books)
+            peer.filter { !ours.has(it) }
+        } else {
+            val theirs = LibraryIndex(peer)
+            books.filter { !theirs.has(it) }
+        }
         is Place.Check -> checks[place.kind].orEmpty()
         Place.All -> books
         Place.Recent -> books.sortedByDescending { it.catalog.addedAt }.take(RECENT_COUNT)
@@ -134,7 +158,7 @@ fun visibleBooks(
         is Place.Genre -> books.filter { book ->
             if (place.name == Genres.UNCATEGORIZED) book.catalog.genres.isEmpty() else place.name in book.catalog.genres
         }
-        Place.Phones, Place.Settings -> emptyList()
+        Place.Devices, Place.Settings -> emptyList()
     }
     val searched = if (query.isBlank()) inPlace else {
         val q = query.trim()
@@ -175,6 +199,10 @@ fun LibraryWindow(service: LibraryService, covers: CoverCache, state: WindowStat
     val checks by service.checks.collectAsState()
     val progress by service.progress.collectAsState()
     state.progress = progress
+    val peerViews by service.peers.views.collectAsState()
+    // Each other library's last known shelves; they change when a refresh brings news.
+    state.peerNames = peerViews.associate { it.peer.peerId to it.peer.name }
+    val peerBooks = remember(peerViews) { peerViews.associate { it.peer.peerId to service.peers.books(it.peer.peerId) } }
 
     val scope = rememberCoroutineScope()
     val actions = remember(service, state) { Actions(service, state, scope) }
@@ -196,17 +224,23 @@ fun LibraryWindow(service: LibraryService, covers: CoverCache, state: WindowStat
             status = status,
             activity = activity,
             customGenres = config.customGenres,
+            peers = peerViews,
+            peerBooks = peerBooks,
             modifier = Modifier.width(SIDEBAR_WIDTH).fillMaxHeight(),
         )
         VerticalDivider(color = colors.line)
         Box(Modifier.weight(1f).fillMaxHeight()) {
             when (val place = state.place) {
-                Place.Phones -> PhonesScreen(service, state)
+                Place.Devices -> PhonesScreen(service, state)
                 Place.Settings -> SettingsScreen(service, config, status)
                 else -> {
-                    val shown = remember(books, checks, place, state.query, state.sort) {
-                        visibleBooks(books, place, state.query, state.sort, checks)
+                    val peerId = (place as? Place.Peer)?.peerId ?: (place as? Place.Compare)?.peerId
+                    val theirs = peerId?.let { peerBooks[it] }.orEmpty()
+                    val shown = remember(books, checks, place, state.query, state.sort, theirs) {
+                        visibleBooks(books, place, state.query, state.sort, checks, peer = theirs)
                     }
+                    // Where the selected books come from: theirs while browsing them, else ours.
+                    val pool = if (place is Place.Peer || (place is Place.Compare && place.theirs)) theirs else books
                     state.visible = shown
                     state.allBooks = books
                     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -219,7 +253,11 @@ fun LibraryWindow(service: LibraryService, covers: CoverCache, state: WindowStat
                             libraryEmpty = books.isEmpty(),
                             libraryFound = status.libraryFound,
                             actions = actions,
-                            onRescan = service::rescanSoon,
+                            onRescan = if (peerId != null) {
+                                { scope.launch(kotlinx.coroutines.Dispatchers.IO) { service.peers.refresh(peerId) }; Unit }
+                            } else {
+                                service::rescanSoon
+                            },
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                         if (roomForDetails) {
@@ -227,11 +265,13 @@ fun LibraryWindow(service: LibraryService, covers: CoverCache, state: WindowStat
                         BookDetails(
                             service = service,
                             covers = covers,
-                            selected = books.filter { it.catalog.contentId in state.selection },
+                            selected = pool.filter { it.catalog.contentId in state.selection },
                             shown = shown,
                             place = place,
                             onEdit = { state.dialog = Dialog.Edit(it) },
                             onTrashCopy = actions::trashCopy,
+                            onCopy = { state.dialog = Dialog.CopyTo(it) },
+                            peerName = peerId?.let { id -> peerViews.firstOrNull { it.peer.peerId == id }?.peer?.name },
                             progress = progress,
                             modifier = Modifier.width(320.dp).fillMaxHeight(),
                         )

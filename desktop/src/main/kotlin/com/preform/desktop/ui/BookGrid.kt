@@ -80,6 +80,7 @@ fun BookGrid(
         Toolbar(state, books.size, actions, onRescan)
         (state.place as? Place.Check)?.let { CheckBanner(it.kind, books, state, actions) }
         if ((state.place as? Place.Genre)?.name == Genres.UNCATEGORIZED && books.isNotEmpty()) UncategorizedBanner(books, state, actions)
+        (state.place as? Place.Compare)?.let { CompareBanner(it, books, state) }
         when {
             !libraryFound -> Empty("Your library folder can't be found.", "Choose it again in Settings.") { state.go(Place.Settings) }
             libraryEmpty -> Empty("No books yet.", "Add EPUB or PDF files to your library folder, or drop them here.", null)
@@ -95,7 +96,7 @@ private fun Toolbar(state: WindowState, count: Int, actions: Actions, onRescan: 
     Column(Modifier.fillMaxWidth().padding(start = 28.dp, end = 16.dp, top = 18.dp, bottom = 10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                placeTitle(state.place),
+                placeTitle(state.place, state.peerNames),
                 fontFamily = LiterataDisplay,
                 fontSize = 26.sp,
                 color = colors.text,
@@ -113,20 +114,24 @@ private fun Toolbar(state: WindowState, count: Int, actions: Actions, onRescan: 
                 Spacer(Modifier.width(4.dp))
                 SortMenu(state)
             }
-            TextButton(colors = quietButton(), onClick = { state.dialog = Dialog.Organize }) { Text("Organize…", color = colors.text, fontSize = 13.sp) }
-            TextButton(colors = quietButton(), onClick = actions::chooseFilesToAdd) { Text("Add books", color = colors.accent, fontSize = 13.sp) }
+            if (!state.browsingTheirs) {
+                TextButton(colors = quietButton(), onClick = { state.dialog = Dialog.Organize }) { Text("Organize…", color = colors.text, fontSize = 13.sp) }
+                TextButton(colors = quietButton(), onClick = actions::chooseFilesToAdd) { Text("Add books", color = colors.accent, fontSize = 13.sp) }
+            }
             IconButton(onClick = onRescan) { Icon(Glyphs.Refresh, "Check the folder for changes", tint = colors.muted, modifier = Modifier.size(18.dp)) }
         }
     }
 }
 
-fun placeTitle(place: Place): String = when (place) {
+fun placeTitle(place: Place, peerNames: Map<String, String> = emptyMap()): String = when (place) {
     is Place.Check -> place.kind.label
     Place.All -> "All books"
     Place.Recent -> "Recently added"
     is Place.Folder -> place.path.substringAfterLast('/')
     is Place.Genre -> place.name
-    Place.Phones -> "Phones"
+    Place.Devices -> "Devices"
+    is Place.Peer -> place.folder.substringAfterLast('/').ifEmpty { peerNames[place.peerId] ?: "Their library" }
+    is Place.Compare -> if (place.theirs) "Not in yours" else "Only here"
     Place.Settings -> "Settings"
 }
 
@@ -186,6 +191,8 @@ private fun SortMenu(state: WindowState) {
 private fun Grid(state: WindowState, books: List<LibraryBook>, covers: CoverCache, actions: Actions) {
     val grid = rememberLazyGridState()
     val current by rememberUpdatedState(books)
+    // Their books are marked against ours.
+    val ours = remember(state.allBooks) { com.preform.desktop.LibraryIndex(state.allBooks) }
     LazyVerticalGrid(
         columns = GridCells.Adaptive(150.dp),
         state = grid,
@@ -203,6 +210,7 @@ private fun Grid(state: WindowState, books: List<LibraryBook>, covers: CoverCach
                 covers = covers,
                 selected = id in state.selection,
                 progress = state.progress[id]?.progression,
+                mark = if (book.peerId != null) inYours(ours.match(book)) else null,
                 modifier = Modifier
                     .onGloballyPositioned { place = it }
                     // Drag onto a folder in the sidebar to move; drags the whole selection.
@@ -227,6 +235,8 @@ private fun Grid(state: WindowState, books: List<LibraryBook>, covers: CoverCach
                                 val dropped = current.filter { it.catalog.contentId in ids }
                                 when {
                                     target == null -> Unit
+                                    // Another library's books are copied in, never moved.
+                                    dropped.firstOrNull()?.peerId != null -> if (!target.startsWith(GENRE_DROP)) actions.copyFromPeer(dropped, target)
                                     target.startsWith(GENRE_DROP) -> actions.addGenre(dropped, target.removePrefix(GENRE_DROP))
                                     else -> actions.moveBooks(dropped, target)
                                 }
@@ -288,6 +298,7 @@ private fun bookMenu(book: LibraryBook, state: WindowState, actions: Actions): L
     }
     val targets = state.visible.filter { it.catalog.contentId in state.selection }.ifEmpty { listOf(book) }
     val one = targets.singleOrNull()
+    if (book.peerId != null) return listOf(ContextMenuItem("Copy to my library…") { state.dialog = Dialog.CopyTo(targets) })
     return buildList {
         add(ContextMenuItem("Move to…") { state.dialog = Dialog.MoveTo(targets) })
         if (one != null) {
@@ -303,7 +314,7 @@ private fun bookMenu(book: LibraryBook, state: WindowState, actions: Actions): L
 }
 
 @Composable
-private fun BookCard(book: LibraryBook, covers: CoverCache, selected: Boolean, progress: Double?, modifier: Modifier) {
+private fun BookCard(book: LibraryBook, covers: CoverCache, selected: Boolean, progress: Double?, modifier: Modifier, mark: String? = null) {
     Column(modifier.padding(10.dp)) {
         // Selection outlines the cover itself; no tile, no card.
         Box {
@@ -334,7 +345,23 @@ private fun BookCard(book: LibraryBook, covers: CoverCache, selected: Boolean, p
             Spacer(Modifier.height(6.dp))
             ProgressRule(progress, Modifier.fillMaxWidth())
         }
+        // Another library's book: whether yours has it, as a muted word, never a badge.
+        mark?.let {
+            Spacer(Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Glyphs.Tick, null, tint = colors.muted, modifier = Modifier.size(12.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(it, fontSize = 11.sp, color = colors.muted, maxLines = 1)
+            }
+        }
     }
+}
+
+/** For another library's book: "In yours", "Another edition in yours", or nothing. */
+fun inYours(match: com.preform.sync.BookMatch): String? = when (match) {
+    com.preform.sync.BookMatch.SAME -> "In yours"
+    com.preform.sync.BookMatch.EDITION -> "Another edition in yours"
+    com.preform.sync.BookMatch.NONE -> null
 }
 
 /** Reading progress as one 2dp rule in the accent: the line is the state. */
@@ -382,6 +409,28 @@ private fun UncategorizedBanner(books: List<LibraryBook>, state: WindowState, ac
             modifier = Modifier.weight(1f),
         )
         SortButtons(books, state, actions)
+    }
+}
+
+/** What Compare shows, and for their books the way to bring them all over. */
+@Composable
+private fun CompareBanner(place: Place.Compare, books: List<LibraryBook>, state: WindowState) {
+    Row(
+        Modifier.fillMaxWidth().padding(start = 28.dp, end = 24.dp, bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            if (place.theirs) "Books there that aren't in your library in any edition. Nothing is copied until you ask."
+            else "Books in your library that the other one doesn't have.",
+            color = colors.muted,
+            fontSize = 13.sp,
+            modifier = Modifier.weight(1f),
+        )
+        if (place.theirs && books.isNotEmpty()) {
+            TextButton(colors = quietButton(), onClick = { state.dialog = Dialog.CopyTo(books) }) {
+                Text("Copy all to my library…", color = colors.accent, fontSize = 13.sp)
+            }
+        }
     }
 }
 

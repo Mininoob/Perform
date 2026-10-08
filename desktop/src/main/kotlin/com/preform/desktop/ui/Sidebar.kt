@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.preform.desktop.CheckKind
 import com.preform.desktop.LibraryBook
+import com.preform.desktop.LibraryIndex
 import com.preform.desktop.Status
 import com.preform.sync.Genres
 
@@ -56,6 +57,8 @@ fun Sidebar(
     status: Status,
     activity: String?,
     customGenres: List<String> = emptyList(),
+    peers: List<com.preform.desktop.PeerView> = emptyList(),
+    peerBooks: Map<String, List<LibraryBook>> = emptyMap(),
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.background(colors.raised)) {
@@ -94,6 +97,10 @@ fun Sidebar(
                     },
                 ) { state.go(Place.Genre(genre)) }
             }
+            if (peers.isNotEmpty()) {
+                Heading("Other libraries")
+                peers.forEach { view -> PeerItems(view, peerBooks[view.peer.peerId].orEmpty(), books, state) }
+            }
             Heading("Checks")
             val found = checks.filter { it.value.isNotEmpty() }
             if (found.isEmpty()) {
@@ -107,7 +114,7 @@ fun Sidebar(
 
         HorizontalDivider(color = colors.line)
         Column(Modifier.padding(10.dp)) {
-            Item(Glyphs.Phone, "Phones", status.devices.size.takeIf { it > 0 }, state.place == Place.Phones) { state.go(Place.Phones) }
+            Item(Glyphs.Phone, "Devices", status.devices.size.takeIf { it > 0 }, state.place == Place.Devices) { state.go(Place.Devices) }
             Item(Glyphs.Gear, "Settings", null, state.place == Place.Settings) { state.go(Place.Settings) }
         }
         StatusLine(status, activity)
@@ -203,6 +210,8 @@ fun Item(
     count: Int?,
     selected: Boolean,
     indent: Dp = 0.dp,
+    /** A small status dot after the name: another library being online. */
+    dot: Color? = null,
     /** Null: no expander; otherwise whether the branch is open. */
     expander: Boolean? = null,
     onExpand: () -> Unit = {},
@@ -261,6 +270,11 @@ fun Item(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
+        // Next to the count, so the name keeps the room it needs.
+        dot?.let {
+            Box(Modifier.size(6.dp).background(it, CircleShape))
+            Spacer(Modifier.width(8.dp))
+        }
         count?.let { Text("$it", color = colors.muted, fontSize = 12.sp) }
     }
     }
@@ -287,6 +301,35 @@ private fun StatusLine(status: Status, activity: String?) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+/**
+ * Another library in the sidebar: its name with an online dot and count; once opened,
+ * what it has that this library doesn't (and the reverse), and its top folders.
+ */
+@Composable
+private fun PeerItems(view: com.preform.desktop.PeerView, theirs: List<LibraryBook>, ours: List<LibraryBook>, state: WindowState) {
+    val id = view.peer.peerId
+    val place = state.place
+    val open = (place is Place.Peer && place.peerId == id) || (place is Place.Compare && place.peerId == id)
+    Item(
+        if (view.peer.kind == com.preform.sync.PeerKind.PHONE) Glyphs.Phone else Glyphs.Books,
+        view.peer.name,
+        view.bookCount,
+        place == Place.Peer(id),
+        dot = if (view.online) colors.ok else colors.line,
+    ) { state.go(Place.Peer(id)) }
+    if (!open) return
+    val notInYours = remember(theirs, ours) { LibraryIndex(ours).let { index -> theirs.count { !index.has(it) } } }
+    val onlyHere = remember(theirs, ours) { LibraryIndex(theirs).let { index -> ours.count { !index.has(it) } } }
+    Item(Glyphs.Books, "Not in yours", notInYours, place == Place.Compare(id, theirs = true), indent = 14.dp) { state.go(Place.Compare(id, theirs = true)) }
+    Item(Glyphs.Books, "Only here", onlyHere, place == Place.Compare(id, theirs = false), indent = 14.dp) { state.go(Place.Compare(id, theirs = false)) }
+    val folders = remember(theirs) {
+        theirs.map { it.catalog.folder.substringBefore('/') }.filter(String::isNotEmpty).groupingBy { it }.eachCount().toSortedMap(String.CASE_INSENSITIVE_ORDER)
+    }
+    folders.forEach { (folder, count) ->
+        Item(Glyphs.Folder, folder, count, place == Place.Peer(id, folder), indent = 14.dp) { state.go(Place.Peer(id, folder)) }
     }
 }
 

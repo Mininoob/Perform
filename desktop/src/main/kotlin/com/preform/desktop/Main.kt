@@ -45,7 +45,7 @@ fun main(args: Array<String>) {
         val config by service.configFlow.collectAsState()
         var visible by remember { mutableStateOf(!startHidden) }
         val windowState = remember { WindowState() }
-        val covers = remember { CoverCache(service.library) }
+        val covers = remember { CoverCache(service.library, service.peers::cover) }
         val accent = config.themeAccent.colorOn(config.themeBase)
         val windowIcon = remember { com.preform.desktop.ui.SeriesMark() }
         // The macOS menu bar wants a one-color template icon; Windows' tray shows the colored mark.
@@ -58,7 +58,7 @@ fun main(args: Array<String>) {
             menu = {
                 Item("Open Preform Library", onClick = { visible = true })
                 Item("Pair a phone", onClick = {
-                    windowState.go(Place.Phones)
+                    windowState.go(Place.Devices)
                     windowState.pairing = true
                     visible = true
                 })
