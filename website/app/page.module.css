@@ -1,0 +1,515 @@
+/* Each section is one cloth, set like a cover: big italic title, then the working parts. */
+
+.section {
+  position: relative;
+  padding: clamp(112px, 16svh, 184px) var(--gutter) clamp(28px, 4svh, 44px);
+}
+
+.inner {
+  max-width: 1320px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(56px, 8svh, 96px);
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 22px;
+  min-height: clamp(320px, 52svh, 560px);
+  max-width: 960px;
+}
+
+.headRule {
+  display: block;
+  width: min(100%, 520px);
+  height: 1px;
+  background: var(--ink);
+  opacity: 0.45;
+}
+
+/* A run-in paragraph, terms in italic, the way a colophon lists a book's particulars. */
+.runIn {
+  max-width: 68ch;
+  font-family: var(--serif);
+  font-variation-settings: "opsz" 12;
+  font-size: clamp(1.125rem, 1.5vw, 1.375rem);
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.runIn em {
+  font-style: italic;
+  color: var(--ink);
+}
+
+/* Shelves: ruled two-column list. */
+.ruled {
+  margin: 0;
+  max-width: 980px;
+}
+
+.ruled > div {
+  display: grid;
+  grid-template-columns: minmax(180px, 280px) 1fr;
+  gap: 24px;
+  padding: 18px 0;
+  border-top: 1px solid var(--hair);
+}
+
+.ruled > div:last-child {
+  border-bottom: 1px solid var(--hair);
+}
+
+.ruled dt {
+  font-family: var(--serif);
+  font-style: italic;
+  font-variation-settings: "opsz" 36;
+  font-size: 1.375rem;
+  line-height: 1.25;
+}
+
+.ruled dd {
+  margin: 0;
+  color: var(--ink-soft);
+  max-width: 52ch;
+  padding-top: 3px;
+}
+
+/* Privacy: questions answered in a ruled table. */
+.answers {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--ink);
+}
+
+.answers > div {
+  padding: 22px clamp(16px, 2vw, 28px) 8px 0;
+}
+
+.answers > div + div {
+  border-left: 1px solid var(--hair);
+  padding-left: clamp(16px, 2vw, 28px);
+}
+
+.answers dt {
+  font-family: var(--serif);
+  font-style: italic;
+  font-variation-settings: "opsz" 36;
+  font-size: 1.375rem;
+  line-height: 1.25;
+  margin-bottom: 10px;
+}
+
+.answers dd {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.98rem;
+}
+
+/* Library app: numbered pins over the window, and their legend. */
+.pin {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--ground);
+  font: 600 0.875rem/1 var(--sans);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--ink) 25%, transparent);
+}
+
+.legend {
+  list-style: none;
+  counter-reset: pin;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 clamp(32px, 5vw, 80px);
+}
+
+.legend li {
+  counter-increment: pin;
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  padding: 18px 0;
+  border-top: 1px solid var(--hair);
+  color: var(--ink-soft);
+}
+
+.legend li::before {
+  content: counter(pin);
+  grid-row: span 2;
+  font: 600 0.875rem/1.9 var(--sans);
+  color: var(--ink);
+}
+
+.legendTitle {
+  font-family: var(--serif);
+  font-style: italic;
+  font-variation-settings: "opsz" 36;
+  font-size: 1.375rem;
+  line-height: 1.25;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+.pending {
+  font-size: 0.9375rem;
+}
+
+.watch {
+  font-family: var(--serif);
+  font-style: italic;
+  font-variation-settings: "opsz" 36;
+  font-size: 1.375rem;
+}
+
+.inlineIcon {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 8px;
+  vertical-align: -1px;
+}
+
+/* Shelves: the downloads folder, and what it becomes. */
+.beforeAfter {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: clamp(24px, 4vw, 64px);
+}
+
+.downloads {
+  align-self: center;
+  max-width: 560px;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--hair);
+  padding: 18px 0 10px;
+}
+
+.panelTitle {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-bottom: 14px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--hair);
+  font: 500 0.8125rem/1 var(--sans);
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+
+.panelTitle span:first-child {
+  font-family: var(--serif);
+  font-style: italic;
+  font-variation-settings: "opsz" 36;
+  font-size: 1.25rem;
+  letter-spacing: 0;
+  color: var(--ink);
+}
+
+.downloads ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.downloads li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid color-mix(in oklab, var(--ink) 8%, transparent);
+  font: 400 0.875rem/1.3 var(--mono);
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.downloads li:last-child {
+  border-bottom: 0;
+}
+
+.fileGlyph {
+  flex: none;
+  width: 12px;
+  height: 15px;
+  border-radius: 2px;
+  border: 1.5px solid currentColor;
+  opacity: 0.7;
+}
+
+.becomes {
+  color: var(--ink);
+}
+
+.becomes svg {
+  width: 36px;
+  height: 36px;
+}
+
+/* Library app: the window, given room. */
+.windowFrame {
+  position: relative;
+  margin: 0 calc(var(--gutter) * -0.4);
+}
+
+/* Privacy: steps beside the pairing panel. */
+.pairing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 440px);
+  gap: clamp(40px, 6vw, 96px);
+  align-items: center;
+}
+
+.steps {
+  list-style: none;
+  counter-reset: step;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.steps li {
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  column-gap: 12px;
+  padding: 22px 0;
+  border-top: 1px solid var(--hair);
+  color: var(--ink-soft);
+}
+
+.steps li::before {
+  content: counter(step);
+  grid-row: span 2;
+  font-family: var(--serif);
+  font-style: italic;
+  font-variation-settings: "opsz" 36;
+  font-size: 2.75rem;
+  line-height: 0.9;
+  color: var(--ink);
+}
+
+.stepTitle {
+  font-family: var(--serif);
+  font-style: italic;
+  font-variation-settings: "opsz" 36;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+.pairPanel {
+  border: 1px solid var(--ink);
+  border-radius: 4px;
+  padding: 26px 28px 24px;
+}
+
+.code {
+  margin: 18px 0 22px;
+  font: 600 clamp(2.5rem, 4vw, 3.25rem)/1 var(--mono);
+  letter-spacing: 0.08em;
+}
+
+.checkLabel {
+  font: 500 0.8125rem/1 var(--sans);
+  color: var(--ink-soft);
+}
+
+.check {
+  margin-top: 8px;
+  font: 600 1.5rem/1 var(--mono);
+  letter-spacing: 0.06em;
+}
+
+.devices {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 26px;
+  padding-top: 20px;
+  border-top: 1px solid var(--hair);
+  font: 500 0.8125rem/1 var(--sans);
+  color: var(--ink-soft);
+}
+
+.devices span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.devices svg {
+  width: 26px;
+  height: 26px;
+  color: var(--ink);
+}
+
+.devices i {
+  flex: 1;
+  height: 1px;
+  margin-bottom: 18px;
+  background: repeating-linear-gradient(to right, var(--ink-soft) 0 4px, transparent 4px 8px);
+}
+
+/* Get it. */
+.get .inner {
+  gap: clamp(48px, 7svh, 80px);
+}
+
+.platforms {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 clamp(24px, 3vw, 48px);
+}
+
+.platform {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  padding-top: 22px;
+  border-top: 1px solid var(--hair);
+}
+
+.platform h3 {
+  font-style: italic;
+  font-variation-settings: "opsz" 36;
+  font-size: 1.75rem;
+  line-height: 1.15;
+}
+
+.platform p {
+  color: var(--ink-soft);
+  font-size: 0.98rem;
+  max-width: 34ch;
+  margin-bottom: 6px;
+}
+
+.platformActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.waitlist {
+  padding-top: 36px;
+  border-top: 1px solid var(--hair);
+}
+
+.footer {
+  padding: 48px var(--gutter) 56px;
+}
+
+.footer .inner {
+  gap: 20px;
+  padding-top: 28px;
+  border-top: 1px solid var(--hair);
+}
+
+.footRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.footBrand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--serif);
+  font-variation-settings: "opsz" 36;
+  font-size: 1.25rem;
+}
+
+.footLinks {
+  display: flex;
+  gap: 24px;
+  font-size: 0.9375rem;
+}
+
+.footNote {
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+  max-width: 72ch;
+}
+
+@media (max-width: 1099px) {
+  .beforeAfter {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .becomes {
+    display: none;
+  }
+}
+
+@media (max-width: 899px) {
+  .beforeAfter {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .downloads {
+    width: 100%;
+  }
+
+  .windowFrame {
+    margin: 0;
+  }
+
+  .pin {
+    width: 22px;
+    height: 22px;
+    margin: -11px 0 0 -11px;
+    font-size: 0.75rem;
+  }
+
+  .legend {
+    grid-template-columns: 1fr;
+  }
+
+  .ruled > div {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .answers {
+    grid-template-columns: 1fr;
+  }
+
+  .answers > div + div {
+    border-left: 0;
+    border-top: 1px solid var(--hair);
+    padding-left: 0;
+  }
+
+  .head {
+    min-height: 0;
+  }
+
+  .pairing {
+    grid-template-columns: 1fr;
+  }
+
+  .platforms {
+    grid-template-columns: 1fr;
+    gap: 36px;
+  }
+}

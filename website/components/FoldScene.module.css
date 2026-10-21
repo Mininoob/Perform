@@ -1,0 +1,348 @@
+.scene {
+  /* Scroll timeline values, written by the component. */
+  --hero: 1;
+  --open: 0;
+  --to-paper: 0;
+  --cap1: 0;
+  --cap2: 0;
+  --cue: 1;
+
+  /* The Fold: each half is a tall leaf; closed, it stands one leaf wide. */
+  --w: min(30svh, 40vw, 300px);
+  --h: calc(var(--w) * 2.2);
+  --bezel: calc(var(--w) * 0.032);
+  --radius: calc(var(--w) * 0.1);
+
+  /* Where the phone stands beside the opening copy. */
+  --hx: 0px;
+  --hy: 0px;
+  --hscale: 0;
+
+  position: relative;
+  height: 400svh;
+}
+
+.sticky {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.paperField {
+  position: absolute;
+  inset: 0;
+  background: var(--paper);
+  opacity: var(--to-paper);
+  z-index: -1;
+}
+
+/* The opening copy, set at the left like a cover's title block. */
+.hero {
+  position: absolute;
+  left: var(--gutter);
+  bottom: clamp(56px, 12svh, 128px);
+  width: min(44vw, 640px);
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  opacity: var(--hero);
+  transform: translateY(calc((1 - var(--hero)) * -32px));
+}
+
+.scene[data-hero="gone"] .hero {
+  visibility: hidden;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.note {
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+}
+
+/* The device. */
+.stage {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  perspective: calc(var(--w) * 8);
+  perspective-origin: 50% 40%;
+  pointer-events: none;
+}
+
+.floor {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + var(--h) / 2 + var(--w) * 0.05);
+  width: calc(var(--w) * (1.1 + var(--open)));
+  height: calc(var(--w) * 0.16);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(0 0 0 / 0.45), rgb(0 0 0 / 0));
+  filter: blur(calc(var(--w) * 0.03));
+  transform: translate(calc(-50% + var(--hx) * var(--hero)), calc(var(--hy) * var(--hero)))
+    scale(calc(1 - var(--hscale) * var(--hero)));
+  opacity: calc(0.85 - var(--to-paper) * 0.45);
+}
+
+.device {
+  position: relative;
+  width: var(--w);
+  height: var(--h);
+  transform-style: preserve-3d;
+  transform: translate(calc(var(--hx) * var(--hero) + var(--w) * 0.5 * var(--open)), calc(var(--hy) * var(--hero)))
+    scale(calc(1 - var(--hscale) * var(--hero)))
+    rotateX(calc(7deg * (1 - var(--open))))
+    rotateY(calc(-16deg * (1 - var(--open))));
+  will-change: transform;
+}
+
+.half,
+.face {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+  background: linear-gradient(140deg, #2a2c30, #0d0e10 40%, #16171a);
+  padding: var(--bezel);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.08),
+    inset 0 1px 0 rgb(255 255 255 / 0.12);
+}
+
+/* The inner screen runs into the hinge: square corners there. */
+.right {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  padding-left: 0;
+}
+
+.right .glass {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.leaf {
+  position: absolute;
+  top: 0;
+  right: 100%;
+  width: var(--w);
+  height: var(--h);
+  transform-style: preserve-3d;
+  transform-origin: right center;
+  transform: rotateY(calc(180deg * (1 - var(--open)))) translateZ(-1.5px);
+  will-change: transform;
+}
+
+.face {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.front {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  padding-right: 0;
+}
+
+.front .glass {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* Folded shut, this face is the outside of the phone: the cover screen. */
+.back {
+  transform: rotateY(180deg);
+}
+
+.glass {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: calc(var(--radius) * 0.72);
+  overflow: hidden;
+  background: #000;
+}
+
+/* A faint pane of glass over the cover screen, catching the light as it turns. */
+.coverGlass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    calc(110deg + var(--open) * 40deg),
+    rgb(255 255 255 / 0.1),
+    rgb(255 255 255 / 0) 38%,
+    rgb(255 255 255 / 0) 70%,
+    rgb(255 255 255 / 0.05)
+  );
+  pointer-events: none;
+}
+
+/* The fold's crease, only when open. */
+.right::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: var(--bezel);
+  bottom: var(--bezel);
+  width: 2px;
+  background: linear-gradient(to bottom, rgb(0 0 0 / 0), rgb(0 0 0 / 0.18) 20%, rgb(0 0 0 / 0.18) 80%, rgb(0 0 0 / 0));
+  opacity: var(--open);
+  z-index: 2;
+}
+
+/* Captions, written for the phone's two states. */
+.caption {
+  position: absolute;
+  left: var(--gutter);
+  top: 50%;
+  width: min(26vw, 340px);
+  font-family: var(--serif);
+  font-variation-settings: "opsz" 12;
+  font-size: clamp(1.0625rem, 1.25vw, 1.25rem);
+  line-height: 1.5;
+}
+
+.captionTitle {
+  display: block;
+  font-style: italic;
+  font-variation-settings: "opsz" 36;
+  font-size: clamp(1.75rem, 2.6vw, 2.5rem);
+  line-height: 1.1;
+  margin-bottom: 0.45em;
+}
+
+.cap1 {
+  color: var(--claret-ink);
+  opacity: var(--cap1);
+  transform: translateY(calc(-50% + (1 - var(--cap1)) * 14px));
+}
+
+.cap2 {
+  color: var(--paper-text);
+  opacity: var(--cap2);
+  transform: translateY(calc(-50% + (1 - var(--cap2)) * 14px));
+}
+
+.cue {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(16px, 4svh, 36px);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 500 0.75rem/1 var(--sans);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  opacity: var(--cue);
+}
+
+.cue svg {
+  width: 16px;
+  height: 16px;
+  animation: nudge 2.4s var(--ease-out) infinite;
+}
+
+@keyframes nudge {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(4px);
+  }
+}
+
+/* Wide screens: the phone stands right of the title, captions keep the left column. */
+@media (min-width: 900px) {
+  .scene {
+    --hx: min(20vw, 300px);
+    --w: min(31svh, 26vw, 300px);
+  }
+}
+
+/* Narrow screens: the title sits above a smaller closed phone; captions go below the phone. */
+@media (max-width: 899px) {
+  .scene {
+    --w: min(26svh, 40vw, 220px);
+    --hy: 19svh;
+    --hscale: 0.28;
+    height: 360svh;
+  }
+
+  .hero {
+    top: calc(64px + 3svh);
+    bottom: auto;
+    left: var(--gutter);
+    right: var(--gutter);
+    width: auto;
+    gap: 18px;
+    transform: translateY(calc((1 - var(--hero)) * -24px));
+  }
+
+  .hero :global(.display) {
+    font-size: clamp(2.5rem, 11vw, 3.5rem);
+  }
+
+  .hero :global(.lede) {
+    font-size: 1rem;
+  }
+
+  .note {
+    display: none;
+  }
+
+  .caption {
+    top: auto;
+    bottom: clamp(20px, 5svh, 48px);
+    left: var(--gutter);
+    right: var(--gutter);
+    width: auto;
+    max-width: 40ch;
+    margin: 0 auto;
+    font-size: 0.9375rem;
+  }
+
+  .captionTitle {
+    font-size: 1.5rem;
+  }
+
+  .cap1,
+  .cap2 {
+    transform: translateY(calc((1 - var(--cap1)) * 14px));
+  }
+
+  .cap2 {
+    transform: translateY(calc((1 - var(--cap2)) * 14px));
+  }
+
+  .stage {
+    place-items: center;
+    padding-bottom: 12svh;
+  }
+
+  .floor {
+    top: calc(50% - 6svh + var(--h) / 2 + var(--w) * 0.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene {
+    height: 260svh;
+  }
+
+  .device,
+  .leaf {
+    transition: none;
+  }
+}

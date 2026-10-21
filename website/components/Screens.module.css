@@ -1,0 +1,139 @@
+/* Screens inside the device frames. All sizes scale with the screen's width. */
+
+.screen {
+  container-type: inline-size;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+/* Reading spread: the Paper base, as a reader might set it. */
+.page,
+.coverScreen {
+  position: absolute;
+  inset: 0;
+}
+
+.page {
+  background: var(--paper);
+  color: var(--paper-text);
+  display: flex;
+  flex-direction: column;
+  padding: 7cqw 9cqw 6cqw;
+}
+
+.runningHead,
+.folio {
+  display: flex;
+  justify-content: space-between;
+  font: 500 3.4cqw/1 var(--sans);
+  color: var(--paper-muted);
+  letter-spacing: 0.02em;
+}
+
+.folio {
+  margin-top: auto;
+  padding-top: 3cqw;
+}
+
+.percent {
+  color: var(--accent-light);
+}
+
+.text {
+  margin-top: 6cqw;
+  font-family: var(--serif);
+  font-variation-settings: "opsz" 12;
+  font-size: 4.55cqw;
+  line-height: 1.55;
+  hyphens: auto;
+  text-align: left;
+  overflow: hidden;
+}
+
+.text p + p {
+  text-indent: 1.4em;
+}
+
+.chapter {
+  font-style: italic;
+  font-variation-settings: "opsz" 36;
+  font-size: 8.4cqw;
+  line-height: 1.1;
+  text-align: left;
+  margin-bottom: 7cqw !important;
+  text-indent: 0 !important;
+}
+
+.chapter + p {
+  text-indent: 0 !important;
+}
+
+/* The book's opening words in small capitals, as a printed first page sets them. */
+.first::first-line {
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.04em;
+}
+
+/* Cover screen in Book Mode. */
+.coverScreen {
+  background: #0c0d0f;
+  display: flex;
+  flex-direction: column;
+  padding: 5cqw 7cqw 7cqw;
+}
+
+.statusBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font: 600 4.4cqw/1 var(--sans);
+  color: rgb(255 255 255 / 0.86);
+  padding: 0 2cqw;
+}
+
+.signal {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 1cqw;
+  height: 3.6cqw;
+}
+.signal i {
+  display: block;
+  width: 1.2cqw;
+  background: currentColor;
+  border-radius: 1px;
+}
+.signal i:nth-child(1) { height: 40%; }
+.signal i:nth-child(2) { height: 70%; }
+.signal i:nth-child(3) { height: 100%; }
+
+.coverWrap {
+  flex: 1;
+  display: grid;
+  place-items: center;
+}
+
+.fullCover {
+  width: 100%;
+}
+
+.coverFoot {
+  display: flex;
+  align-items: center;
+  gap: 4cqw;
+  font: 500 3.8cqw/1 var(--sans);
+  color: rgb(255 255 255 / 0.7);
+}
+
+.coverProgress {
+  flex: 1;
+  height: max(1px, 0.7cqw);
+  background: rgb(255 255 255 / 0.2);
+}
+.coverProgress i {
+  display: block;
+  height: 100%;
+  background: var(--accent-dark);
+}
