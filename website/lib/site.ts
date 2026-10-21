@@ -1,8 +1,8 @@
 export const site = {
-  name: "Preform",
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://preform.vercel.app",
-  repo: "https://github.com/Mininoob/Preform",
-  releases: "https://github.com/Mininoob/Preform/releases",
+  name: "Perform",
+  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://perform-mininoob.vercel.app",
+  repo: "https://github.com/Mininoob/Perform",
+  releases: "https://github.com/Mininoob/Perform/releases",
   description:
     "An ebook reader for foldable Android phones. Closed, the cover screen shows the book you're reading; open it and you're on the page you left. Your own computer keeps the library and shares it privately.",
 };
@@ -25,7 +25,7 @@ export interface Release {
  */
 export async function latestRelease(): Promise<Release | null> {
   try {
-    const response = await fetch("https://api.github.com/repos/Mininoob/Preform/releases/latest", {
+    const response = await fetch("https://api.github.com/repos/Mininoob/Perform/releases/latest", {
       headers: { Accept: "application/vnd.github+json" },
       next: { revalidate: 3600 },
     });

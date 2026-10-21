@@ -1,5 +1,5 @@
 /**
- * The demonstration library: public-domain classics, shown the way Preform shows a book
+ * The demonstration library: public-domain classics, shown the way Perform shows a book
  * without a cover art file, in one of the series' five cloths chosen by its first genre.
  */
 

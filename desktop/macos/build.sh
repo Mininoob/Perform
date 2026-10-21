@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds Preform Library for macOS: runs the desktop tests, then makes a .dmg that is
+# Builds Perform Library for macOS: runs the desktop tests, then makes a .dmg that is
 # signed with your Developer ID and notarized by Apple, so it opens without warnings.
 #
 # One-time setup on the Mac:
@@ -8,7 +8,7 @@
 #      (Xcode > Settings > Accounts > Manage Certificates > + > Developer ID Application).
 #   3. Notarization credentials saved in the keychain (asks for an app-specific password
 #      from appleid.apple.com; nothing is written to the project):
-#        xcrun notarytool store-credentials preform-notary --apple-id <you@example.com> --team-id <TEAMID>
+#        xcrun notarytool store-credentials perform-notary --apple-id <you@example.com> --team-id <TEAMID>
 #
 # Run it in Terminal on the Mac itself: macOS only lets your logged-in session use the
 # signing key, so it can't sign over SSH. The first time, macOS asks to let codesign
@@ -39,10 +39,15 @@ if ! $unsigned; then
     identity="$(security find-identity -v -p codesigning | sed -n 's/.*"\(Developer ID Application: .*\)"/\1/p' | head -1)"
     [[ -n "$identity" ]] ||
         fail "No \"Developer ID Application\" certificate in the keychain. See the setup notes at the top of this script, or run with --unsigned."
-    xcrun notarytool history --keychain-profile preform-notary >/dev/null 2>&1 ||
-        fail "No notarization credentials saved as \"preform-notary\". See the setup notes at the top of this script."
+    notary=perform-notary
+    if ! xcrun notarytool history --keychain-profile "$notary" >/dev/null 2>&1; then
+        # Saved before the app was renamed from Preform.
+        notary=preform-notary
+        xcrun notarytool history --keychain-profile "$notary" >/dev/null 2>&1 ||
+            fail "No notarization credentials saved as \"perform-notary\". See the setup notes at the top of this script."
+    fi
     # jpackage wants the name without the "Developer ID Application: " prefix.
-    export PREFORM_SIGN_IDENTITY="${identity#Developer ID Application: }"
+    export PERFORM_SIGN_IDENTITY="${identity#Developer ID Application: }"
     say "Signing as: $identity"
     # A Gradle daemon left over from another session (e.g. SSH) can't reach this
     # session's keychain, so signing would fail: start from a fresh one.
@@ -61,7 +66,7 @@ if ! $unsigned; then
     say "Signing the disk image"
     codesign --force --timestamp --sign "$identity" "$dmg"
     say "Notarizing (Apple usually takes a few minutes)"
-    xcrun notarytool submit "$dmg" --keychain-profile preform-notary --wait
+    xcrun notarytool submit "$dmg" --keychain-profile "$notary" --wait
     xcrun stapler staple "$dmg"
     say "Checking Gatekeeper accepts it"
     spctl --assess --type open --context context:primary-signature -v "$dmg"

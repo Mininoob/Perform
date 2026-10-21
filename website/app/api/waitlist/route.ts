@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     const response = await fetch(webhook, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, source: "preform-website", at: new Date().toISOString() }),
+      body: JSON.stringify({ email, source: "perform-website", at: new Date().toISOString() }),
     });
     if (!response.ok) throw new Error(String(response.status));
   } catch {

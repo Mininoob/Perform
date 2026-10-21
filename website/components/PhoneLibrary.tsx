@@ -9,7 +9,7 @@ const shelves = ["Classics", "Sea Stories", "Essays"];
 export function PhoneLibrary() {
   const inHand = book("Pride and Prejudice");
   return (
-    <div className={styles.phone} role="img" aria-label="Preform's library on a phone: the book in hand, then shelves made from folders">
+    <div className={styles.phone} role="img" aria-label="Perform's library on a phone: the book in hand, then shelves made from folders">
       <div className={styles.screen}>
         <div className={styles.status}>
           <span>9:41</span>

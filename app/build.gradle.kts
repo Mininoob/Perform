@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.preform.reader"
+    namespace = "com.perform.reader"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.preform.reader"
+        applicationId = "com.perform.reader"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

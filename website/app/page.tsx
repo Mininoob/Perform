@@ -83,7 +83,7 @@ export default async function Home() {
               whole-page fit and a page lock for PDFs.
             </p>
             <p className="imprint">
-              <span>Preform</span>
+              <span>Perform</span>
               <span>The reading</span>
             </p>
           </div>
@@ -126,7 +126,7 @@ export default async function Home() {
               ]}
             />
             <p className="imprint">
-              <span>Preform</span>
+              <span>Perform</span>
               <span>Shelves</span>
             </p>
           </div>
@@ -135,7 +135,7 @@ export default async function Home() {
         <section id="library-app" className={`${styles.section} cloth-graphite`} data-ground="graphite" aria-labelledby="app-title">
           <div className={styles.inner}>
             <CoverHead id="app-title" title="A library app for the computer, too.">
-              Preform Library keeps your books folder in order and shares it with your phone. It sits in the tray on Windows or
+              Perform Library keeps your books folder in order and shares it with your phone. It sits in the tray on Windows or
               the menu bar on a Mac; open its window when the books need tidying.
             </CoverHead>
             <div className={styles.windowFrame}>
@@ -159,7 +159,7 @@ export default async function Home() {
               turn it off. <em>Nothing is lost:</em> removed books go to the Recycle Bin or Trash.
             </p>
             <p className="imprint">
-              <span>Preform Library</span>
+              <span>Perform Library</span>
               <span>Windows and macOS</span>
             </p>
           </div>
@@ -169,14 +169,14 @@ export default async function Home() {
           <div className={styles.inner}>
             <CoverHead id="private-title" title="No account. No cloud. Your computer.">
               Your computer serves your library straight to your phone, on your home Wi-Fi or over Tailscale when you&rsquo;re
-              out. There&rsquo;s no Preform server in between.
+              out. There&rsquo;s no Perform server in between.
             </CoverHead>
 
             <div className={styles.pairing}>
               <ol className={styles.steps}>
                 <li>
                   <p className={styles.stepTitle}>Open Pair a phone</p>
-                  <p>In Preform Library on the computer, under Devices.</p>
+                  <p>In Perform Library on the computer, under Devices.</p>
                 </li>
                 <li>
                   <p className={styles.stepTitle}>Scan the code</p>
@@ -229,7 +229,7 @@ export default async function Home() {
               ]}
             />
             <p className="imprint">
-              <span>Preform</span>
+              <span>Perform</span>
               <span>
                 <LockIcon className={styles.inlineIcon} />
                 Private by design
@@ -241,7 +241,7 @@ export default async function Home() {
         <section id="get" className={`${styles.section} ${styles.get} cloth-claret`} data-ground="claret" aria-labelledby="get-title">
           <div className={styles.inner}>
             <CoverHead id="get-title" title="Start with the books you already have.">
-              Preform is free and open source under the Apache License 2.0.
+              Perform is free and open source under the Apache License 2.0.
             </CoverHead>
 
             <div className={styles.platforms}>
@@ -264,7 +264,7 @@ export default async function Home() {
               </div>
               <div className={styles.platform}>
                 <h3>For your computer</h3>
-                <p>Preform Library for Windows and macOS keeps the library and shares it with your phones.</p>
+                <p>Perform Library for Windows and macOS keeps the library and shares it with your phones.</p>
                 <div className={styles.platformActions}>
                   {release?.windows ? (
                     <a className="button button-quiet" href={release.windows}>
@@ -290,7 +290,7 @@ export default async function Home() {
                 <p>The reader, the library app and the sync protocol, with build instructions.</p>
                 <a className="button button-quiet" href={site.repo}>
                   <GitHubIcon />
-                  Mininoob/Preform
+                  Mininoob/Perform
                 </a>
               </div>
             </div>
@@ -313,7 +313,7 @@ export default async function Home() {
           <div className={styles.footRow}>
             <span className={styles.footBrand}>
               <Mark size={22} />
-              Preform
+              Perform
             </span>
             <nav aria-label="Footer" className={styles.footLinks}>
               <a href={site.repo}>GitHub</a>
@@ -322,7 +322,7 @@ export default async function Home() {
             </nav>
           </div>
           <p className={styles.footNote}>
-            The books on this page are public-domain classics shown in Preform&rsquo;s own typeset covers; the library counts and
+            The books on this page are public-domain classics shown in Perform&rsquo;s own typeset covers; the library counts and
             file names are examples. Set in Literata, under the SIL Open Font License.
           </p>
         </div>

@@ -47,26 +47,26 @@ dependencies {
 
 compose.desktop {
     application {
-        mainClass = "com.preform.desktop.MainKt"
+        mainClass = "com.perform.desktop.MainKt"
         nativeDistributions {
-            // Windows: a folder with "Preform Library.exe" and its own runtime (an installer
+            // Windows: a folder with "Perform Library.exe" and its own runtime (an installer
             // needs the WiX toolset). macOS: a signed, notarized .dmg, built on a Mac.
             targetFormats(TargetFormat.Exe, TargetFormat.Msi, TargetFormat.Dmg)
-            packageName = "Preform Library"
+            packageName = "Perform Library"
             packageVersion = "1.0.0"
-            description = "Organizes your book library and shares it with Preform on your phone."
-            vendor = "Preform"
-            copyright = "Preform"
+            description = "Organizes your book library and shares it with Perform on your phone."
+            vendor = "Perform"
+            copyright = "Perform"
             includeAllModules = true
             windows {
-                menuGroup = "Preform"
+                menuGroup = "Perform"
                 upgradeUuid = "6d4c2a8e-4f0b-4c63-9a6e-2b5f1d7e3c90"
                 iconFile.set(project.file("icons/icon.ico"))
             }
             macOS {
-                bundleID = "com.preform.library"
+                bundleID = "com.perform.library"
                 appCategory = "public.app-category.productivity"
-                dockName = "Preform Library"
+                dockName = "Perform Library"
                 iconFile.set(project.file("icons/icon.icns"))
                 minimumSystemVersion = "12.0"
                 entitlementsFile.set(project.file("macos/entitlements.plist"))
@@ -77,17 +77,17 @@ compose.desktop {
                         <key>LSUIElement</key>
                         <true/>
                         <key>NSLocalNetworkUsageDescription</key>
-                        <string>Preform Library shares your books with the Preform app on your phones over your home network.</string>
+                        <string>Perform Library shares your books with the Perform app on your phones over your home network.</string>
                         <key>NSBonjourServices</key>
                         <array>
-                            <string>_preform._tcp</string>
+                            <string>_perform._tcp</string>
                         </array>
                     """.trimIndent()
                 }
                 // Signed with the Developer ID certificate in the Mac's keychain when
                 // macos/build.sh names it; notarized there too, with a keychain profile.
                 // Nothing secret lives in the project.
-                val identity = System.getenv("PREFORM_SIGN_IDENTITY")
+                val identity = System.getenv("PERFORM_SIGN_IDENTITY")
                 if (!identity.isNullOrBlank()) {
                     signing {
                         sign.set(true)

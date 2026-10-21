@@ -51,9 +51,9 @@ export function Nav() {
 
   return (
     <header className={`${styles.nav} cloth-${ground}`} data-solid={solid}>
-      <a className={styles.brand} href="#top" aria-label="Preform, back to the top">
+      <a className={styles.brand} href="#top" aria-label="Perform, back to the top">
         <Mark size={26} />
-        <span>Preform</span>
+        <span>Perform</span>
       </a>
       <nav aria-label="Sections" className={styles.links}>
         {links.map((l) => (

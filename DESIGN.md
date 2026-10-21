@@ -1,5 +1,5 @@
 ---
-name: Preform
+name: Perform
 description: A personal ebook library set as one designed book series, on the phone and on the computer.
 colors:
   primary: "#8AB4F8"
@@ -192,13 +192,13 @@ components:
     padding: "28dp"
 ---
 
-# Preform design
+# Perform design
 
 ## The idea
 
 The whole library is designed as one book series, after David Pearson's typographic Penguin covers ("Great Ideas"). Real covers come first. A book without a cover gets a typeset two-colour cover in its genre's cloth, so even a messy folder looks like an edited list. Around the books the interface stays quiet: a neutral base the reader picks, one serif for anything that's a book, the platform's own sans for controls, and hairlines instead of boxes.
 
-Each book is one object shown at three sizes. There's the cover with its caption, in shelf rows and grids. There's the book in hand, the largest, at the top of the phone library. And there's the full card, which is the bottom sheet on the phone and the details panel on the desktop. The covers, cloths, type and caption line are the same on Android and in Preform Library on Windows and macOS. Each platform keeps its own chrome: Material top bars and sheets on the phone, a sidebar and native-feeling dialogs on the desktop.
+Each book is one object shown at three sizes. There's the cover with its caption, in shelf rows and grids. There's the book in hand, the largest, at the top of the phone library. And there's the full card, which is the bottom sheet on the phone and the details panel on the desktop. The covers, cloths, type and caption line are the same on Android and in Perform Library on Windows and macOS. Each platform keeps its own chrome: Material top bars and sheets on the phone, a sidebar and native-feeling dialogs on the desktop.
 
 The phone is sparse (one book in hand, then sideways shelf rows). The desktop is denser (a strict cover grid, a sidebar and a details panel). The accent colour marks the way forward and very little else.
 
@@ -256,7 +256,7 @@ From largest to smallest:
 - Description, Literata 400 at 14sp on the phone. The desktop panel uses the sans at 13/19sp.
 - Label, sans 500 at 14sp, for buttons, tabs, counts and status lines. Desktop controls run at 13sp.
 - Caption line, sans 500 at 11sp on the phone and 12sp on the desktop, muted: the author · year line under a cover.
-- Cover lettering, inside the typeset cover only, scaled with the cover's width from a 92dp reference. The author is in sans capitals at 6.5 × scale, tracked 1.3 × scale. The title is Literata display italic up to 15 × scale with 1.08 line height, sized so the longest word never breaks. The "PREFORM" imprint is tracked sans capitals at 5.5 × scale.
+- Cover lettering, inside the typeset cover only, scaled with the cover's width from a 92dp reference. The author is in sans capitals at 6.5 × scale, tracked 1.3 × scale. The title is Literata display italic up to 15 × scale with 1.08 line height, sized so the longest word never breaks. The "PERFORM" imprint is tracked sans capitals at 5.5 × scale.
 
 Literata sets anything that is a book (titles, authors, shelf names, descriptions, covers) plus page titles. The platform sans sets anything that's a control or data. There's never a serif button or a sans book title. On a typeset cover the title is Literata italic, set low, and the author runs in tracked capitals along a hairline at the head. Those capitals appear on covers only.
 
@@ -264,7 +264,7 @@ Literata sets anything that is a book (titles, authors, shelf names, description
 
 The phone page has one 20dp margin that every title, row and grid lines up with. Shelf rows run to the screen edges and scroll sideways, with 14dp between covers, and rows are 24dp apart. From the top: the large title with search, add and settings; the book in hand (132dp cover, 20dp gap, then title, italic author, 18dp, progress rule, 8dp, status line, 18dp, button); the Shelves / Genres / All books tabs over a full-width hairline; then shelf rows (title, count and "See all" on the right, 6dp, covers) and the grid of loose books with its count and sort. The grid uses adaptive columns with a 96dp minimum, so its covers match the shelf rows. With several libraries paired, Shelves groups each computer's shelves under its name, followed by the phone's own books.
 
-The desktop window has three columns. The raised sidebar has the Library, Folders, Genres and Other libraries groups with counts, Devices and Settings at the foot, and a sharing status line. The mark and "Preform Library" sit in the window's own title bar above it. The page has a toolbar (serif title, book count, search, sort, Organize…, Add books, refresh) over a strict cover grid of 150dp adaptive cells. The details panel has 24dp padding, a large cover at 78% width and the full card. Dialogs are raised surfaces with 28dp padding.
+The desktop window has three columns. The raised sidebar has the Library, Folders, Genres and Other libraries groups with counts, Devices and Settings at the foot, and a sharing status line. The mark and "Perform Library" sit in the window's own title bar above it. The page has a toolbar (serif title, book count, search, sort, Organize…, Add books, refresh) over a strict cover grid of 150dp adaptive cells. The details panel has 24dp padding, a large cover at 78% width and the full card. Dialogs are raised surfaces with 28dp padding.
 
 Within a surface, every cover in a row or grid is the same size. Only the book in hand and the full card are larger, and covers are always 2:3.
 
@@ -308,7 +308,7 @@ On the phone, search replaces the title bar with a transparent text field. On th
 
 ### Typeset cover
 
-Every book without a cover gets the same design on phone and desktop: the cloth ground, the author in tracked capitals at the head with a hairline under it, the title in Literata italic set low, and the "PREFORM" imprint at the foot in tracked capitals. All the lettering scales with the cover's width, so a 56dp placeholder in an empty library, a 96dp shelf cover and a full cover are the same design.
+Every book without a cover gets the same design on phone and desktop: the cloth ground, the author in tracked capitals at the head with a hairline under it, the title in Literata italic set low, and the "PERFORM" imprint at the foot in tracked capitals. All the lettering scales with the cover's width, so a 56dp placeholder in an empty library, a 96dp shelf cover and a full cover are the same design.
 
 ### Full card
 

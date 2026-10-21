@@ -1,4 +1,4 @@
-/* Preform Library at a fixed internal size, scaled to fit by its container's width. */
+/* Perform Library at a fixed internal size, scaled to fit by its container's width. */
 
 .window {
   container-type: inline-size;

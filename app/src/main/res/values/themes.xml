@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Preform" parent="android:Theme.Material.NoActionBar">
+    <style name="Theme.Perform" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@android:color/black</item>
     </style>
 
     <!-- Readium's navigator inflates AppCompat views, so the reader needs an AppCompat theme. -->
-    <style name="Theme.Preform.Reader" parent="Theme.AppCompat.NoActionBar">
+    <style name="Theme.Perform.Reader" parent="Theme.AppCompat.NoActionBar">
         <item name="android:windowBackground">@android:color/black</item>
     </style>
 </resources>

@@ -73,7 +73,7 @@ export function FoldScene({ release, waitlist }: { release: Release | null; wait
             Your books, held like&nbsp;books.
           </h1>
           <p className="lede">
-            Preform is an ebook reader made for foldable phones. Closed, the cover screen shows the book you&rsquo;re
+            Perform is an ebook reader made for foldable phones. Closed, the cover screen shows the book you&rsquo;re
             reading. Open it, and you&rsquo;re on the page you left.
           </p>
           <div className={styles.actions}>

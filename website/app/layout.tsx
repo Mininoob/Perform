@@ -16,22 +16,22 @@ const literata = localFont({
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
   title: {
-    default: "Preform: your books, held like books",
-    template: "%s · Preform",
+    default: "Perform: your books, held like books",
+    template: "%s · Perform",
   },
   description: site.description,
-  applicationName: "Preform",
+  applicationName: "Perform",
   keywords: ["ebook reader", "foldable", "Galaxy Fold", "EPUB", "PDF", "Android", "open source", "ebook library"],
   openGraph: {
     type: "website",
-    title: "Preform: your books, held like books",
+    title: "Perform: your books, held like books",
     description: site.description,
     url: site.url,
-    siteName: "Preform",
+    siteName: "Perform",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Preform: your books, held like books",
+    title: "Perform: your books, held like books",
     description: site.description,
   },
 };

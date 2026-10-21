@@ -1,8 +1,8 @@
 {
-  "name": "preform-website",
+  "name": "perform-website",
   "version": "1.0.0",
   "private": true,
-  "description": "The Preform website: an ebook reader for foldable phones, and the library app that keeps your books.",
+  "description": "The Perform website: an ebook reader for foldable phones, and the library app that keeps your books.",
   "license": "Apache-2.0",
   "scripts": {
     "dev": "next dev",

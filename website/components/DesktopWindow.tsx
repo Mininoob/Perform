@@ -6,16 +6,16 @@ import styles from "./DesktopWindow.module.css";
 
 const folders = ["Classics", "Essays", "For the Kids", "Poetry", "Science Fiction", "Sea Stories"];
 
-/** Preform Library's window: sidebar, cover grid and the details panel, on the Ink base. */
+/** Perform Library's window: sidebar, cover grid and the details panel, on the Ink base. */
 export function DesktopWindow() {
   const selected = book("Middlemarch");
   const grid = [...books].sort((a, b) => a.title.localeCompare(b.title)).slice(0, 12);
   return (
-    <div className={styles.window} role="img" aria-label="Preform Library on a computer: folders in the sidebar, a grid of covers, and one book's details">
+    <div className={styles.window} role="img" aria-label="Perform Library on a computer: folders in the sidebar, a grid of covers, and one book's details">
       <div className={styles.titlebar}>
         <span className={styles.brand}>
           <Mark size={16} />
-          Preform Library
+          Perform Library
         </span>
         <span className={styles.caption}>
           <i />

@@ -2,7 +2,7 @@ import { clothOf, type Book } from "@/lib/books";
 import styles from "./TypeCover.module.css";
 
 /**
- * Preform's typeset cover: the cloth ground, the author in tracked capitals at the head
+ * Perform's typeset cover: the cloth ground, the author in tracked capitals at the head
  * over a hairline, the title in Literata italic set low, and the imprint at the foot.
  * Every measure scales with the cover's width, so a thumbnail and a full cover are one design.
  */
@@ -33,7 +33,7 @@ export function TypeCover({
       <span className={styles.title} style={{ fontSize: `${titleSize}cqw` }}>
         {book.title}
       </span>
-      <span className={styles.imprint}>Preform</span>
+      <span className={styles.imprint}>Perform</span>
       </div>
     </div>
   );

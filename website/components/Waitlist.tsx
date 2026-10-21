@@ -5,7 +5,7 @@ import styles from "./Waitlist.module.css";
 
 type State = { kind: "idle" } | { kind: "sending" } | { kind: "done" } | { kind: "error"; message: string };
 
-/** One field: an email address, for a note when Preform reaches Google Play. */
+/** One field: an email address, for a note when Perform reaches Google Play. */
 export function Waitlist() {
   const [state, setState] = useState<State>({ kind: "idle" });
 
@@ -33,7 +33,7 @@ export function Waitlist() {
   if (state.kind === "done") {
     return (
       <p className={styles.done} role="status">
-        You&rsquo;re on the list. One email when Preform is on Google Play, and nothing else.
+        You&rsquo;re on the list. One email when Perform is on Google Play, and nothing else.
       </p>
     );
   }
@@ -41,7 +41,7 @@ export function Waitlist() {
   return (
     <form className={styles.form} onSubmit={submit} noValidate={false}>
       <label htmlFor="waitlist-email" className={styles.label}>
-        Get one email when Preform is on Google Play
+        Get one email when Perform is on Google Play
       </label>
       <div className={styles.row}>
         <input
