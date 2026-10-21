@@ -116,16 +116,20 @@
     inset 0 1px 0 rgb(255 255 255 / 0.12);
 }
 
-/* The inner screen runs into the hinge: square corners there. */
+/*
+ * Open, the inner screen runs into the hinge: square corners there. Closed, those corners
+ * sit behind the cover's rounded ones, so they round to match and stay hidden.
+ */
 .right {
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
+  --hinge-radius: calc(var(--radius) * (1 - var(--open)));
+  border-top-left-radius: var(--hinge-radius);
+  border-bottom-left-radius: var(--hinge-radius);
   padding-left: 0;
 }
 
 .right .glass {
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
+  border-top-left-radius: var(--hinge-radius);
+  border-bottom-left-radius: var(--hinge-radius);
 }
 
 .leaf {

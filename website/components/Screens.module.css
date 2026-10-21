@@ -70,6 +70,39 @@
   text-indent: 0 !important;
 }
 
+/* A play, set the way printed editions set one. Verse lines hang so a wrapped line reads as a turnover. */
+.verse span {
+  display: block;
+  padding-left: 1.2em;
+  text-indent: -1.2em;
+}
+
+.sceneHead {
+  font-style: italic;
+  font-variation-settings: "opsz" 24;
+  font-size: 5.6cqw;
+  margin-top: 1.1em;
+  text-indent: 0 !important;
+}
+
+.direction {
+  font-style: italic;
+  color: var(--paper-muted);
+  margin: 0.3em 0 0.5em;
+  text-indent: 0 !important;
+}
+
+.speech {
+  text-indent: 0 !important;
+  padding-left: 1.2em;
+}
+
+.speech .speaker {
+  margin-left: -1.2em;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.04em;
+}
+
 /* The book's opening words in small capitals, as a printed first page sets them. */
 .first::first-line {
   font-variant-caps: all-small-caps;

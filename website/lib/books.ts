@@ -68,6 +68,7 @@ export const books: Book[] = [
   { title: "The Wind in the Willows", author: "Kenneth Grahame", year: 1908, genre: "Children's", shelf: "For the Kids", file: "wind_willows.epub" },
   { title: "The Picture of Dorian Gray", author: "Oscar Wilde", year: 1890, genre: "Fiction", shelf: "Classics", file: "the-picture-of-dorian-gray.epub" },
   { title: "The Republic", author: "Plato", year: -375, genre: "Philosophy", shelf: "Essays", file: "republic_jowett.pdf" },
+  { title: "Romeo and Juliet", author: "William Shakespeare", year: 1597, genre: "Drama", shelf: "Plays", progress: 0.38, file: "romeo_and_juliet_folger.epub" },
 ];
 
 export function book(title: string): Book {
@@ -86,7 +87,54 @@ export function surname(author: string): string {
   return parts[parts.length - 1];
 }
 
-/** The opening of Pride and Prejudice (1813, public domain), for the reading spread. */
+/** One piece of a play's page: verse, a scene heading, a stage direction, or a line of dialogue. */
+export type PlayBlock =
+  | { kind: "verse"; lines: string[] }
+  | { kind: "heading"; text: string }
+  | { kind: "direction"; text: string }
+  | { kind: "speech"; speaker: string; text: string };
+
+/** The opening of Romeo and Juliet (public domain), for the Fold's cover and reading spread. */
+export const frontBook = {
+  title: "Romeo and Juliet",
+  opening: "The Prologue",
+  rightHead: "Act 1, Scene 1",
+  left: [
+    {
+      kind: "verse",
+      lines: [
+        "Two households, both alike in dignity,",
+        "In fair Verona, where we lay our scene,",
+        "From ancient grudge break to new mutiny,",
+        "Where civil blood makes civil hands unclean.",
+        "From forth the fatal loins of these two foes",
+        "A pair of star-cross’d lovers take their life;",
+        "Whose misadventur’d piteous overthrows",
+        "Doth with their death bury their parents’ strife.",
+      ],
+    },
+  ] as PlayBlock[],
+  right: [
+    {
+      kind: "verse",
+      lines: [
+        "The fearful passage of their death-mark’d love,",
+        "And the continuance of their parents’ rage,",
+        "Which, but their children’s end, nought could remove,",
+        "Is now the two hours’ traffic of our stage;",
+        "The which if you with patient ears attend,",
+        "What here shall miss, our toil shall strive to mend.",
+      ],
+    },
+    { kind: "heading", text: "Act 1, Scene 1" },
+    { kind: "direction", text: "Verona. A public place. Enter Sampson and Gregory, of the house of Capulet." },
+    { kind: "speech", speaker: "Sampson", text: "Gregory, o’ my word, we’ll not carry coals." },
+    { kind: "speech", speaker: "Gregory", text: "No, for then we should be colliers." },
+    { kind: "speech", speaker: "Sampson", text: "I mean, an we be in choler, we’ll draw." },
+  ] as PlayBlock[],
+};
+
+/** The opening of Pride and Prejudice (1813, public domain), for the reading themes demo. */
 export const openingPages = {
   chapter: "Chapter 1",
   left: [

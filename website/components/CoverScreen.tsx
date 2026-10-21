@@ -1,4 +1,4 @@
-import { book } from "@/lib/books";
+import { book, frontBook } from "@/lib/books";
 import { TypeCover } from "./TypeCover";
 import styles from "./Screens.module.css";
 
@@ -16,10 +16,10 @@ export function CoverScreen() {
         </span>
       </div>
       <div className={styles.coverWrap}>
-        <TypeCover book={book("Pride and Prejudice")} lift="none" className={styles.fullCover} />
+        <TypeCover book={book(frontBook.title)} lift="none" className={styles.fullCover} />
       </div>
       <div className={styles.coverFoot} aria-hidden="true">
-        <span>Chapter 1</span>
+        <span>{frontBook.opening}</span>
         <span className={styles.coverProgress}>
           <i style={{ width: "1%" }} />
         </span>
