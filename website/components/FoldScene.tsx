@@ -48,18 +48,53 @@ export function FoldScene({ release, waitlist }: { release: Release | null; wait
       el.dataset.ground = span(p, 0.46, 0.64) > 0.5 ? "paper" : "claret";
     };
 
+    // Narrow screens stack the opening copy above the closed phone. The copy's height depends on
+    // the screen, so the phone is placed and sized to fit the space left under it.
+    const narrow = window.matchMedia("(max-width: 899px)");
+    const hero = el.querySelector<HTMLElement>(`.${styles.hero}`);
+    const stage = el.querySelector<HTMLElement>(`.${styles.stage}`);
+    const device = el.querySelector<HTMLElement>(`.${styles.device}`);
+    const place = () => {
+      if (!narrow.matches || !hero || !stage || !device) {
+        el.style.removeProperty("--hy");
+        el.style.removeProperty("--hscale");
+        return;
+      }
+      const gap = 24;
+      const below = 64; // the scroll cue and the phone's shadow
+      const top = hero.offsetTop + hero.offsetHeight + gap;
+      const room = stage.clientHeight - top - below;
+      const height = device.offsetHeight;
+      const scale = Math.max(0.3, Math.min(0.72, room / height));
+      // On the smallest screens the phone needs the space the scroll cue would take.
+      el.dataset.tight = room / height < 0.3 ? "true" : "false";
+      const padBottom = parseFloat(getComputedStyle(stage).paddingBottom) || 0;
+      const center = (stage.clientHeight - padBottom) / 2;
+      el.style.setProperty("--hy", `${top + (scale * height) / 2 - center}px`);
+      el.style.setProperty("--hscale", String(1 - scale));
+    };
+
     const onScroll = () => {
       if (!frame) frame = requestAnimationFrame(update);
     };
+    const onResize = () => {
+      place();
+      onScroll();
+    };
+    place();
     update();
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
+    window.addEventListener("resize", onResize);
     reduce.addEventListener("change", onScroll);
+    narrow.addEventListener("change", onResize);
+    // The opening copy changes height once the web font arrives.
+    document.fonts?.ready.then(onResize);
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
+      window.removeEventListener("resize", onResize);
       reduce.removeEventListener("change", onScroll);
+      narrow.removeEventListener("change", onResize);
     };
   }, []);
 
@@ -70,11 +105,11 @@ export function FoldScene({ release, waitlist }: { release: Release | null; wait
 
         <div className={styles.hero}>
           <h1 id="hero-title" className="display">
-            Your books, held like&nbsp;books.
+            Your foldable, made for&nbsp;reading.
           </h1>
           <p className="lede">
-            Perform is an ebook reader made for foldable phones. Closed, the cover screen shows the book you&rsquo;re
-            reading. Open it, and you&rsquo;re on the page you left.
+            Perform is a free ebook reader for foldable phones. When the phone is closed, the outside screen shows the
+            cover of whatever you&rsquo;re reading. Open it and you&rsquo;re right back on your page.
           </p>
           <div className={styles.actions}>
             <a className="button button-primary" href={site.repo}>
@@ -92,7 +127,7 @@ export function FoldScene({ release, waitlist }: { release: Release | null; wait
               </a>
             ) : null}
           </div>
-          <p className={styles.note}>Free and open source. EPUB and PDF. Android, with a companion app for Windows and macOS.</p>
+          <p className={styles.note}>Free and open source. Reads EPUB and PDF. Android app, plus a companion app for Windows and Mac.</p>
         </div>
 
         <div className={styles.stage} aria-hidden="true">
@@ -119,12 +154,12 @@ export function FoldScene({ release, waitlist }: { release: Release | null; wait
         </div>
 
         <p className={`${styles.caption} ${styles.cap1}`}>
-          <span className={styles.captionTitle}>Book Mode.</span> Folded shut, the phone wears the cover of the book
-          you&rsquo;re in, the way a book on the table does.
+          <span className={styles.captionTitle}>Book Mode.</span> Close the phone and its outside screen shows the cover
+          of the book you&rsquo;re reading, like a real book left on the table.
         </p>
         <p className={`${styles.caption} ${styles.cap2}`}>
-          <span className={styles.captionTitle}>Open it to read.</span> The inner screen becomes a two-page spread, at
-          the exact place you stopped, set in the type and colours you chose.
+          <span className={styles.captionTitle}>Open it to read.</span> The big screen shows two pages side by side,
+          right where you left off, in the font and colors you picked.
         </p>
 
         <div className={styles.cue} aria-hidden="true">

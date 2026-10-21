@@ -250,6 +250,10 @@
   opacity: var(--cue);
 }
 
+.scene[data-tight="true"] .cue {
+  display: none;
+}
+
 .cue svg {
   width: 16px;
   height: 16px;

@@ -102,7 +102,7 @@ export function ThemeDemo() {
             ))}
           </div>
         </fieldset>
-        <p className={styles.hint}>Set it once for every book, or differently for one book. Light and dark can switch with the time of day.</p>
+        <p className={styles.hint}>Use one look for every book, or give a single book its own. Light and dark can switch on their own with the time of day.</p>
       </div>
 
       <div className={styles.phone} aria-label={`A page in ${base.name} with the ${accent.name} accent`} role="img">

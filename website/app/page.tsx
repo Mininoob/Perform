@@ -55,10 +55,10 @@ function Answers({ items }: { items: [string, string][] }) {
 
 /** The library app: numbered pins on the window, keyed to a legend below it. */
 const callouts: { x: number; y: number; title: string; text: string }[] = [
-  { x: 10, y: 34, title: "Folders and moves", text: "Drag books between folders. The files move on disk, and every move can be undone." },
-  { x: 63.5, y: 13, title: "Auto-organize", text: "File a whole folder into a tidy structure, with a preview first and undo after." },
-  { x: 88, y: 66, title: "Book details", text: "Fix titles, authors, series, years, genres, descriptions and covers, written into the file with the original kept." },
-  { x: 10, y: 82, title: "Tidy-up checks", text: "Identical copies, the same book twice, files that won’t open, and books missing an author, cover or genre." },
+  { x: 10, y: 34, title: "Folders", text: "Drag books between folders and the real files move with them. You can undo any move." },
+  { x: 63.5, y: 13, title: "Auto-organize", text: "Sort a whole messy folder in one go. You see a preview first, and you can undo it after." },
+  { x: 88, y: 66, title: "Book details", text: "Fix a title, author, series, year, genre, description or cover. Changes are saved into the file, and the original is kept." },
+  { x: 10, y: 82, title: "Tidy-up checks", text: "Finds duplicate files, the same book saved twice, files that won’t open, and books missing an author, cover or genre." },
 ];
 
 const downloads = books.slice(0, 9).map((b) => b.file);
@@ -74,17 +74,17 @@ export default async function Home() {
         <section id="reading" className={`${styles.section} cloth-navy`} data-ground="navy" aria-labelledby="reading-title">
           <div className={styles.inner}>
             <CoverHead id="reading-title" title="Read the way you like to read.">
-              Pick a page colour, an accent and a size, and every book opens where you stopped. Try it here.
+              Pick a page color, an accent color and a text size. Try it out right here. Every book opens where you left off.
             </CoverHead>
             <ThemeDemo />
             <p className={styles.runIn}>
-              <em>Pages or scroll,</em> as a single page or a two-page spread when the phone is open. <em>Flex Mode</em> for
-              reading with the phone half open. <em>Right to left</em> for books written that way. <em>EPUB and PDF,</em> with
-              whole-page fit and a page lock for PDFs.
+              <em>Turn pages or scroll,</em> one page at a time or two side by side when the phone is open. <em>Flex Mode</em>{" "}
+              lets you read with the phone half folded. <em>Right-to-left</em> books work too. <em>EPUB and PDF</em> both
+              open, and a PDF page can be fit to the screen and locked in place.
             </p>
             <p className="imprint">
               <span>Perform</span>
-              <span>The reading</span>
+              <span>Reading</span>
             </p>
           </div>
         </section>
@@ -92,8 +92,8 @@ export default async function Home() {
         <section id="shelves" className={`${styles.section} cloth-bottle`} data-ground="bottle" aria-labelledby="shelves-title">
           <div className={styles.inner}>
             <CoverHead id="shelves-title" title="Folders become shelves.">
-              However you keep your books on the computer is how they line up on the phone. A book without cover art gets a
-              typeset cover in its genre&rsquo;s cloth, so a messy folder reads like an edited list.
+              However you&rsquo;ve organized books on your computer, that&rsquo;s how they show up on your phone. Books
+              without cover art get a clean, simple cover, so even a messy downloads folder ends up looking tidy.
             </CoverHead>
 
             <div className={styles.beforeAfter}>
@@ -119,10 +119,10 @@ export default async function Home() {
 
             <RuledList
               items={[
-                ["Genres", "Genres come from the books and from Open Library, and each gets a shelf of its own."],
-                ["Continue reading", "The book you’re in sits at the top, one tap from where you stopped."],
-                ["Downloads", "Books download when you open them, or keep a whole library on the phone, within a limit you set."],
-                ["Organize on the phone", "Make folders and move books on the phone. The computer moves the real files."],
+                ["Genres", "Perform works out each book’s genre from the book itself and from Open Library, and every genre gets its own shelf."],
+                ["Continue reading", "Whatever you’re reading sits at the top, one tap from where you left off."],
+                ["Downloads", "Books download when you open them. Or keep your whole library on the phone, up to a storage limit you choose."],
+                ["Organize on the phone", "Make folders and move books around on your phone, and the files on your computer move to match."],
               ]}
             />
             <p className="imprint">
@@ -134,9 +134,9 @@ export default async function Home() {
 
         <section id="library-app" className={`${styles.section} cloth-graphite`} data-ground="graphite" aria-labelledby="app-title">
           <div className={styles.inner}>
-            <CoverHead id="app-title" title="A library app for the computer, too.">
-              Perform Library keeps your books folder in order and shares it with your phone. It sits in the tray on Windows or
-              the menu bar on a Mac; open its window when the books need tidying.
+            <CoverHead id="app-title" title="And an app for your computer.">
+              Perform Library keeps your book folder organized and sends your books to your phone. It stays out of the way in
+              the tray on Windows or the menu bar on a Mac. Open it whenever you want to tidy up.
             </CoverHead>
             <div className={styles.windowFrame}>
               <DesktopWindow />
@@ -155,8 +155,8 @@ export default async function Home() {
               ))}
             </ol>
             <p className={styles.runIn}>
-              <em>Open Library</em> fills in what a book is missing; only titles, authors and file names are sent, and you can
-              turn it off. <em>Nothing is lost:</em> removed books go to the Recycle Bin or Trash.
+              <em>Open Library</em> fills in missing details. It only sends titles, authors and file names, and you can turn it
+              off. <em>Deleting is safe.</em> Removed books go to the Recycle Bin or Trash, so you can get them back.
             </p>
             <p className="imprint">
               <span>Perform Library</span>
@@ -167,24 +167,24 @@ export default async function Home() {
 
         <section id="private" className={`${styles.section} cloth-ochre`} data-ground="ochre" aria-labelledby="private-title">
           <div className={styles.inner}>
-            <CoverHead id="private-title" title="No account. No cloud. Your computer.">
-              Your computer serves your library straight to your phone, on your home Wi-Fi or over Tailscale when you&rsquo;re
-              out. There&rsquo;s no Perform server in between.
+            <CoverHead id="private-title" title="No account, no cloud. Just your computer.">
+              Your phone gets books straight from your own computer, over your home Wi-Fi, or through Tailscale when
+              you&rsquo;re away. Nothing passes through a Perform server, because there isn&rsquo;t one.
             </CoverHead>
 
             <div className={styles.pairing}>
               <ol className={styles.steps}>
                 <li>
-                  <p className={styles.stepTitle}>Open Pair a phone</p>
-                  <p>In Perform Library on the computer, under Devices.</p>
+                  <p className={styles.stepTitle}>Click &ldquo;Pair a phone&rdquo;</p>
+                  <p>It&rsquo;s under Devices in Perform Library on your computer.</p>
                 </li>
                 <li>
                   <p className={styles.stepTitle}>Scan the code</p>
-                  <p>Or type its six digits on the phone.</p>
+                  <p>Or type the six digits into your phone.</p>
                 </li>
                 <li>
-                  <p className={styles.stepTitle}>Check the match</p>
-                  <p>Both screens show the same security code. From then on, the phone trusts only that computer.</p>
+                  <p className={styles.stepTitle}>Check that the codes match</p>
+                  <p>Both screens show the same security code. After that, your phone only trusts that computer.</p>
                 </li>
               </ol>
 
@@ -219,12 +219,12 @@ export default async function Home() {
               items={[
                 [
                   "What if I have a PC and a Mac?",
-                  "Pair the phone with both. A book on both shows up once, and the two computers can browse each other, copy books over, or mirror each other.",
+                  "Pair your phone with both. A book that’s on both only shows up once. The two computers can also browse each other’s books, copy them across, or stay fully in sync.",
                 ],
-                ["What if two devices disagree?", "Moves and edits carry a time and a device. The most recent change wins everywhere."],
+                ["What if I change something in two places?", "The newest change wins, on every device."],
                 [
-                  "Who else can reach it?",
-                  "No one outside your network. The library only answers on private networks, over HTTPS pinned to its own certificate.",
+                  "Can anyone else get to my books?",
+                  "Not from outside your network. The library only answers on private networks, and the connection is encrypted and locked to your computer’s own certificate.",
                 ],
               ]}
             />
@@ -232,7 +232,7 @@ export default async function Home() {
               <span>Perform</span>
               <span>
                 <LockIcon className={styles.inlineIcon} />
-                Private by design
+                Stays on your devices
               </span>
             </p>
           </div>
@@ -241,13 +241,13 @@ export default async function Home() {
         <section id="get" className={`${styles.section} ${styles.get} cloth-claret`} data-ground="claret" aria-labelledby="get-title">
           <div className={styles.inner}>
             <CoverHead id="get-title" title="Start with the books you already have.">
-              Perform is free and open source under the Apache License 2.0.
+              Perform is free and open source, under the Apache 2.0 license.
             </CoverHead>
 
             <div className={styles.platforms}>
               <div className={styles.platform}>
                 <h3>For your phone</h3>
-                <p>Android 8.0 or newer. Book Mode is made for foldables with a cover screen.</p>
+                <p>Needs Android 8.0 or newer. Book Mode is for foldables with an outside screen.</p>
                 {release?.apk ? (
                   <a className="button button-primary" href={release.apk}>
                     <DownloadIcon />
@@ -255,7 +255,7 @@ export default async function Home() {
                   </a>
                 ) : (
                   <>
-                    <p className={styles.pending}>The Android download arrives with the first release. Until then, build it from source.</p>
+                    <p className={styles.pending}>The Android download comes with the first release. For now, you can build it from the source code.</p>
                     <a className="button button-primary" href={`${site.repo}#building`}>
                       Build from source
                     </a>
@@ -264,7 +264,7 @@ export default async function Home() {
               </div>
               <div className={styles.platform}>
                 <h3>For your computer</h3>
-                <p>Perform Library for Windows and macOS keeps the library and shares it with your phones.</p>
+                <p>Perform Library for Windows and Mac keeps your books and shares them with your phone.</p>
                 <div className={styles.platformActions}>
                   {release?.windows ? (
                     <a className="button button-quiet" href={release.windows}>
@@ -287,7 +287,7 @@ export default async function Home() {
               </div>
               <div className={styles.platform}>
                 <h3>The source</h3>
-                <p>The reader, the library app and the sync protocol, with build instructions.</p>
+                <p>The phone app, the computer app and the sync code, plus instructions for building them.</p>
                 <a className="button button-quiet" href={site.repo}>
                   <GitHubIcon />
                   Mininoob/Perform
@@ -300,7 +300,7 @@ export default async function Home() {
                 <Waitlist />
               ) : (
                 <p className={styles.watch}>
-                  To hear about the first release, <a href={site.repo}>watch the repository on GitHub</a>.
+                  Want to know when the first release is out? <a href={site.repo}>Watch the project on GitHub</a>.
                 </p>
               )}
             </div>
@@ -322,8 +322,8 @@ export default async function Home() {
             </nav>
           </div>
           <p className={styles.footNote}>
-            The books on this page are public-domain classics shown in Perform&rsquo;s own typeset covers; the library counts and
-            file names are examples. Set in Literata, under the SIL Open Font License.
+            The books shown here are public-domain classics with Perform&rsquo;s built-in covers. The file names and book
+            counts are just examples. Set in Literata, under the SIL Open Font License.
           </p>
         </div>
       </footer>
