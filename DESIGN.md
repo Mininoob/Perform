@@ -192,154 +192,151 @@ components:
     padding: "28dp"
 ---
 
-# Design System: Preform
+# Preform design
 
-## Overview
+## The idea
 
-**Creative North Star: "The Great Ideas Series"**
+The whole library is designed as one book series, after David Pearson's typographic Penguin covers ("Great Ideas"). Real covers come first. A book without a cover gets a typeset two-colour cover in its genre's cloth, so even a messy folder looks like an edited list. Around the books the interface stays quiet: a neutral base the reader picks, one serif for anything that's a book, the platform's own sans for controls, and hairlines instead of boxes.
 
-The library is one designed book series, after David Pearson's typographic Penguin covers. Real covers lead; any book without one is given a typeset two-colour cover in its genre's cloth, so a messy folder reads as an edited list. The interface around the books is quiet: a reader-chosen neutral base, one serif voice for books, the platform sans for everything that is a control, and hairlines instead of containers.
+Each book is one object shown at three sizes. There's the cover with its caption, in shelf rows and grids. There's the book in hand, the largest, at the top of the phone library. And there's the full card, which is the bottom sheet on the phone and the details panel on the desktop. The covers, cloths, type and caption line are the same on Android and in Preform Library on Windows and macOS. Each platform keeps its own chrome: Material top bars and sheets on the phone, a sidebar and native-feeling dialogs on the desktop.
 
-Each book is one object shown in three folds: the cover with its caption (shelf rows and grids), the book in hand (largest scale, top of the phone library), and the full card (phone bottom sheet, desktop details panel). The same covers, cloths, type and furniture line appear on the Android phone and in Preform Library on Windows and macOS; each platform keeps its own chrome (Material top bar and sheets on the phone, a native-feeling sidebar and dialogs on the desktop).
+The phone is sparse (one book in hand, then sideways shelf rows). The desktop is denser (a strict cover grid, a sidebar and a details panel). The accent colour marks the way forward and very little else.
 
-Density is low on the phone (one book in hand, then sideways shelf rows) and moderate on the desktop (strict cover grid, sidebar, details panel). The reader's accent marks the way forward and almost nothing else.
+In short:
 
-**Key Characteristics:**
-- Six neutral bases (three light, three dark) and nine accents, chosen by the reader; Ink with Blue is the default.
-- Five cover cloths, exactly: claret, navy, bottle, ochre, graphite.
-- Literata (variable, bundled) for titles, authors, descriptions and covers; platform sans for controls and data.
-- Reading state is a 2dp rule in the accent, everywhere.
-- Hairline dividers, no cards, no badges, no texture.
-- The mark is the closed book bound in claret, set like a typeset cover.
+- Six neutral bases (three light, three dark) and nine accents, chosen by the reader. Ink with Blue is the default.
+- Exactly five cover cloths: claret, navy, bottle, ochre and graphite.
+- Literata (variable, bundled) for titles, authors, descriptions and covers, and the platform sans for controls and data.
+- Reading progress is a 2dp rule in the accent everywhere.
+- Hairline dividers. No cards, badges or texture.
+- The mark is a closed book bound in claret, set like a typeset cover.
 
-## Colors
+## Colour
 
-The palette is a reader's choice of neutral page plus one accent; the only fixed colours are the five cloths and the claret of the mark.
+The reader chooses a neutral page and one accent. The only fixed colours are the five cloths and the claret of the mark.
 
-### Primary
-- **The Reader's Accent** (`{colors.primary}`, default Blue on a dark base): the way forward. The Read/Continue button, the progress rule's fill, the reading seek thumb, desktop selection outlines, the desktop "Add books" action, checked boxes and selected genres in editing. Each accent has a deeper shade for light bases (`accent-*-on-light`) and a lighter shade for dark bases (`accent-*-on-dark`); light shades carry white text, dark shades carry a near-black tint of their own hue. Mono is black on light bases and white on dark ones. No orange accent exists, by brand commitment.
+### Accent
 
-### Neutral
-Each base defines four values: page (`*-background`), raised surface for sheets, dialogs and the desktop sidebar/panels (`*-raised`), text (`*-text`), and muted (`*-muted`).
-- **Mono** (white page, black text), **Paper** (warm off-white, blue-black text), **Parchment** (sand page, brown-black text): the light bases.
-- **Noir** (true black), **Ink** (near-black, warm grey text), **Slate** (blue-grey): the dark bases.
-- **Muted** carries authors, counts, the furniture line, section labels, unselected tabs, and every secondary action.
-- **Hairlines** are the text colour at low alpha over the page: 14% on the phone (dividers, the progress rule's track), 12% light / 10% dark on the desktop. The reader seek track uses 18% of the chrome content colour.
-- **Selection fill** (desktop sidebar row): the accent at 14% (light) / 18% (dark) over the raised surface.
-- **Danger and OK** on the desktop reuse the red and green accent shades for the base's lightness (remove actions, the sharing status dot).
+The accent (`{colors.primary}`, Blue on a dark base by default) marks the way forward: the Read/Continue button, the fill of the progress rule, the seek thumb in the reader, selection outlines on the desktop, the desktop "Add books" action, and checked boxes and selected genres while editing. Each accent has a deeper shade for light bases (`accent-*-on-light`) and a lighter one for dark bases (`accent-*-on-dark`). Light shades carry white text, and dark shades carry a near-black tint of their own hue. Mono is black on light bases and white on dark ones. There's no orange accent, by choice.
 
-### Cover Cloths
-Shared by both apps from one source, assigned by a book's first genre (titles without a genre pick steadily from claret, navy, bottle, graphite):
-- **Claret** with cream ink: Classics, Romance, Historical Fiction, Drama, Poetry. Also the cloth of the mark.
-- **Navy** with cream ink: Science Fiction, Philosophy, Religion, Psychology, Politics.
-- **Bottle** with cream ink: Fantasy, Science & Nature, Health, Self-Help.
-- **Ochre** with near-black ink: History, Biography, Travel, Art, Cooking, Young Adult, Children's, Comics.
-- **Graphite** with cream ink: Fiction, Literary Fiction, Horror, Mystery, Thriller, Technology, Business, Reference.
+### Neutrals
 
-### Named Rules
-**The Way Forward Rule.** The accent marks only what moves the reader on: the book in hand's button, reading progress, selection, and the primary action of a view. Secondary text actions (See all, sort, Cancel) and section labels are muted.
+Each base has four values: the page (`*-background`), a raised surface for sheets, dialogs and the desktop sidebar and panels (`*-raised`), text (`*-text`), and muted (`*-muted`).
 
-**The Five Cloths Rule.** Typeset covers use exactly the five cloths, two colours each. No sixth cloth, no gradients, no accent-coloured covers.
+The light bases are Mono (white page, black text), Paper (warm off-white, blue-black text) and Parchment (sand page, brown-black text). The dark bases are Noir (true black), Ink (near-black with warm grey text) and Slate (blue-grey).
 
-## Typography
+Muted is for authors, counts, the caption line, section labels, unselected tabs and every secondary action. Hairlines are the text colour at low alpha over the page: 14% on the phone (dividers and the progress rule's track), and 12% on light or 10% on dark bases on the desktop. The reader's seek track uses 18% of the chrome's content colour. A selected desktop sidebar row is filled with the accent at 14% (light) or 18% (dark) over the raised surface. Danger and OK on the desktop reuse the red and green accent shades for the base's lightness, for remove actions and the sharing status dot.
 
-**Display Font:** Literata, variable, optical size 36 (bundled; fallback serif)
-**Body Font:** Literata, variable, optical size 12, for book text set in the interface (caption titles, authors, descriptions)
-**Label Font:** the platform sans (Roboto on Android, Segoe UI on Windows, SF on macOS); system monospace for file paths and addresses on the desktop
+### Cover cloths
 
-**Character:** a book face that reads as the series' imprint against a plain native sans. Literata belongs to books; the sans belongs to the machine.
+Both apps take the cloths from one shared source and pick one by a book's first genre. Books without a genre are spread evenly over claret, navy, bottle and graphite.
 
-### Hierarchy
-- **Page title** (Literata display 400, 28sp phone / 26sp desktop, slight negative tracking): "Library", a shelf or genre name inside it, desktop page titles.
-- **Book in hand** (Literata display 400, 28sp): the book being read, beside its 132dp cover, up to three lines.
-- **Sheet / panel / dialog title** (Literata display 400, 24sp phone sheet, 22sp desktop panel and dialogs).
-- **Shelf title** (Literata display 400, 22sp): shelf and group names, followed by the count in muted label type.
-- **Author** (Literata italic, 16sp phone, 15sp desktop panel, muted): always italic, under a title.
-- **Caption title** (Literata 400, 14sp, one line on phone; 14/18sp on desktop): under every cover.
-- **Description** (Literata 400, 14sp phone; desktop panel uses the sans at 13/19sp).
-- **Label** (sans 500, 14sp): buttons, tabs, counts, status lines. Desktop controls run at 13sp.
-- **Furniture** (sans 500, 11sp phone / 12sp desktop, muted): the author · year line under a cover.
-- **Cover lettering** (inside the typeset cover only, scaled with cover width from a 92dp reference): author in sans capitals at 6.5 × scale, tracked 1.3 × scale; title in Literata display italic up to 15 × scale with 1.08 line height, sized so the longest word never breaks; "PREFORM" imprint in tracked sans capitals at 5.5 × scale.
+- Claret with cream ink: Classics, Romance, Historical Fiction, Drama, Poetry. It's also the cloth of the mark.
+- Navy with cream ink: Science Fiction, Philosophy, Religion, Psychology, Politics.
+- Bottle with cream ink: Fantasy, Science & Nature, Health, Self-Help.
+- Ochre with near-black ink: History, Biography, Travel, Art, Cooking, Young Adult, Children's, Comics.
+- Graphite with cream ink: Fiction, Literary Fiction, Horror, Mystery, Thriller, Technology, Business, Reference.
 
-### Named Rules
-**The Two Voices Rule.** Literata sets anything that is a book (titles, authors, shelf names, descriptions, covers) and page titles; the platform sans sets anything that is a control or data. Never a serif button, never a sans book title.
+Two rules follow from this. The accent only marks what moves the reader on (the book in hand's button, reading progress, selection and the main action of a view), while secondary text actions such as See all, sort and Cancel, and section labels, stay muted. And typeset covers use exactly the five cloths, two colours each, with no sixth cloth, no gradients and no accent-coloured covers.
 
-**The Italic Title Rule.** On a typeset cover, the title is Literata italic, set low; the author runs in tracked capitals along a hairline at the head. These capitals live on the cover only.
+## Type
+
+Literata, a variable font bundled with both apps, sets titles at optical size 36 and book text in the interface (caption titles, authors, descriptions) at optical size 12. The fallback is the system serif. Labels use the platform sans: Roboto on Android, Segoe UI on Windows and SF on macOS. The desktop uses the system monospace for file paths and addresses.
+
+The serif belongs to the books, and the sans belongs to the machine.
+
+From largest to smallest:
+
+- Page title, Literata display 400 at 28sp on the phone and 26sp on the desktop, with slightly tight tracking. Used for "Library", a shelf or genre name, and desktop page titles.
+- Book in hand, Literata display 400 at 28sp, beside its 132dp cover, up to three lines.
+- Sheet, panel and dialog titles, Literata display 400 at 24sp in the phone sheet and 22sp in the desktop panel and dialogs.
+- Shelf title, Literata display 400 at 22sp, for shelf and group names, followed by the count in muted label type.
+- Author, Literata italic at 16sp on the phone and 15sp in the desktop panel, muted. Authors are always italic and always under a title.
+- Caption title, Literata 400 at 14sp under every cover (one line on the phone, 14/18sp on the desktop).
+- Description, Literata 400 at 14sp on the phone. The desktop panel uses the sans at 13/19sp.
+- Label, sans 500 at 14sp, for buttons, tabs, counts and status lines. Desktop controls run at 13sp.
+- Caption line, sans 500 at 11sp on the phone and 12sp on the desktop, muted: the author · year line under a cover.
+- Cover lettering, inside the typeset cover only, scaled with the cover's width from a 92dp reference. The author is in sans capitals at 6.5 × scale, tracked 1.3 × scale. The title is Literata display italic up to 15 × scale with 1.08 line height, sized so the longest word never breaks. The "PREFORM" imprint is tracked sans capitals at 5.5 × scale.
+
+Literata sets anything that is a book (titles, authors, shelf names, descriptions, covers) plus page titles. The platform sans sets anything that's a control or data. There's never a serif button or a sans book title. On a typeset cover the title is Literata italic, set low, and the author runs in tracked capitals along a hairline at the head. Those capitals appear on covers only.
 
 ## Layout
 
-The phone page has a single 20dp margin that every title, row and grid aligns to; shelf rows bleed to the screen edges and scroll sideways with 14dp between covers. Vertical rhythm in the library is 24dp between rows. Order from the top: large title with search, add and settings; the book in hand (132dp cover, 20dp gap, title, italic author, 18dp, progress rule, 8dp, status line, 18dp, button); the Shelves / Genres / All books tabs over a full-width hairline; then shelf rows (title, count, "See all" on the right, 6dp, covers) and the loose-book grid with its count and sort. The grid uses adaptive columns with a 96dp minimum so its covers sit at the shelf-row scale.
+The phone page has one 20dp margin that every title, row and grid lines up with. Shelf rows run to the screen edges and scroll sideways, with 14dp between covers, and rows are 24dp apart. From the top: the large title with search, add and settings; the book in hand (132dp cover, 20dp gap, then title, italic author, 18dp, progress rule, 8dp, status line, 18dp, button); the Shelves / Genres / All books tabs over a full-width hairline; then shelf rows (title, count and "See all" on the right, 6dp, covers) and the grid of loose books with its count and sort. The grid uses adaptive columns with a 96dp minimum, so its covers match the shelf rows. With several libraries paired, Shelves groups each computer's shelves under its name, followed by the phone's own books.
 
-The desktop window is three columns: a raised sidebar (mark and "Preform Library", Library / Folders / Genres groups with counts, Phones and Settings at the foot, a sharing status line), the page (toolbar with serif title, book count, search, sort, Organize…, Add books, refresh; then a strict cover grid of 150dp adaptive cells), and a details panel (24dp padding, large cover at 78% width, the full card). Dialogs are 28dp-padded raised surfaces.
+The desktop window has three columns. The raised sidebar has the Library, Folders, Genres and Other libraries groups with counts, Devices and Settings at the foot, and a sharing status line. The mark and "Preform Library" sit in the window's own title bar above it. The page has a toolbar (serif title, book count, search, sort, Organize…, Add books, refresh) over a strict cover grid of 150dp adaptive cells. The details panel has 24dp padding, a large cover at 78% width and the full card. Dialogs are raised surfaces with 28dp padding.
 
-**The One Scale Rule.** Within a surface, every cover in a row or grid is the same size; only the book in hand and the full card are larger. Covers are always 2:3.
+Within a surface, every cover in a row or grid is the same size. Only the book in hand and the full card are larger, and covers are always 2:3.
 
-**The Furniture Line Rule.** Under every cover, in this order and place: the title (serif, one line), then author surname · year (muted sans; the full author on the desktop), then the progress rule when reading has begun. A book on the PC but not on the phone adds a 12dp hairline cloud after the furniture text, never on the cover.
+Under every cover, in this order: the title (serif, one line), then the author's surname and year (muted sans; the full author on the desktop), then the progress rule once reading has started. A book that's on a computer but not yet on the phone adds a 12dp hairline cloud after the caption text, never on the cover. On the desktop, another library's book can add one muted line with a tick: "In yours" or "Another edition in yours".
 
-## Elevation & Depth
+## Depth
 
-Surfaces are flat and tonal: page, then raised for sheets, dialogs, the sidebar and panels. Covers are the only objects in the page that cast a shadow, a soft ambient elevation that lifts them like real books: low for shelf and grid covers, deeper for the book in hand and the full-card cover. Platform sheets, dialogs and menus keep their native elevation. Scrims over a cover (downloading, opening) are black at 60% with a white 2.5dp ring.
+Surfaces are flat and tonal: the page, then the raised surface for sheets, dialogs, the sidebar and panels. Covers are the only things on the page that cast a shadow, a soft lift like a real book. Shelf and grid covers use Compose elevation 3dp with the 3dp corner. The book in hand, the phone sheet cover and the desktop details cover use 12dp with the 4dp corner. Platform sheets, dialogs and menus keep their native elevation. Overlays on a cover while it downloads or opens are black at 60% with a white 2.5dp ring.
 
-### Shadow Vocabulary
-- **Cover at rest** (Compose elevation 3dp, following the 3dp corner): every shelf, grid and desktop card cover.
-- **Cover in hand** (Compose elevation 12dp, following the 4dp corner): the book in hand, the phone sheet cover, the desktop details cover.
-
-### Named Rules
-**The Only Books Lift Rule.** Nothing in the page casts a shadow except a cover. Rows, tabs, captions and controls sit flat on the page.
+Rows, tabs, captions and controls sit flat. Nothing but a cover casts a shadow.
 
 ## Shapes
 
-Covers have barely softened corners (3dp; 4dp at large size), like trimmed board. Buttons are platform pills. Desktop chrome uses moderate rounding: sidebar rows 8dp, preview wells 12dp, dialogs 16dp, the search field a 20dp capsule with a 1dp hairline. Rules are straight: 2dp for progress, hairline for dividers, a 0.75dp-equivalent hairline on the cover's head. The mark is a closed book seen from the front: page edges behind, claret cover with a darker spine band, a short author bar and hairline at the head, two title bars low.
+Cover corners are barely softened (3dp, or 4dp at large size), like trimmed board. Buttons are platform pills. Desktop chrome uses moderate rounding: 8dp sidebar rows, 12dp preview wells, 16dp dialogs, and a 20dp capsule with a 1dp hairline for search. Rules are straight: 2dp for progress, hairlines for dividers, and a 0.75dp-equivalent hairline on the cover's head. The mark is a closed book seen from the front, with page edges behind, a claret cover with a darker spine band, a short author bar and hairline at the head, and two title bars low down.
 
 ## Components
 
 ### Buttons
-- **Shape:** platform pill (fully rounded).
-- **Primary:** accent fill, on-accent text, sans label. One per view: Read / Continue, Choose library folder, Edit, Save, Pair a phone.
-- **Quiet (secondary):** text-only in the muted colour: See all, the sort menu, other secondary text actions.
-- **Outlined:** hairline outline for the second choice beside a primary (Add a book, Show in Explorer/Finder).
 
-### Progress Rule
-The book's reading state as one line: a 2dp track in the hairline colour with the accent filling the read fraction. It appears under the book in hand, under every started cover, in the sheet and details panel, and becomes the reader's seek bar (a 12dp accent thumb that grows to 18dp while dragging and seeks on release). No badge, pill or ring shows progress.
+Buttons are platform pills. The primary button has the accent fill, on-accent text and a sans label, and there's one per view: Read / Continue, Choose library folder, Edit, Save, Pair a phone. Quiet buttons are text only, in the muted colour, for See all, the sort menu and other secondary actions. Outlined buttons, with a hairline outline, are the second choice beside a primary, such as Add a book or Show in Explorer/Finder.
 
-### View Tabs
-Shelves / Genres / All books in sans labels; the selected tab in the text colour with an underline indicator matched to its label, the others muted; a full-width hairline beneath. No filled or pill tabs.
+### Progress rule
 
-### Navigation (desktop sidebar)
-Rows with an 18dp line glyph, a 14sp sans name and a muted count. Selected: the accent-tinted fill with the glyph in the accent. While dragging books, a target row takes a 30% accent fill and a 1dp accent outline. Group labels (Library, Folders, Genres) are small muted capitals; see Do's and Don'ts for their limit.
+A book's reading state is one line: a 2dp track in the hairline colour with the accent filling the read part. It sits under the book in hand, under every started cover, and in the sheet and details panel. In the reader it becomes the seek bar, with a 12dp accent thumb that grows to 18dp while you drag and seeks when you let go. Progress is never shown with a badge, pill or ring.
 
-### Cover Card (desktop)
-No tile and no card: the cover, 10dp, the serif title, the muted author · year, the progress rule. Selection outlines the cover itself with a 2dp accent border at the cover's corner radius.
+### View tabs
+
+Shelves / Genres / All books are sans labels. The selected tab is in the text colour with an underline matched to its label, the others are muted, and a full-width hairline runs underneath. There are no filled or pill tabs.
+
+### Desktop sidebar
+
+Each row has an 18dp line glyph, a 14sp sans name and a muted count. A selected row gets the accent-tinted fill and an accent glyph. While books are being dragged, the row under them gets a 30% accent fill and a 1dp accent outline. Group labels (Library, Folders, Genres) are small muted capitals. Another library's row has a small online dot beside its count.
+
+### Desktop cover card
+
+There's no tile and no card: the cover, 10dp, the serif title, the muted author · year, and the progress rule. Selection outlines the cover itself with a 2dp accent border at the cover's corner radius.
 
 ### Inputs
-Phone search replaces the title bar with a transparent text field. Desktop search is a raised capsule with a hairline outline, a muted search glyph and a clear glyph. Dialog fields are platform outlined fields.
 
-### Typeset Cover (signature)
-For every cover-less book, identical on phone and desktop: the cloth ground; the author in tracked capitals at the head, a hairline rule beneath; the title in Literata italic set low; the "PREFORM" imprint at the foot in tracked capitals. All lettering scales with the cover width, so a 56dp empty-library placeholder, a 96dp shelf cover and a full cover are one design.
+On the phone, search replaces the title bar with a transparent text field. On the desktop, search is a raised capsule with a hairline outline, a muted search glyph and a clear glyph. Dialog fields are the platform's outlined fields.
 
-### The Full Card
-Phone: a bottom sheet with the 112dp cover beside the title, italic author, series, progress rule and primary button; the description in Literata; a hairline; then label/value facts (Genre, Published, Format, Where) with muted labels in a 96dp column. Desktop: the details panel stacks the same content under a large cover with 64dp label columns.
+### Typeset cover
+
+Every book without a cover gets the same design on phone and desktop: the cloth ground, the author in tracked capitals at the head with a hairline under it, the title in Literata italic set low, and the "PREFORM" imprint at the foot in tracked capitals. All the lettering scales with the cover's width, so a 56dp placeholder in an empty library, a 96dp shelf cover and a full cover are the same design.
+
+### Full card
+
+On the phone it's a bottom sheet: the 112dp cover beside the title, italic author, series, progress rule and primary button, then the description in Literata, a hairline, and label/value facts (Genre, Published, Format, Where) with muted labels in a 96dp column. On the desktop, the details panel stacks the same content under a large cover, with 64dp label columns.
 
 ### Icons
-Line glyphs at 1.8 stroke with round caps and joins (Material outlined on the phone, a matching hand-drawn set on the desktop). The app icons, Android adaptive icon and Windows tray use the claret series mark; the macOS menu bar uses the monochrome book mark.
 
-## Do's and Don'ts
+Line glyphs at a 1.8 stroke with round caps and joins: Material outlined on the phone and a matching hand-drawn set on the desktop. The app icons, the Android adaptive icon and the Windows tray icon use the claret series mark. The macOS menu bar uses the monochrome book mark.
 
-### Do:
-- **Do** keep the accent for the way forward: the primary button, the progress rule, the seek thumb, selection.
-- **Do** set secondary text actions and section labels in the muted colour.
-- **Do** give every cover-less book the typeset cover in one of the five cloths, chosen by its first genre.
-- **Do** keep one cover scale per row or grid, at 2:3, with the book in hand largest.
-- **Do** put the same furniture under every cover: title, then author · year, then the 2dp progress rule.
-- **Do** separate with hairlines (text at 10–14% over the page) and let covers carry the only shadow.
-- **Do** use Literata for titles, authors, descriptions and covers, with the display optical size for large titles; use the platform sans for controls and data.
-- **Do** use the six bases and nine accents exactly as defined; the desktop palette mirrors the phone's.
+## Do and don't
 
-### Don't:
-- **Don't** wrap books in cards or tiles, and don't add badges, pills or percentage chips for state; the rule is the state.
-- **Don't** add texture, gradients, paper grain or decorative frames.
-- **Don't** put a kicker or eyebrow label above a heading. Tracked capitals belong on the typeset cover, and on the desktop only as list-group labels in the organizer's chrome (sidebar groups, list sections), never above a serif title and never on the phone.
-- **Don't** mark state on a cover; download state goes in the caption as a hairline glyph.
-- **Don't** add a sixth cloth or an orange accent.
-- **Don't** set controls in Literata or book titles in the sans.
-- **Don't** colour secondary actions, metadata or labels with the accent.
+Do:
+
+- Keep the accent for the way forward: the primary button, the progress rule, the seek thumb and selection.
+- Set secondary text actions and section labels in the muted colour.
+- Give every book without a cover the typeset cover in one of the five cloths, picked by its first genre.
+- Keep one cover size per row or grid, at 2:3, with the book in hand the largest.
+- Put the same caption under every cover: title, then author · year, then the 2dp progress rule.
+- Separate things with hairlines (the text colour at 10 to 14% over the page) and let covers carry the only shadow.
+- Use Literata for titles, authors, descriptions and covers, with the display optical size for large titles, and the platform sans for controls and data.
+- Use the six bases and nine accents exactly as defined. The desktop palette matches the phone's.
+
+Don't:
+
+- Wrap books in cards or tiles, or add badges, pills or percentage chips for state. The rule is the state.
+- Add texture, gradients, paper grain or decorative frames.
+- Put a small label above a heading. Tracked capitals belong on the typeset cover, and on the desktop only as group labels in the organizer's sidebar and lists, never above a serif title and never on the phone.
+- Mark state on a cover. Download state goes in the caption as a hairline glyph.
+- Add a sixth cloth or an orange accent.
+- Set controls in Literata or book titles in the sans.
+- Colour secondary actions, details or labels with the accent.
