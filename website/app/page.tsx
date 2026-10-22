@@ -73,9 +73,9 @@ export default async function Home() {
 
         <section id="reading" className={`${styles.section} cloth-navy`} data-ground="navy" aria-labelledby="reading-title">
           <div className={styles.inner}>
-            <CoverHead id="reading-title" title="Pick your page like you pick your matcha.">
-              Choose a page color, an accent color and a text size, and try it right here. I&rsquo;m a Parchment-with-green-accent
-              guy. Ceremonial grade. But there are no wrong answers here, only feelings. Every book opens where you left off.
+            <CoverHead id="reading-title" title="Curate your reading aesthetic.">
+              Choose a page color, an accent color and a text size, and try it right here. I&rsquo;m a Parchment-with-matcha-green-accent
+              guy. Ceremonial grade, obviously. But there are no wrong answers here, only feelings. Every book opens where you left off.
             </CoverHead>
             <ThemeDemo />
             <p className={styles.runIn}>
