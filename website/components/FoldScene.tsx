@@ -105,18 +105,18 @@ export function FoldScene({ release, waitlist }: { release: Release | null; wait
 
         <div className={styles.hero}>
           <h1 id="hero-title" className="display">
-            Brothers, it&rsquo;s time to be seen&nbsp;reading.
+            Matcha in one hand. Woolf in the&nbsp;other.
           </h1>
           <p className="lede">
-            Perform is the free ebook reader for foldable phones, and for men who&rsquo;ve done the work. Fold it shut and
-            the outside screen shows the cover of what you&rsquo;re reading: <em>A Room of One&rsquo;s Own</em>, bell
-            hooks, <em>The Yellow Wallpaper</em>. People will notice. Not that that&rsquo;s why we do it. Open it and
-            you&rsquo;re right back on your page.
+            Perform is the free ebook reader for foldable phones. I made it for the tote on the shoulder, wired headphones
+            in, Laufey on repeat reader in all of us. Fold it shut and the outside screen shows the cover of what
+            you&rsquo;re reading: <em>A Room of One&rsquo;s Own</em>, bell hooks, <em>The Yellow Wallpaper</em>. People
+            will notice. That&rsquo;s not why I do it. Open it and you&rsquo;re right back on your page.
           </p>
           <div className={styles.actions}>
             <a className="button button-primary" href={site.repo}>
               <GitHubIcon />
-              Join us on GitHub
+              Join the circle on GitHub
             </a>
             {release?.apk ? (
               <a className="button button-quiet" href={release.apk}>
@@ -129,7 +129,7 @@ export function FoldScene({ release, waitlist }: { release: Release | null; wait
               </a>
             ) : null}
           </div>
-          <p className={styles.note}>Free and open source, like my heart. Reads EPUB and PDF. Android app, plus a companion app for Windows and Mac. Tote bag not included. Yet.</p>
+          <p className={styles.note}>Free and open source, like my heart. Reads EPUB and PDF. Android app, plus a companion app for Windows and Mac. Tote bag not included. I already own six.</p>
         </div>
 
         <div className={styles.stage} aria-hidden="true">
@@ -157,13 +157,13 @@ export function FoldScene({ release, waitlist }: { release: Release | null; wait
 
         <p className={`${styles.caption} ${styles.cap1}`}>
           <span className={styles.captionTitle}>Book Mode.</span> Close the phone and its outside screen shows the cover
-          of the book you&rsquo;re reading. Set it face up next to your iced matcha and your film camera. Wait for someone to ask. Say &ldquo;oh, this?
-          It&rsquo;s Woolf.&rdquo; Act surprised.
+          of the book you&rsquo;re reading. Set it face up on the caf&eacute; table, between the iced matcha and the film camera. Adjust the tote strap.
+          Wait for someone to ask. Say &ldquo;oh, this? It&rsquo;s Woolf.&rdquo; Act surprised.
         </p>
         <p className={`${styles.caption} ${styles.cap2}`}>
           <span className={styles.captionTitle}>Open it to read.</span> The big screen shows two pages side by side,
-          right where you left off, in the font and colors you picked. Wired headphones in. Laufey first, then Mitski,
-          then Phoebe Bridgers when it gets sad. Welcome, brother. You&rsquo;re reading now.
+          right where you left off, in the font and colors you picked. Wired headphones in. Laufey on repeat, then a
+          little Mitski when the chapter gets sad. Welcome to the circle. You&rsquo;re reading now.
         </p>
 
         <div className={styles.cue} aria-hidden="true">

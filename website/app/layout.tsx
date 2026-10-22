@@ -16,7 +16,7 @@ const literata = localFont({
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
   title: {
-    default: "Perform: the ebook reader for men who read, actually.",
+    default: "Perform: the ebook reader for people who read, actually.",
     template: "%s · Perform",
   },
   description: site.description,
@@ -24,14 +24,14 @@ export const metadata: Metadata = {
   keywords: ["ebook reader", "foldable", "Galaxy Fold", "EPUB", "PDF", "Android", "open source", "ebook library"],
   openGraph: {
     type: "website",
-    title: "Perform: the ebook reader for men who read, actually.",
+    title: "Perform: the ebook reader for people who read, actually.",
     description: site.description,
     url: site.url,
     siteName: "Perform",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Perform: the ebook reader for men who read, actually.",
+    title: "Perform: the ebook reader for people who read, actually.",
     description: site.description,
   },
 };

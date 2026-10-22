@@ -73,14 +73,14 @@ export default async function Home() {
 
         <section id="reading" className={`${styles.section} cloth-navy`} data-ground="navy" aria-labelledby="reading-title">
           <div className={styles.inner}>
-            <CoverHead id="reading-title" title="Every brother finds his aesthetic.">
-              Pick a page color, an accent color and a text size. Try it right here. I&rsquo;m a Parchment-with-green-accent guy
-              (it&rsquo;s giving matcha), but there are no wrong answers here, only feelings. Every book opens where you left off.
+            <CoverHead id="reading-title" title="Pick your page like you pick your matcha.">
+              Choose a page color, an accent color and a text size, and try it right here. I&rsquo;m a Parchment-with-green-accent
+              guy. Ceremonial grade. But there are no wrong answers here, only feelings. Every book opens where you left off.
             </CoverHead>
             <ThemeDemo />
             <p className={styles.runIn}>
               <em>Turn pages or scroll,</em> one page at a time or two side by side when the phone is open. <em>Flex Mode</em>{" "}
-              lets you read with the phone half folded, propped up next to your oat milk latte and your Labubu. <em>Right-to-left</em> books
+              lets you read with the phone half folded, propped against your tote next to the oat milk latte, Labubu supervising. <em>Right-to-left</em> books
               work too, because all literary traditions deserve space. <em>EPUB and PDF</em> both open, and a PDF page can be
               fit to the screen and locked in place. Perfect for the Joan Didion you&rsquo;re definitely going to finish.
             </p>
@@ -93,10 +93,10 @@ export default async function Home() {
 
         <section id="shelves" className={`${styles.section} cloth-bottle`} data-ground="bottle" aria-labelledby="shelves-title">
           <div className={styles.inner}>
-            <CoverHead id="shelves-title" title="Brothers, spines out.">
+            <CoverHead id="shelves-title" title="Spines out. Always.">
               However you&rsquo;ve organized books on your computer, that&rsquo;s how they show up on your phone. Books
               without cover art get a clean, minimalist cover, so even a messy downloads folder looks like the shelf behind
-              you on a video call. Spines out. Vinyl nearby. Beabadoobee playing softly.
+              me on a video call. Spines out. Record player in frame. Laufey playing softly.
             </CoverHead>
 
             <div className={styles.beforeAfter}>
@@ -124,7 +124,7 @@ export default async function Home() {
               items={[
                 ["Genres", "Perform works out each book’s genre from the book itself and from Open Library, and every genre gets its own shelf. Poetry gets seen. Philosophy gets seen. Everyone gets seen."],
                 ["Continue reading", "Whatever you’re reading sits at the top, one tap from where you left off. Currently: A Room of One’s Own. Third read. It hits different every time."],
-                ["Downloads", "Books download when you open them. Or keep your whole library on the phone, up to a storage limit you choose. I respect boundaries."],
+                ["Downloads", "Books download when you open them. Or keep your whole library on the phone, up to a storage limit you choose. Like a good tote, it holds everything, within reason. I respect boundaries."],
                 ["Organize on the phone", "Make folders and move books around on your phone, and the files on your computer quietly move to match. No ego about it."],
               ]}
             />
@@ -139,8 +139,8 @@ export default async function Home() {
           <div className={styles.inner}>
             <CoverHead id="app-title" title="Also, a desktop app. I&rsquo;m very supportive.">
               Perform Library keeps your book folder organized and sends your books to your phone. It stays out of the way in
-              the tray on Windows or the menu bar on a Mac, the way I stand at the back of a boygenius show, holding my girlfriend&rsquo;s tote. Open it whenever you
-              want to tidy up.
+              the tray on Windows or the menu bar on a Mac, the way I stand at the back of a Laufey show: tote on my shoulder, matcha in hand, fully present. Open it
+              whenever you want to tidy up.
             </CoverHead>
             <div className={styles.windowFrame}>
               <DesktopWindow />
@@ -174,7 +174,7 @@ export default async function Home() {
           <div className={styles.inner}>
             <CoverHead id="private-title" title="No account, no cloud. I value your privacy.">
               Your phone gets books straight from your own computer, over your home Wi-Fi, or through Tailscale when
-              you&rsquo;re out at the farmers market buying one heirloom tomato. Nothing passes through a Perform server, because there isn&rsquo;t one.
+              you&rsquo;re out at the farmers market putting one heirloom tomato in your tote. Nothing passes through a Perform server, because there isn&rsquo;t one.
               What you read stays between you and your journal.
             </CoverHead>
 
@@ -224,8 +224,8 @@ export default async function Home() {
             <Answers
               items={[
                 [
-                  "Is this just for men who read?",
-                  "It’s for everyone. But brother, if All About Love has been riding in your tote unopened since spring, this is your sign.",
+                  "Is this just for people who read in public?",
+                  "It’s for everyone. But if All About Love has been riding in your tote unopened since spring, this is your sign.",
                 ],
                 [
                   "What if I have a PC and a Mac?",
@@ -250,14 +250,14 @@ export default async function Home() {
 
         <section id="get" className={`${styles.section} ${styles.get} cloth-claret`} data-ground="claret" aria-labelledby="get-title">
           <div className={styles.inner}>
-            <CoverHead id="get-title" title="The brotherhood is reading. Join us.">
-              Perform is free and open source, under the Apache 2.0 license. I don&rsquo;t gatekeep. Every man ready to read in public is welcome here.
+            <CoverHead id="get-title" title="Pack your tote. Join the circle.">
+              Perform is free and open source, under the Apache 2.0 license. I don&rsquo;t gatekeep. Anyone ready to read in public is welcome here.
             </CoverHead>
 
             <div className={styles.platforms}>
               <div className={styles.platform}>
                 <h3>For your phone</h3>
-                <p>Needs Android 8.0 or newer. Book Mode is for foldables with an outside screen, ideally carried in a canvas tote.</p>
+                <p>Needs Android 8.0 or newer. Book Mode is for foldables with an outside screen, ideally carried in a canvas tote with a Labubu clipped to the strap.</p>
                 {release?.apk ? (
                   <a className="button button-primary" href={release.apk}>
                     <DownloadIcon />
@@ -310,7 +310,7 @@ export default async function Home() {
                 <Waitlist />
               ) : (
                 <p className={styles.watch}>
-                  Want to know when the first release is out? <a href={site.repo}>Watch the project on GitHub</a>. I&rsquo;ll be there, holding space, with Faye Webster on vinyl.
+                  Want to know when the first release is out? <a href={site.repo}>Watch the project on GitHub</a>. I&rsquo;ll be there, holding space, with Laufey on vinyl and a matcha going cold.
                 </p>
               )}
             </div>
