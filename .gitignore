@@ -8,3 +8,6 @@ captures/
 .externalNativeBuild
 .cxx
 .kotlin/
+
+# The website lives outside the repo and deploys with the Vercel CLI.
+website/
