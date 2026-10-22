@@ -26,7 +26,7 @@ function CoverHead({ id, title, children }: { id: string; title: string; childre
 }
 
 /** Shelves: a ruled two-column list, term on the left. */
-function RuledList({ items }: { items: [string, string][] }) {
+function RuledList({ items }: { items: [string, React.ReactNode][] }) {
   return (
     <dl className={styles.ruled}>
       {items.map(([term, text]) => (
@@ -40,7 +40,7 @@ function RuledList({ items }: { items: [string, string][] }) {
 }
 
 /** Privacy: the questions people ask, answered in a ruled table. */
-function Answers({ items }: { items: [string, string][] }) {
+function Answers({ items }: { items: [string, React.ReactNode][] }) {
   return (
     <dl className={styles.answers}>
       {items.map(([q, a]) => (
@@ -55,10 +55,30 @@ function Answers({ items }: { items: [string, string][] }) {
 
 /** The library app: numbered pins on the window, keyed to a legend below it. */
 const callouts: { x: number; y: number; title: string; text: string }[] = [
-  { x: 10, y: 34, title: "Folders", text: "Drag books between folders and the real files move with them. You can undo any move. Growth means being allowed to go back. My therapist says that too." },
-  { x: 63.5, y: 13, title: "Auto-organize", text: "Sort a whole messy folder in one go. You see a preview first, and you can undo it after. Consent-based organizing. It always asks first." },
-  { x: 88, y: 66, title: "Book details", text: "Fix a title, author, series, year, genre, description or cover. Changes are saved into the file, and the original is kept, out of respect for where it came from." },
-  { x: 10, y: 82, title: "Tidy-up checks", text: "Finds duplicate files, the same book saved twice, files that won’t open, and books missing an author, cover or genre. Gently. Without judgment. It’s been to therapy." },
+  {
+    x: 10,
+    y: 34,
+    title: "Folders",
+    text: "Drag a book into another folder and the real file moves with it. Every move can be undone. Growth means being allowed to go back. My therapist says that too.",
+  },
+  {
+    x: 63.5,
+    y: 13,
+    title: "Auto-organize",
+    text: "Sort a whole messy folder in one go. You get a preview first and an undo after. Consent-based organizing. It always asks first.",
+  },
+  {
+    x: 88,
+    y: 66,
+    title: "Book details",
+    text: "Fix the title, author, series, year, genre, description or cover. Edits are saved into the file. The original is kept, out of respect for where it came from.",
+  },
+  {
+    x: 10,
+    y: 82,
+    title: "Tidy-up checks",
+    text: "It finds duplicates, books saved twice and files that won’t open. It also spots books missing an author, cover or genre. It points these out gently, without judgment. It’s been to therapy.",
+  },
 ];
 
 const downloads = books.slice(0, 9).map((b) => b.file);
@@ -74,15 +94,17 @@ export default async function Home() {
         <section id="reading" className={`${styles.section} cloth-navy`} data-ground="navy" aria-labelledby="reading-title">
           <div className={styles.inner}>
             <CoverHead id="reading-title" title="Curate your reading aesthetic.">
-              Choose a page color, an accent color and a text size, and try it right here. I&rsquo;m a Parchment-with-matcha-green-accent
-              guy. Ceremonial grade, obviously. But there are no wrong answers here, only feelings. Every book opens where you left off.
+              Choose a page color, an accent color and a text size, then try it right here. I&rsquo;m a
+              Parchment-with-matcha-green-accent guy. Ceremonial grade, obviously. There are no wrong answers here, only
+              feelings. Every book opens where you left off.
             </CoverHead>
             <ThemeDemo />
             <p className={styles.runIn}>
-              <em>Turn pages or scroll,</em> one page at a time or two side by side when the phone is open. <em>Flex Mode</em>{" "}
-              lets you read with the phone half folded, propped against your tote next to the oat milk latte, Labubu supervising. <em>Right-to-left</em> books
-              work too, because all literary traditions deserve space. <em>EPUB and PDF</em> both open, and a PDF page can be
-              fit to the screen and locked in place. Perfect for the Joan Didion you&rsquo;re definitely going to finish.
+              <em>Turn pages or scroll.</em> Read one page at a time, or two side by side when the phone is open.{" "}
+              <em>Flex Mode</em> lets you read with the phone half folded. Prop it against your tote next to the oat milk
+              latte, Labubu supervising. <em>Right-to-left</em> books work too, because every literary tradition deserves
+              space. <em>EPUB and PDF</em> both open. A PDF page can fit the screen and lock in place. That&rsquo;s perfect
+              for the Joan Didion you&rsquo;re definitely going to finish.
             </p>
             <p className="imprint">
               <span>Perform</span>
@@ -94,9 +116,9 @@ export default async function Home() {
         <section id="shelves" className={`${styles.section} cloth-bottle`} data-ground="bottle" aria-labelledby="shelves-title">
           <div className={styles.inner}>
             <CoverHead id="shelves-title" title="Spines out. Always.">
-              However you&rsquo;ve organized books on your computer, that&rsquo;s how they show up on your phone. Books
-              without cover art get a clean, minimalist cover, so even a messy downloads folder looks like the shelf behind
-              me on a video call. Spines out. Record player in frame. Laufey playing softly.
+              The way you organize books on your computer is how they show up on your phone. Books without cover art get a
+              clean, minimalist cover. Even a messy downloads folder ends up looking like the shelf behind me on a video
+              call. Spines out. Record player in frame. Laufey playing softly.
             </CoverHead>
 
             <div className={styles.beforeAfter}>
@@ -122,10 +144,28 @@ export default async function Home() {
 
             <RuledList
               items={[
-                ["Genres", "Perform works out each book’s genre from the book itself and from Open Library, and every genre gets its own shelf. Poetry gets seen. Philosophy gets seen. Everyone gets seen."],
-                ["Continue reading", "Whatever you’re reading sits at the top, one tap from where you left off. Currently: A Room of One’s Own. Third read. It hits different every time."],
-                ["Downloads", "Books download when you open them. Or keep your whole library on the phone, up to a storage limit you choose. Like a good tote, it holds everything, within reason. I respect boundaries."],
-                ["Organize on the phone", "Make folders and move books around on your phone, and the files on your computer quietly move to match. No ego about it."],
+                [
+                  "Genres",
+                  <>
+                    <em>Perform</em> works out each book&rsquo;s genre from the book itself or from Open Library. Every genre
+                    gets its own shelf. Poetry gets seen. Philosophy gets seen. Everyone gets seen.
+                  </>,
+                ],
+                [
+                  "Continue reading",
+                  <>
+                    Whatever you&rsquo;re reading sits at the top, one tap from where you left off. Right now it&rsquo;s{" "}
+                    <em>A Room of One&rsquo;s Own</em>. Third read. It hits different every time.
+                  </>,
+                ],
+                [
+                  "Downloads",
+                  "Books download when you open them. You can also keep your whole library on the phone, up to a storage limit you set. Like a good tote, it holds everything within reason. I respect boundaries.",
+                ],
+                [
+                  "Organize on the phone",
+                  "Make folders on your phone and move books between them. The files on your computer quietly follow. No ego about it.",
+                ],
               ]}
             />
             <p className="imprint">
@@ -138,9 +178,9 @@ export default async function Home() {
         <section id="library-app" className={`${styles.section} cloth-graphite`} data-ground="graphite" aria-labelledby="app-title">
           <div className={styles.inner}>
             <CoverHead id="app-title" title="Also, a desktop app. I&rsquo;m very supportive.">
-              Perform Library keeps your book folder organized and sends your books to your phone. It stays out of the way in
-              the tray on Windows or the menu bar on a Mac, the way I stand at the back of a Laufey show: tote on my shoulder, matcha in hand, fully present. Open it
-              whenever you want to tidy up.
+              <em>Perform Library</em> keeps your book folder organized and sends your books to your phone. It sits quietly
+              in the Windows tray or the Mac menu bar. Picture me at the back of a Laufey show: tote on my shoulder, matcha
+              in hand, fully present. Open it whenever you want to tidy up.
             </CoverHead>
             <div className={styles.windowFrame}>
               <DesktopWindow />
@@ -159,9 +199,9 @@ export default async function Home() {
               ))}
             </ol>
             <p className={styles.runIn}>
-              <em>Open Library</em> fills in missing details. It only sends titles, authors and file names, and you can turn it
-              off. <em>Deleting is safe.</em> Removed books go to the Recycle Bin or Trash, so you can get them back. Nothing
-              is ever really gone. I journal about this. In a Moleskine. With a fountain pen.
+              <em>Open Library</em> fills in missing details. It only ever sees titles, authors and file names. You can
+              switch it off anytime. <em>Deleting is safe.</em> Removed books go to the Recycle Bin or Trash, so you can get
+              them back. Nothing is ever really gone. I journal about this in a Moleskine, with a fountain pen.
             </p>
             <p className="imprint">
               <span>Perform Library</span>
@@ -173,16 +213,19 @@ export default async function Home() {
         <section id="private" className={`${styles.section} cloth-ochre`} data-ground="ochre" aria-labelledby="private-title">
           <div className={styles.inner}>
             <CoverHead id="private-title" title="No account, no cloud. I value your privacy.">
-              Your phone gets books straight from your own computer, over your home Wi-Fi, or through Tailscale when
-              you&rsquo;re out at the farmers market putting one heirloom tomato in your tote. Nothing passes through a Perform server, because there isn&rsquo;t one.
-              What you read stays between you and your journal.
+              Your phone gets books straight from your own computer. That works over home Wi-Fi. It also works through
+              Tailscale while you&rsquo;re at the farmers market, putting one heirloom tomato in your tote. Nothing passes
+              through a <em>Perform</em> server, because there isn&rsquo;t one. What you read stays between you and your
+              journal.
             </CoverHead>
 
             <div className={styles.pairing}>
               <ol className={styles.steps}>
                 <li>
                   <p className={styles.stepTitle}>Click &ldquo;Pair a phone&rdquo;</p>
-                  <p>It&rsquo;s under Devices in Perform Library on your computer.</p>
+                  <p>
+                    It&rsquo;s under Devices in <em>Perform Library</em> on your computer.
+                  </p>
                 </li>
                 <li>
                   <p className={styles.stepTitle}>Scan the code</p>
@@ -190,7 +233,7 @@ export default async function Home() {
                 </li>
                 <li>
                   <p className={styles.stepTitle}>Check that the codes match</p>
-                  <p>Both screens show the same security code. After that, your phone only trusts that computer. Loyalty matters to me.</p>
+                  <p>Both screens show the same security code. From then on, your phone trusts only that computer. Loyalty matters to me.</p>
                 </li>
               </ol>
 
@@ -225,16 +268,22 @@ export default async function Home() {
               items={[
                 [
                   "Is this just for people who read in public?",
-                  "It’s for everyone. But if All About Love has been riding in your tote unopened since spring, this is your sign.",
+                  <>
+                    It&rsquo;s for everyone. But if <em>All About Love</em> has been riding around in your tote since
+                    spring, still unopened, this is your sign.
+                  </>,
                 ],
                 [
                   "What if I have a PC and a Mac?",
-                  "Pair your phone with both. I don’t believe in picking sides. A book that’s on both only shows up once, and the two computers can browse each other’s books, copy them across, or stay fully in sync.",
+                  "Pair your phone with both. I don’t believe in picking sides. A book that’s on both computers shows up once. The two computers can also browse each other’s books, copy them across or stay fully in sync.",
                 ],
-                ["What if I change something in two places?", "The newest change wins, on every device. It’s about honoring the most recent version of you."],
+                [
+                  "What if I change something in two places?",
+                  "The newest change wins on every device. It’s about honoring the most recent version of you.",
+                ],
                 [
                   "Can anyone else get to my books?",
-                  "Not from outside your network. The library only answers on private networks, and the connection is encrypted and locked to your computer’s own certificate. Some things are just for you.",
+                  "Not from outside your network. The library only answers on private networks. The connection is encrypted and locked to your computer’s own certificate. Some things are just for you.",
                 ],
               ]}
             />
@@ -251,13 +300,17 @@ export default async function Home() {
         <section id="get" className={`${styles.section} ${styles.get} cloth-claret`} data-ground="claret" aria-labelledby="get-title">
           <div className={styles.inner}>
             <CoverHead id="get-title" title="Pack your tote. Join the circle.">
-              Perform is free and open source, under the Apache 2.0 license. I don&rsquo;t gatekeep. Anyone ready to read in public is welcome here.
+              <em>Perform</em> is free and open source under the Apache 2.0 license. I don&rsquo;t gatekeep. Anyone ready to
+              read in public is welcome here.
             </CoverHead>
 
             <div className={styles.platforms}>
               <div className={styles.platform}>
                 <h3>For your phone</h3>
-                <p>Needs Android 8.0 or newer. Book Mode is for foldables with an outside screen, ideally carried in a canvas tote with a Labubu clipped to the strap.</p>
+                <p>
+                  Needs Android 8.0 or newer. Book Mode is made for foldables with an outside screen. Ideally you carry one in a
+                  canvas tote with a Labubu clipped to the strap.
+                </p>
                 {release?.apk ? (
                   <a className="button button-primary" href={release.apk}>
                     <DownloadIcon />
@@ -265,7 +318,10 @@ export default async function Home() {
                   </a>
                 ) : (
                   <>
-                    <p className={styles.pending}>The Android download comes with the first release. For now, you can build it from the source code. It&rsquo;s a process, and I&rsquo;m learning to love the process.</p>
+                    <p className={styles.pending}>
+                      The Android download comes with the first release. Until then, you can build it from the source code.
+                      It&rsquo;s a process. I&rsquo;m learning to love the process.
+                    </p>
                     <a className="button button-primary" href={`${site.repo}#building`}>
                       Build from source
                     </a>
@@ -274,7 +330,10 @@ export default async function Home() {
               </div>
               <div className={styles.platform}>
                 <h3>For your computer</h3>
-                <p>Perform Library for Windows and Mac keeps your books and shares them with your phone. Sharing is my love language.</p>
+                <p>
+                  <em>Perform Library</em> runs on Windows or Mac. It keeps your books and shares them with your phone.
+                  Sharing is my love language.
+                </p>
                 <div className={styles.platformActions}>
                   {release?.windows ? (
                     <a className="button button-quiet" href={release.windows}>
@@ -297,7 +356,7 @@ export default async function Home() {
               </div>
               <div className={styles.platform}>
                 <h3>The source</h3>
-                <p>The phone app, the computer app and the sync code, plus instructions for building them. Fully transparent. I&rsquo;m an open book.</p>
+                <p>The phone app, the desktop app, the sync code, plus instructions for building all of it. Fully transparent. I&rsquo;m an open book.</p>
                 <a className="button button-quiet" href={site.repo}>
                   <GitHubIcon />
                   Mininoob/Perform
@@ -310,7 +369,8 @@ export default async function Home() {
                 <Waitlist />
               ) : (
                 <p className={styles.watch}>
-                  Want to know when the first release is out? <a href={site.repo}>Watch the project on GitHub</a>. I&rsquo;ll be there, holding space, with Laufey on vinyl and a matcha going cold.
+                  Want to hear when the first release is out? <a href={site.repo}>Watch the project on GitHub</a>.
+                  I&rsquo;ll be there holding space, with Laufey on vinyl and a matcha going cold.
                 </p>
               )}
             </div>
@@ -332,10 +392,9 @@ export default async function Home() {
             </nav>
           </div>
           <p className={styles.footNote}>
-            The books shown here are public-domain classics, almost all by women, because obviously. They wear
-            Perform&rsquo;s built-in covers. The file names and book
-            counts are just examples. Set in Literata, under the SIL Open Font License. No matcha was harmed in the making of this
-            page.
+            Every book shown here is a public-domain classic, almost all by women, because obviously. They wear{" "}
+            <em>Perform</em>&rsquo;s built-in covers. The file names and book counts are only examples. Set in Literata
+            under the SIL Open Font License. No matcha was harmed in the making of this page.
           </p>
         </div>
       </footer>
