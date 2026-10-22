@@ -20,6 +20,7 @@ export interface Book {
 
 const clothByGenre: Record<string, Cloth> = {
   Classics: "claret",
+  Feminism: "bottle",
   Romance: "claret",
   "Historical Fiction": "claret",
   Drama: "claret",
@@ -50,25 +51,21 @@ export function clothOf(book: Pick<Book, "genre">): Cloth {
 }
 
 export const books: Book[] = [
-  { title: "Pride and Prejudice", author: "Jane Austen", year: 1813, genre: "Romance", shelf: "Classics", progress: 0.38, file: "pride_and_prejudice (1).epub" },
-  { title: "Moby-Dick", author: "Herman Melville", year: 1851, genre: "Fiction", shelf: "Sea Stories", progress: 0.12, file: "MOBY DICK OR THE WHALE.epub" },
-  { title: "Frankenstein", author: "Mary Shelley", year: 1818, genre: "Science Fiction", shelf: "Classics", progress: 1, file: "frankenstein-1818-text.epub" },
-  { title: "Walden", author: "Henry David Thoreau", year: 1854, genre: "Science & Nature", shelf: "Essays", file: "walden_thoreau_v2.pdf" },
-  { title: "The Odyssey", author: "Homer", year: -700, genre: "Classics", shelf: "Classics", file: "odyssey.butler.epub" },
-  { title: "Meditations", author: "Marcus Aurelius", year: 180, genre: "Philosophy", shelf: "Essays", progress: 0.64, file: "Meditations (Long trans).epub" },
-  { title: "Alice's Adventures in Wonderland", author: "Lewis Carroll", year: 1865, genre: "Children's", shelf: "For the Kids", file: "alice-wonderland.epub" },
-  { title: "Treasure Island", author: "Robert Louis Stevenson", year: 1883, genre: "Young Adult", shelf: "Sea Stories", file: "treasure_island_FINAL.epub" },
-  { title: "Dracula", author: "Bram Stoker", year: 1897, genre: "Horror", shelf: "Classics", file: "dracula.epub" },
-  { title: "The Time Machine", author: "H. G. Wells", year: 1895, genre: "Science Fiction", shelf: "Science Fiction", file: "TheTimeMachine.pdf" },
-  { title: "On the Origin of Species", author: "Charles Darwin", year: 1859, genre: "Science & Nature", shelf: "Essays", file: "origin of species 1st ed.pdf" },
+  { title: "A Room of One's Own", author: "Virginia Woolf", year: 1929, genre: "Feminism", shelf: "Feminist Classics", progress: 0.38, file: "a_room_of_ones_own (3rd read).epub" },
+  { title: "A Vindication of the Rights of Woman", author: "Mary Wollstonecraft", year: 1792, genre: "Feminism", shelf: "Feminist Classics", progress: 0.12, file: "vindication_rights_of_woman.pdf" },
+  { title: "The Yellow Wallpaper", author: "Charlotte Perkins Gilman", year: 1892, genre: "Fiction", shelf: "Feminist Classics", progress: 1, file: "the yellow wallpaper (annotated).epub" },
+  { title: "Little Women", author: "Louisa May Alcott", year: 1868, genre: "Classics", shelf: "Currently Healing", progress: 1, file: "little_women_FINAL_cried.epub" },
+  { title: "Mrs Dalloway", author: "Virginia Woolf", year: 1925, genre: "Classics", shelf: "Classics", progress: 0.64, file: "mrs-dalloway-woolf.epub" },
+  { title: "Jane Eyre", author: "Charlotte Brontë", year: 1847, genre: "Romance", shelf: "The Brontës", file: "Jane Eyre - Bronte.epub" },
+  { title: "Wuthering Heights", author: "Emily Brontë", year: 1847, genre: "Romance", shelf: "The Brontës", file: "wuthering_heights.epub" },
+  { title: "Persuasion", author: "Jane Austen", year: 1817, genre: "Romance", shelf: "Currently Healing", file: "persuasion (for the yearning).epub" },
+  { title: "The Awakening", author: "Kate Chopin", year: 1899, genre: "Fiction", shelf: "Currently Healing", file: "the_awakening_chopin.epub" },
+  { title: "Herland", author: "Charlotte Perkins Gilman", year: 1915, genre: "Science Fiction", shelf: "Feminist Classics", file: "herland.pdf" },
   { title: "Middlemarch", author: "George Eliot", year: 1871, genre: "Classics", shelf: "Classics", file: "middlemarch (2).epub" },
-  { title: "Leaves of Grass", author: "Walt Whitman", year: 1855, genre: "Poetry", shelf: "Poetry", file: "leaves-of-grass-1855.epub" },
-  { title: "The Count of Monte Cristo", author: "Alexandre Dumas", year: 1844, genre: "Historical Fiction", shelf: "Classics", file: "count_of_monte_cristo.epub" },
-  { title: "Jane Eyre", author: "Charlotte Brontë", year: 1847, genre: "Romance", shelf: "Classics", file: "Jane Eyre - Bronte.epub" },
-  { title: "The Wind in the Willows", author: "Kenneth Grahame", year: 1908, genre: "Children's", shelf: "For the Kids", file: "wind_willows.epub" },
-  { title: "The Picture of Dorian Gray", author: "Oscar Wilde", year: 1890, genre: "Fiction", shelf: "Classics", file: "the-picture-of-dorian-gray.epub" },
-  { title: "The Republic", author: "Plato", year: -375, genre: "Philosophy", shelf: "Essays", file: "republic_jowett.pdf" },
-  { title: "Romeo and Juliet", author: "William Shakespeare", year: 1597, genre: "Drama", shelf: "Plays", progress: 0.38, file: "romeo_and_juliet_folger.epub" },
+  { title: "Frankenstein", author: "Mary Shelley", year: 1818, genre: "Science Fiction", shelf: "Classics", progress: 1, file: "frankenstein-1818-text.epub" },
+  { title: "Poems", author: "Emily Dickinson", year: 1890, genre: "Poetry", shelf: "Poetry", progress: 0.5, file: "dickinson_poems_series1.epub" },
+  { title: "Sonnets from the Portuguese", author: "Elizabeth Barrett Browning", year: 1850, genre: "Poetry", shelf: "Poetry", file: "sonnets-from-the-portuguese.epub" },
+  { title: "The Prophet", author: "Kahlil Gibran", year: 1923, genre: "Philosophy", shelf: "Poetry", file: "the_prophet_ON_LOVE.epub" },
 ];
 
 export function book(title: string): Book {
@@ -81,73 +78,30 @@ export function yearLabel(year: number): string {
   return year < 0 ? `${-year} BC` : String(year);
 }
 
-/** "Austen", "Herbert": the surname the caption line uses. */
+/** "Woolf", "Alcott": the surname the caption line uses. */
 export function surname(author: string): string {
   const parts = author.split(/\s+/);
   return parts[parts.length - 1];
 }
 
-/** One piece of a play's page: verse, a scene heading, a stage direction, or a line of dialogue. */
-export type PlayBlock =
-  | { kind: "verse"; lines: string[] }
-  | { kind: "heading"; text: string }
-  | { kind: "direction"; text: string }
-  | { kind: "speech"; speaker: string; text: string };
+/** One piece of a page in the reading spread. */
+export type PageBlock = { kind: "para"; text: string };
 
-/** The opening of Romeo and Juliet (public domain), for the Fold's cover and reading spread. */
+/** The opening of A Room of One's Own (1929, public domain), for the Fold's cover and reading spread. */
 export const frontBook = {
-  title: "Romeo and Juliet",
-  opening: "The Prologue",
-  rightHead: "Act 1, Scene 1",
+  title: "A Room of One's Own",
+  opening: "Chapter One",
+  rightHead: "Chapter One",
   left: [
     {
-      kind: "verse",
-      lines: [
-        "Two households, both alike in dignity,",
-        "In fair Verona, where we lay our scene,",
-        "From ancient grudge break to new mutiny,",
-        "Where civil blood makes civil hands unclean.",
-        "From forth the fatal loins of these two foes",
-        "A pair of star-cross’d lovers take their life;",
-        "Whose misadventur’d piteous overthrows",
-        "Doth with their death bury their parents’ strife.",
-      ],
+      kind: "para",
+      text: "But, you may say, we asked you to speak about women and fiction—what has that got to do with a room of one’s own? I will try to explain. When you asked me to speak about women and fiction I sat down on the banks of a river and began to wonder what the words meant. They might mean simply a few remarks about Fanny Burney; a few more about Jane Austen; a tribute to the Brontës and a sketch of Haworth Parsonage under snow; some witticisms if possible about Miss Mitford; a respectful allusion to George Eliot; a reference to Mrs Gaskell and one would have done. But at second sight the words seemed not so simple.",
     },
-  ] as PlayBlock[],
+  ] as PageBlock[],
   right: [
     {
-      kind: "verse",
-      lines: [
-        "The fearful passage of their death-mark’d love,",
-        "And the continuance of their parents’ rage,",
-        "Which, but their children’s end, nought could remove,",
-        "Is now the two hours’ traffic of our stage;",
-        "The which if you with patient ears attend,",
-        "What here shall miss, our toil shall strive to mend.",
-      ],
+      kind: "para",
+      text: "The title women and fiction might mean, and you may have meant it to mean, women and what they are like, or it might mean women and the fiction that they write; or it might mean women and the fiction that is written about them, or it might mean that somehow all three are inextricably mixed together and you want me to consider them in that light. But when I began to consider the subject in this last way, which seemed the most interesting, I soon saw that it had one fatal drawback. I should never be able to come to a conclusion. I should never be able to fulfil what is, I understand, the first duty of a lecturer to hand you after an hour’s discourse a nugget of pure truth to wrap up between the pages of your notebooks and keep on the mantelpiece for ever. All I could do was to offer you an opinion upon one minor point—a woman must have money and a room of her own if she is to write fiction; and that, as you will see, leaves the great problem of the true nature of woman and the true nature of fiction unsolved.",
     },
-    { kind: "heading", text: "Act 1, Scene 1" },
-    { kind: "direction", text: "Verona. A public place. Enter Sampson and Gregory, of the house of Capulet." },
-    { kind: "speech", speaker: "Sampson", text: "Gregory, o’ my word, we’ll not carry coals." },
-    { kind: "speech", speaker: "Gregory", text: "No, for then we should be colliers." },
-    { kind: "speech", speaker: "Sampson", text: "I mean, an we be in choler, we’ll draw." },
-  ] as PlayBlock[],
-};
-
-/** The opening of Pride and Prejudice (1813, public domain), for the reading themes demo. */
-export const openingPages = {
-  chapter: "Chapter 1",
-  left: [
-    "It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.",
-    "However little known the feelings or views of such a man may be on his first entering a neighbourhood, this truth is so well fixed in the minds of the surrounding families, that he is considered the rightful property of some one or other of their daughters.",
-    "“My dear Mr. Bennet,” said his lady to him one day, “have you heard that Netherfield Park is let at last?”",
-  ],
-  right: [
-    "Mr. Bennet replied that he had not.",
-    "“But it is,” returned she; “for Mrs. Long has just been here, and she told me all about it.”",
-    "Mr. Bennet made no answer.",
-    "“Do you not want to know who has taken it?” cried his wife impatiently.",
-    "“You want to tell me, and I have no objection to hearing it.”",
-    "This was invitation enough.",
-  ],
+  ] as PageBlock[],
 };

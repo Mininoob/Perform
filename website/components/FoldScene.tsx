@@ -105,16 +105,18 @@ export function FoldScene({ release, waitlist }: { release: Release | null; wait
 
         <div className={styles.hero}>
           <h1 id="hero-title" className="display">
-            Your foldable, made for&nbsp;reading.
+            Brothers, it&rsquo;s time to be seen&nbsp;reading.
           </h1>
           <p className="lede">
-            Perform is a free ebook reader for foldable phones. When the phone is closed, the outside screen shows the
-            cover of whatever you&rsquo;re reading. Open it and you&rsquo;re right back on your page.
+            Perform is the free ebook reader for foldable phones, and for men who&rsquo;ve done the work. Fold it shut and
+            the outside screen shows the cover of what you&rsquo;re reading: <em>A Room of One&rsquo;s Own</em>, bell
+            hooks, <em>The Yellow Wallpaper</em>. People will notice. Not that that&rsquo;s why we do it. Open it and
+            you&rsquo;re right back on your page.
           </p>
           <div className={styles.actions}>
             <a className="button button-primary" href={site.repo}>
               <GitHubIcon />
-              Get it on GitHub
+              Join us on GitHub
             </a>
             {release?.apk ? (
               <a className="button button-quiet" href={release.apk}>
@@ -127,7 +129,7 @@ export function FoldScene({ release, waitlist }: { release: Release | null; wait
               </a>
             ) : null}
           </div>
-          <p className={styles.note}>Free and open source. Reads EPUB and PDF. Android app, plus a companion app for Windows and Mac.</p>
+          <p className={styles.note}>Free and open source, like my heart. Reads EPUB and PDF. Android app, plus a companion app for Windows and Mac. Tote bag not included. Yet.</p>
         </div>
 
         <div className={styles.stage} aria-hidden="true">
@@ -155,11 +157,13 @@ export function FoldScene({ release, waitlist }: { release: Release | null; wait
 
         <p className={`${styles.caption} ${styles.cap1}`}>
           <span className={styles.captionTitle}>Book Mode.</span> Close the phone and its outside screen shows the cover
-          of the book you&rsquo;re reading, like a real book left on the table.
+          of the book you&rsquo;re reading. Set it face up next to your iced matcha and your film camera. Wait for someone to ask. Say &ldquo;oh, this?
+          It&rsquo;s Woolf.&rdquo; Act surprised.
         </p>
         <p className={`${styles.caption} ${styles.cap2}`}>
           <span className={styles.captionTitle}>Open it to read.</span> The big screen shows two pages side by side,
-          right where you left off, in the font and colors you picked.
+          right where you left off, in the font and colors you picked. Wired headphones in. Laufey first, then Mitski,
+          then Phoebe Bridgers when it gets sad. Welcome, brother. You&rsquo;re reading now.
         </p>
 
         <div className={styles.cue} aria-hidden="true">

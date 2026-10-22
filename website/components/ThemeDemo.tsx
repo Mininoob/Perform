@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { openingPages } from "@/lib/books";
+import { frontBook } from "@/lib/books";
 import styles from "./ThemeDemo.module.css";
 
 const bases = [
@@ -102,7 +102,7 @@ export function ThemeDemo() {
             ))}
           </div>
         </fieldset>
-        <p className={styles.hint}>Use one look for every book, or give a single book its own. Light and dark can switch on their own with the time of day.</p>
+        <p className={styles.hint}>Use one look for every book, or give a single book its own vibe. Light and dark switch on their own with the time of day. Golden hour, but for reading. Very Lana Del Rey of it.</p>
       </div>
 
       <div className={styles.phone} aria-label={`A page in ${base.name} with the ${accent.name} accent`} role="img">
@@ -119,16 +119,13 @@ export function ThemeDemo() {
           }
         >
           <div className={styles.head}>
-            <span>Pride and Prejudice</span>
+            <span>{frontBook.title}</span>
             <span>9:41</span>
           </div>
-          <p className={styles.chapter}>{openingPages.chapter}</p>
+          <p className={styles.chapter}>{frontBook.opening}</p>
           <div className={styles.text}>
-            {openingPages.left.map((p, i) => (
-              <p key={i}>{p}</p>
-            ))}
-            {openingPages.right.slice(0, 3).map((p, i) => (
-              <p key={`r${i}`}>{p}</p>
+            {[...frontBook.left, ...frontBook.right].map((b, i) => (
+              <p key={i}>{b.text}</p>
             ))}
           </div>
           <div className={styles.foot}>

@@ -4,7 +4,7 @@ import { Mark } from "./Mark";
 import { ComputerIcon, FolderIcon, PhoneIcon, SearchIcon } from "./Icons";
 import styles from "./DesktopWindow.module.css";
 
-const folders = ["Classics", "Essays", "For the Kids", "Poetry", "Science Fiction", "Sea Stories"];
+const folders = ["Classics", "Currently Healing", "Feminist Classics", "Poetry", "The Brontës"];
 
 /** Perform Library's window: sidebar, cover grid and the details panel, on the Ink base. */
 export function DesktopWindow() {
@@ -88,7 +88,7 @@ export function DesktopWindow() {
           <p className={styles.detailAuthor}>{selected.author}</p>
           <p className={styles.muted}>First published {selected.year}</p>
           <p className={styles.genres}>Classics · Fiction</p>
-          <p className={styles.description}>A Study of Provincial Life, told through the town of Middlemarch and the people who live in it.</p>
+          <p className={styles.description}>A Study of Provincial Life. Published under a man&rsquo;s name by Mary Ann Evans, which we should all sit with.</p>
           <dl className={styles.facts}>
             <dt>Folder</dt>
             <dd>Classics</dd>

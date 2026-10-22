@@ -4,7 +4,7 @@ export const site = {
   repo: "https://github.com/Mininoob/Perform",
   releases: "https://github.com/Mininoob/Perform/releases",
   description:
-    "A free ebook reader for foldable Android phones. Close the phone and the outside screen shows your book's cover. Open it and you're back on your page. Your own computer keeps your library and shares it privately.",
+    "A free ebook reader for foldable Android phones, for when you want the cover to be seen. Close the phone and the outside screen shows your book's cover. Open it and you're back on your page. Your own computer keeps your library and shares it privately.",
 };
 
 /** Sign-ups only show when there's somewhere to send them. */

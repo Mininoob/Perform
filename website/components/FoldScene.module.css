@@ -122,6 +122,11 @@
  */
 .right {
   --hinge-radius: calc(var(--radius) * (1 - var(--open)));
+  /*
+   * Closed, the inner screen is fully transparent. Phone browsers don't always hide what sits
+   * behind the cover in 3D, and its square corners would show at the left edge.
+   */
+  opacity: clamp(0, calc(var(--open) * 30), 1);
   border-top-left-radius: var(--hinge-radius);
   border-bottom-left-radius: var(--hinge-radius);
   padding-left: 0;
@@ -149,7 +154,12 @@
   -webkit-backface-visibility: hidden;
 }
 
+/*
+ * Each face shows only while it faces the viewer: the inner page once the leaf passes upright,
+ * the cover screen before. backface-visibility alone isn't reliable on phone browsers.
+ */
 .front {
+  opacity: clamp(0, calc((var(--open) - 0.48) * 100), 1);
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
   padding-right: 0;
@@ -162,6 +172,7 @@
 
 /* Folded shut, this face is the outside of the phone: the cover screen. */
 .back {
+  opacity: clamp(0, calc((0.52 - var(--open)) * 100), 1);
   transform: rotateY(180deg);
 }
 

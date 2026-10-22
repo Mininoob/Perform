@@ -1,28 +1,5 @@
-import { frontBook, type PlayBlock } from "@/lib/books";
+import { frontBook } from "@/lib/books";
 import styles from "./Screens.module.css";
-
-function Block({ block, first }: { block: PlayBlock; first: boolean }) {
-  switch (block.kind) {
-    case "verse":
-      return (
-        <div className={`${styles.verse} ${first ? styles.first : ""}`}>
-          {block.lines.map((line) => (
-            <span key={line}>{line}</span>
-          ))}
-        </div>
-      );
-    case "heading":
-      return <p className={styles.sceneHead}>{block.text}</p>;
-    case "direction":
-      return <p className={styles.direction}>{block.text}</p>;
-    case "speech":
-      return (
-        <p className={styles.speech}>
-          <span className={styles.speaker}>{block.speaker}.</span> {block.text}
-        </p>
-      );
-  }
-}
 
 /** One page of the reading spread on the open Fold's inner screen. */
 export function ReadingPage({ side }: { side: "left" | "right" }) {
@@ -37,7 +14,9 @@ export function ReadingPage({ side }: { side: "left" | "right" }) {
       <div className={styles.text}>
         {side === "left" ? <p className={styles.chapter}>{frontBook.opening}</p> : null}
         {blocks.map((b, i) => (
-          <Block key={i} block={b} first={i === 0 && side === "left"} />
+          <p key={i} className={i === 0 && side === "left" ? styles.first : undefined}>
+            {b.text}
+          </p>
         ))}
       </div>
       <div className={styles.folio}>

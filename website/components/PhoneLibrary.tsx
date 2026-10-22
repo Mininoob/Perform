@@ -3,11 +3,11 @@ import { TypeCover } from "./TypeCover";
 import { GearIcon, PlusIcon, SearchIcon } from "./Icons";
 import styles from "./PhoneLibrary.module.css";
 
-const shelves = ["Classics", "Sea Stories", "Essays"];
+const shelves = ["Feminist Classics", "Currently Healing", "Poetry"];
 
 /** The phone's library screen as the app draws it: the book in hand, then shelves from folders. */
 export function PhoneLibrary() {
-  const inHand = book("Romeo and Juliet");
+  const inHand = book("A Room of One's Own");
   return (
     <div className={styles.phone} role="img" aria-label="Perform's library on a phone: the book in hand, then shelves made from folders">
       <div className={styles.screen}>
@@ -31,7 +31,7 @@ export function PhoneLibrary() {
             <span className={styles.rule}>
               <i style={{ width: `${(inHand.progress ?? 0) * 100}%` }} />
             </span>
-            <p className={styles.handState}>38% · Act 3, Scene 1</p>
+            <p className={styles.handState}>38% · Chapter Three</p>
             <span className={styles.continue}>Continue</span>
           </div>
         </div>

@@ -33,7 +33,7 @@ export function Waitlist() {
   if (state.kind === "done") {
     return (
       <p className={styles.done} role="status">
-        You&rsquo;re on the list. You&rsquo;ll get one email when Perform is on Google Play, and nothing else.
+        You&rsquo;re on the list. You&rsquo;ll get one email when Perform is on Google Play, and nothing else. I respect your inbox.
       </p>
     );
   }
@@ -41,7 +41,7 @@ export function Waitlist() {
   return (
     <form className={styles.form} onSubmit={submit} noValidate={false}>
       <label htmlFor="waitlist-email" className={styles.label}>
-        Get an email when Perform is on Google Play
+        Get one email when Perform is on Google Play. I&rsquo;m not like other apps.
       </label>
       <div className={styles.row}>
         <input
